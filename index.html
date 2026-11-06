@@ -52,21 +52,29 @@
 
   <div id="slots" class="slots" hidden>
     <div class="slot-machine">
-      <div class="slot-lights top"></div>
-      <div class="slot-title">🎰 MYSTERY JACKPOT 🎰</div>
+      <div class="slot-ring" aria-hidden="true"></div>
+      <div class="slot-side left" aria-hidden="true"><span class="tok" style="--d:0">💣</span><span class="tok" style="--d:1">⚡</span><span class="tok" style="--d:2"><b class="gx">X</b></span><span class="tok" style="--d:3">🎲</span><span class="tok" style="--d:4"><b class="go">O</b></span></div>
+      <div class="slot-side right" aria-hidden="true"><span class="tok" style="--d:0"><b class="go">O</b></span><span class="tok" style="--d:1">🎭</span><span class="tok" style="--d:2"><b class="gx">X</b></span><span class="tok" style="--d:3">🎆</span><span class="tok" style="--d:4">🛡️</span></div>
+      <div class="slot-title" aria-label="Mystery Jackpot!"><i style="--i:0">M</i><i style="--i:1">Y</i><i style="--i:2">S</i><i style="--i:3">T</i><i style="--i:4">E</i><i style="--i:5">R</i><i style="--i:6">Y</i><i class="sp"></i><i style="--i:8">J</i><i style="--i:9">A</i><i style="--i:10">C</i><i style="--i:11">K</i><i style="--i:12">P</i><i style="--i:13">O</i><i style="--i:14">T</i><i style="--i:15">!</i></div>
       <div class="slot-who"></div>
       <div class="slot-body">
         <div class="reels"><svg class="winlines" preserveAspectRatio="none"></svg></div>
+        <div class="slot-pop" data-pop="symbols" hidden>
+          <div class="pop-head"><span>🎲 How it plays</span><button type="button" class="pop-x" aria-label="Close">×</button></div>
+          <p class="pop-text">Line up <b>3, 4 or 5</b> of the same prize symbol on any payline, starting from the <b>leftmost reel</b>, to win that prize. X, O and 💎 are blanks.</p>
+          <div class="paytable"></div>
+        </div>
+        <div class="slot-pop" data-pop="lines" hidden>
+          <div class="pop-head"><span>〰️ 9 Paylines</span><button type="button" class="pop-x" aria-label="Close">×</button></div>
+          <p class="pop-text">A win counts on any of these lines, reading from the left.</p>
+          <div class="lines"></div>
+        </div>
       </div>
       <div class="slot-controls">
-        <div class="slot-result"></div>
-        <button id="slotSpin" type="button" class="spin-btn">SPIN</button>
+        <button type="button" class="slot-tab" data-open="symbols">🎲 Symbols</button>
+        <div class="slot-mid"><div class="slot-result"></div><button id="slotSpin" type="button" class="spin-btn">SPIN</button></div>
+        <button type="button" class="slot-tab" data-open="lines">〰️ Paylines</button>
       </div>
-      <div class="slot-info">
-        <div class="paytable"></div>
-        <div class="lines-wrap"><div class="lines-title">9 paylines · 3, 4 or 5 in a row from the left wins</div><div class="lines"></div></div>
-      </div>
-      <div class="slot-lights bottom"></div>
     </div>
   </div>
 

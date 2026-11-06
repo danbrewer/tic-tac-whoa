@@ -9,9 +9,9 @@ const SLOT_SYMS = {
   shield:  { e: '🛡️', label: '+1 MARK', prize: true },
   rule:    { e: '🎲', label: 'RULE PICK', prize: true },
   jackpot: { e: '🎆', label: 'INSTANT WIN', prize: true },
-  cherry:  { e: '🍒', label: '' },
-  lemon:   { e: '🍋', label: '' },
-  bell:    { e: '🔔', label: '' },
+  xo:      { e: '<b class="gx">X</b>', label: '' },
+  oo:      { e: '<b class="go">O</b>', label: '' },
+  gem:     { e: '💎', label: '' },
 };
 const PRIZES = {
   extra:   { name: 'EXTRA TURN', desc: 'Go again right now!' },
@@ -103,7 +103,26 @@ const Slots = {
       if (prize === 'bust' ? wins.length === 0 : wins.length >= 1 && wins.every((w) => w.sym === prize)) return { grid, wins };
     }
     // fallback (practically unreachable)
-    return { grid: Array.from({ length: REELS }, (_, i) => ['cherry', 'lemon', 'bell'].map((k, j) => ['cherry', 'lemon', 'bell'][(i + j) % 3])), wins: [] };
+    return { grid: Array.from({ length: REELS }, (_, i) => ['xo', 'oo', 'gem'].map((k, j) => ['xo', 'oo', 'gem'][(i + j) % 3])), wins: [] };
+  },
+
+  // the Symbols / Paylines buttons open info panels over the reels
+  initPops(el) {
+    const pops = [...el.querySelectorAll('.slot-pop')];
+    const close = () => { pops.forEach((p) => { p.hidden = true; }); el.querySelectorAll('.slot-tab').forEach((t) => t.classList.remove('on')); };
+    close();
+    if (el.dataset.popsBound) return;
+    el.dataset.popsBound = '1';
+    el.querySelectorAll('.slot-tab').forEach((t) => t.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pop = el.querySelector(`.slot-pop[data-pop="${t.dataset.open}"]`);
+      const opening = pop.hidden;
+      close();
+      if (opening) { pop.hidden = false; t.classList.add('on'); Sound.cardFlip(0); }
+    }));
+    el.querySelectorAll('.pop-x').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); close(); }));
+    el.querySelectorAll('.slot-pop').forEach((p) => p.addEventListener('click', (e) => { if (e.target === p) close(); }));
+    this.closePops = close;
   },
 
   buildChrome(level) {
@@ -139,7 +158,8 @@ const Slots = {
       el.querySelector('.slot-who').innerHTML = `<b class="${player}">${player}</b> found the mystery jackpot! Line up 3+ prize symbols from the left on any payline.`;
       const res = el.querySelector('.slot-result');
       res.className = 'slot-result';
-      res.innerHTML = auto ? 'The computer spins...' : 'Press SPIN!';
+      res.innerHTML = auto ? 'The computer spins...' : '';
+      this.initPops(el);
       const spinBtn = document.getElementById('slotSpin');
       spinBtn.disabled = auto;
       el.classList.remove('win', 'bust', 'streak');
@@ -160,6 +180,7 @@ const Slots = {
         window.removeEventListener('keydown', onKey);
         spinBtn.disabled = true;
         res.innerHTML = '';
+        if (this.closePops) this.closePops();
         Sound.lever();
         Sound.startMusic();
         const cell = strips[0].parentElement.clientHeight / ROWS;
