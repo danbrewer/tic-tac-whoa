@@ -24,6 +24,7 @@
     </div>
   </header>
 
+  <div id="rulepin" class="rulepin" aria-live="polite"></div>
   <nav id="path" class="path" aria-label="Where you are"></nav>
   <div id="stakes" class="stakes" aria-live="polite"></div>
   <canvas id="minimap" class="minimap" aria-label="Mini-map of the live boards and earlier levels"></canvas>
@@ -77,6 +78,7 @@
     <label class="dv-check"><input type="checkbox" id="dvEvery"> Jackpot under every square</label>
     <label class="dv-check"><input type="checkbox" id="dvReveal"> Show the jackpot square</label>
     <label class="dv-row">Wheel result<select id="dvWheel"></select></label>
+    <button id="dvWheelSpin" type="button" class="dv-spin">🎡 Spin the wheel now</button>
     <div class="dv-hint">Shift+D or ?dev in the address turns it on. Tap the title to fold it.</div>
   </div>
 

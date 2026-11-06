@@ -166,6 +166,7 @@ const Sound = {
       const when = Math.max(0, t - ctx.currentTime);
       const s = n % 16, bar = Math.floor(n / 16);
       const hot = m.intense;
+      if (m.mute) return;
       // kick: four on the floor, doubled when the wind-up is on
       if (s % 4 === 0 || (hot && s % 2 === 0)) this.tone(120, 0.16, { type: 'sine', vol: 0.42, when, slideTo: 42 });
       // clap on 2 and 4
@@ -216,6 +217,64 @@ const Sound = {
     osc.connect(lp).connect(gain).connect(ctx.destination);
     osc.start(t0); lfo.start(t0); osc.stop(t0 + dur + 0.2); lfo.stop(t0 + dur + 0.2);
     this.noise(dur, { vol: 0.12, from: 300, to: 8000, q: 2 });
+  },
+  // INSTANT WIN streak grows: a rising stab chord + boom, bigger each reel
+  lockIn(n) {
+    const base = 523 * Math.pow(2, ((n - 2) * 3) / 12);
+    [0, 4, 7, 12].forEach((st, i) => this.tone(base * Math.pow(2, st / 12), 0.28 + n * 0.04, { type: 'square', vol: 0.045 + n * 0.008, when: i * 0.035 }));
+    this.tone(70, 0.5, { type: 'sine', vol: 0.3 + n * 0.05, slideTo: 32 });
+    this.noise(0.35 + n * 0.08, { vol: 0.12 + n * 0.04, from: 9000, to: 1500, q: 0.6 });
+    if (n >= 3) for (let k = 0; k < n * 3; k++) this.tone(1800 + Math.random() * 2400, 0.07, { type: 'sine', vol: 0.035, when: 0.08 + k * 0.045 });
+  },
+  streakBreak() {
+    this.tone(330, 0.5, { type: 'triangle', vol: 0.09, slideTo: 140 });
+  },
+  musicMute(on) { if (this.music) this.music.mute = on; },
+  // Snare roll that speeds up and swells, for the deciding reel.
+  drumroll(dur) {
+    if (!this.on || !this.ctx) return;
+    let t = 0, k = 0;
+    while (t < dur) {
+      const q = t / dur;
+      this.noise(0.07, { vol: 0.06 + 0.22 * q, from: 2200, to: 1400, q: 0.9, when: t });
+      t += 0.11 - 0.075 * q; k++;
+    }
+    this.tone(55, dur, { type: 'sine', vol: 0.18, slideTo: 82 });
+    this.tone(220, dur, { type: 'sawtooth', vol: 0.025, slideTo: 440 });
+  },
+  // Wheel of Games: a creaky pull-back, the launch whoosh, and a clack per peg that gets
+  // louder and lower as the wheel slows (q = 0 fast .. 1 nearly stopped)
+  wheelPull(dur) {
+    this.tone(260, dur, { type: 'triangle', vol: 0.08, slideTo: 140 });
+    this.noise(dur, { vol: 0.07, from: 600, to: 250, q: 3 });
+  },
+  wheelLaunch() {
+    this.noise(0.45, { vol: 0.25, from: 300, to: 5000, q: 0.9 });
+    this.tone(90, 0.35, { type: 'sine', vol: 0.3, slideTo: 220 });
+  },
+  wheelClack(q) {
+    this.tone(2200 - q * 1100, 0.03 + q * 0.03, { type: 'square', vol: 0.025 + q * 0.05 });
+    if (q > 0.5) this.tone(180 - q * 60, 0.06, { type: 'sine', vol: 0.12 * q });
+  },
+  boomSmall() {
+    this.tone(90, 0.35, { type: 'sine', vol: 0.3, slideTo: 35 });
+    this.noise(0.3, { vol: 0.18, from: 2500, to: 200, q: 0.5 });
+  },
+  // Triumphant brass fanfare with drums for an INSTANT WIN.
+  fanfare() {
+    if (!this.on || !this.ctx) return;
+    const brass = (f, when, dur, vol = 0.05) => {
+      this.tone(f, dur, { type: 'sawtooth', vol, when });
+      this.tone(f * 1.005, dur, { type: 'sawtooth', vol: vol * 0.8, when });
+      this.tone(f / 2, dur, { type: 'square', vol: vol * 0.5, when });
+    };
+    const N = [[392, 0, 0.14], [392, 0.17, 0.14], [392, 0.34, 0.14], [523, 0.51, 0.45], [466, 1.0, 0.22], [523, 1.25, 0.16], [587, 1.43, 0.16], [659, 1.61, 0.2]];
+    N.forEach(([f, w, d]) => brass(f, w + 0.3, d));
+    [523, 659, 784, 1047].forEach((f) => brass(f, 2.15, 1.4, 0.035));
+    [0.3, 0.81, 1.3, 1.91, 2.15].forEach((w) => this.tone(110, 0.25, { type: 'sine', vol: 0.45, when: w, slideTo: 40 }));
+    [0.64, 1.47].forEach((w) => this.noise(0.15, { vol: 0.25, from: 1800, to: 1200, q: 0.8, when: w }));
+    this.noise(1.8, { vol: 0.2, from: 9000, to: 4000, q: 0.4, when: 2.15 });
+    for (let k = 0; k < 10; k++) this.tone(1500 + Math.random() * 2500, 0.1, { type: 'sine', vol: 0.03, when: 2.2 + k * 0.08 });
   },
   fireworks() {
     for (let i = 0; i < 7; i++) {

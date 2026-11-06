@@ -602,17 +602,69 @@ const Game = {
     return r;
   },
 
-  showRuleCard(b, how) {
-    const R = RULES[b.rule || 'vanish'];
-    const el = $('rulecard');
-    const fresh = b.rule !== 'vanish';
+  // Title card for a rule. With `next` it announces the rule picked for the NEXT Level 0 game.
+  showRuleCard(b, how, next) {
+    const rule = next || b.rule || 'vanish', R = RULES[rule];
+    const el = $('rulecard'), pin = $('rulepin');
+    const slot = next ? 'next' : 'main';
+    clearTimeout(this.ruleCardTimer); clearTimeout(this.ruleFlyTimer);
+    if (this.ruleFly) { this.ruleFly.cancel(); this.ruleFly = null; }
     el.className = 'rulecard';
-    el.innerHTML = `<div class="rc-inner rule-${b.rule}">${how ? `<div class="rc-tag">${how}</div>` : ''}<div class="rc-icon">${R.icon}</div><div class="rc-kicker">Level 0 rule</div><div class="rc-name">${R.name}</div><div class="rc-line">${R.short}</div></div>`;
+    el.innerHTML = `<div class="rc-inner rule-${rule}">${how ? `<div class="rc-tag">${how}</div>` : ''}<div class="rc-icon">${R.icon}</div><div class="rc-kicker">${next ? 'Next Level 0 game' : 'Level 0 rule'}</div><div class="rc-name">${R.name}</div><div class="rc-line">${R.short}</div></div>`;
+    // the pinned plate at the top is filled in now but its slot stays hidden until the card lands on it
+    this.pinState = { waiting: slot, arrive: null };
+    this.updateRulePin(this.current ? this.current() : b);
     void el.offsetWidth;
     el.classList.add('play');
-    Sound.ruleCard(fresh);
-    clearTimeout(this.ruleCardTimer);
-    this.ruleCardTimer = setTimeout(() => el.classList.remove('play'), 2900);
+    Sound.ruleCard(rule !== 'vanish');
+    const settle = () => {
+      this.ruleFly = null;
+      el.classList.remove('play');
+      this.pinState = { waiting: null, arrive: slot };
+      $('rulepin').innerHTML = '';
+      this.updateRulePin(this.current ? this.current() : b);
+    };
+    // after a moment the card shrinks and flies up into the plate at the top of the screen
+    this.ruleFlyTimer = setTimeout(() => {
+      const inner = el.querySelector('.rc-inner');
+      const target = pin.querySelector(`[data-slot="${slot}"]`);
+      if (!inner || !target || !inner.animate) { settle(); return; }
+      const a = inner.getBoundingClientRect(), t = target.getBoundingClientRect();
+      const dx = t.left + t.width / 2 - (a.left + a.width / 2), dy = t.top + t.height / 2 - (a.top + a.height / 2);
+      const sc = Math.min(t.width / a.width, t.height / a.height) * 1.1;
+      inner.style.animation = 'none';
+      Sound.cardFlip(0);
+      this.ruleFly = inner.animate([
+        { transform: 'none', opacity: 1, offset: 0 },
+        { transform: 'translateY(16px) scale(1.04)', opacity: 1, offset: 0.18 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${sc})`, opacity: 0.85, offset: 1 },
+      ], { duration: 720, easing: 'cubic-bezier(.55,0,.6,1)', fill: 'forwards' });
+      this.ruleFly.onfinish = () => { settle(); Sound.cardPick(); };
+    }, 2200);
+    // failsafe: never leave the card stuck on screen
+    this.ruleCardTimer = setTimeout(() => { if (this.pinState && this.pinState.waiting) settle(); else el.classList.remove('play'); }, 4200);
+  },
+
+  // The rule plate pinned at the top of the screen for the whole Level 0 game,
+  // plus a "next game" plate when a RULE PICK has chosen the next rule.
+  updateRulePin(cur) {
+    const pin = $('rulepin');
+    const st = this.pinState || {};
+    const cls = (slot) => (st.waiting === slot ? ' waiting' : '') + (st.arrive === slot ? ' arrive' : '');
+    let h = '';
+    const main = cur && cur.level === 0 && cur.ruled && !cur.winner;
+    if (main) {
+      const R = RULES[cur.rule] || RULES.vanish;
+      h += `<div class="rpn rule-${cur.rule}${cls('main')}" data-slot="main"><span class="rpn-icon">${R.icon}</span><span class="rpn-text"><span class="rpn-name">${R.name}</span><span class="rpn-line">${R.short}</span></span></div>`;
+    }
+    if (this.nextRule) {
+      const N = RULES[this.nextRule], by = this.nextRuleBy;
+      h += main
+        ? `<div class="rpn rpn-mini rule-${this.nextRule}${cls('next')}" data-slot="next" title="${N.short}"><span class="rpn-kick">Next</span><span class="rpn-icon">${N.icon}</span><span class="rpn-name">${N.name}</span></div>`
+        : `<div class="rpn rule-${this.nextRule}${cls('next')}" data-slot="next"><span class="rpn-icon">${N.icon}</span><span class="rpn-text"><span class="rpn-kick">Next Level 0 game${by ? ` · picked by <b class="${by}">${by}</b>` : ''}</span><span class="rpn-name">${N.name}</span><span class="rpn-line">${N.short}</span></span></div>`;
+    }
+    if (pin.innerHTML !== h) pin.innerHTML = h;
+    document.body.classList.toggle('pin-next', !!(main && this.nextRule));
   },
 
   async postMove(b) {
@@ -717,6 +769,33 @@ const Game = {
     }
   },
 
+  // Developer Mode: spin the Wheel of Games on demand. On a live Level 0 game it restarts that game
+  // with whatever the wheel lands on (the "Wheel result" setting forces it); elsewhere it's a preview.
+  async devWheel() {
+    const b = this.current();
+    if (this.busy || this.view || this.selecting) { this.toast('Wait for the current animation to finish, then spin.'); return; }
+    const gen = this.gen;
+    this.busy = true;
+    try {
+      if (b.level === 0 && !b.winner) {
+        const stash = [this.nextRule, this.nextRuleBy];
+        this.nextRule = null; this.nextRuleBy = null;
+        b.cells.forEach((c) => { c.owner = null; c.t = -1e9; c.slide = null; });
+        b.moves = 0; b.hist = { X: [], O: [] }; b.ghosts = []; b.ruled = false;
+        this.lastWinner = b.turn;
+        try { await this.startRule(b); } finally { if (gen === this.gen) [this.nextRule, this.nextRuleBy] = stash; }
+        this.save();
+      } else {
+        const rule = await this.step(Wheel.spin(b.turn, false, '(Developer Mode preview)'));
+        this.toast(`🛠 The wheel landed on ${RULES[rule].icon} <b>${RULES[rule].name}</b> (preview only: no Level 0 game is running).`);
+      }
+    } catch (e) {
+      if (gen === this.gen) console.error(e);
+    } finally {
+      if (gen === this.gen) { this.busy = false; this.settled(); this.updateHUD(); }
+    }
+  },
+
   setDev(on) {
     this.dev.on = on;
     this.savePrefs();
@@ -740,6 +819,7 @@ const Game = {
     bind('dvForce', 'force'); bind('dvWheel', 'wheel');
     bind('dvTease', 'tease', 'checked'); bind('dvEvery', 'everywhere', 'checked'); bind('dvReveal', 'reveal', 'checked');
     $('dvSpin').addEventListener('click', () => { Sound.ensure(); this.devSpin(); });
+    $('dvWheelSpin').addEventListener('click', () => { Sound.ensure(); this.devWheel(); });
     $('dvClose').addEventListener('click', () => this.setDev(false));
     $('devpanel').querySelector('.dv-head span').addEventListener('click', () => $('devpanel').classList.toggle('collapsed'));
     if (window.innerWidth <= 640) $('devpanel').classList.add('collapsed');
@@ -804,9 +884,11 @@ const Game = {
       const rule = await this.step(RulePick.open(p, this.vsCPU && p === 'O', b.level === 0 ? b.rule : null, () => AI.chooseRule(b.level === 0 ? b.rule : null)));
       this.nextRule = rule; this.nextRuleBy = p;
       const R = RULES[rule];
-      this.toast(`<b class="${p}">${p}</b> picked ${R.icon} <b>${R.name}</b> for the next Level 0 game.`);
       this.save();
       this.updateHUD();
+      // the same title card as the wheel, then it flies up to sit beside the current rule as "next game"
+      this.showRuleCard(b, `Picked by <b class="${p}">${p}</b>`, rule);
+      await this.step(wait(3000));
       return {};
     }
     let cands, verb;
@@ -1084,6 +1166,7 @@ const Game = {
     else txt = `<b class="${p}">${p}</b> ${who ? `(${who}) ` : ''}picks a square to fight for`;
     this.updateStakes(cur);
     this.updateRuleBadge(cur);
+    this.updateRulePin(cur);
     if (this.selecting) txt = `🎰 ${this.selecting.verb} <span class="hint-dim">(${this.vsCPU && this.selecting.p === 'O' ? 'computer choosing' : 'click a glowing ring'})</span>`;
     const turnEl = $('turn');
     if (turnEl.innerHTML !== txt) {
@@ -1101,7 +1184,7 @@ const Game = {
     let h = '';
     if (!this.view && cur.level === 0 && !cur.winner && cur.ruled) {
       const R = RULES[cur.rule] || RULES.vanish;
-      h = `<span class="rb-icon">${R.icon}</span><span class="rb-name">${R.name}</span>`;
+      h = '';
       if (cur.rule === 'vanish') {
         h += ['X', 'O'].map((p) => {
           const keep = cur.keep[p], n = Math.min(cur.hist[p].length, keep);
@@ -1112,13 +1195,8 @@ const Game = {
       } else if (cur.rule === 'shift') {
         const left = SHIFT_EVERY - (cur.moves % SHIFT_EVERY);
         h += `<span class="rb-sub${left === 1 ? ' hot' : ''}">${left === 1 ? 'shifts after this move!' : `shifts in ${left} moves`}</span>`;
-      } else {
-        h += `<span class="rb-sub">${{ gravity: 'marks fall ↙', wild: '🌈 counts for both', misere: '3 in a row loses', classic: 'plain rules' }[cur.rule]}</span>`;
       }
-    }
-    if (this.nextRule && !this.view) {
-      const N = RULES[this.nextRule];
-      h += `<span class="rb-next">Next game: ${N.icon} ${N.name}</span>`;
+      if (h) h = `<span class="rb-icon">${R.icon}</span>` + h;
     }
     const el = $('rulebadge');
     if (el.innerHTML !== h) el.innerHTML = h;
