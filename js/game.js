@@ -19,7 +19,7 @@ const RULES = {
   vanish:  { icon: '👻', name: 'Vanishing Marks', short: 'Keep only your 3 newest marks. Your 4th makes your oldest vanish.' },
   gravity: { icon: '⬇️', name: 'Gravity', short: 'Marks fall to the front of their column, like a stacking game.' },
   shift:   { icon: '🔀', name: 'Shifting Board', short: `Every ${SHIFT_EVERY} moves a row or column slides one space and wraps around.` },
-  wild:    { icon: '🌈', name: 'Wild Square', short: 'The rainbow square counts for both players and moves after every turn.' },
+  wild:    { icon: '⭐', name: 'Wild Star', short: 'The spinning star counts for both players and jumps to a new square after every turn.' },
   misere:  { icon: '🙃', name: 'Misère', short: 'Upside down: whoever makes three in a row LOSES.' },
 };
 const RULE_KEYS = Object.keys(RULES);

@@ -51,10 +51,10 @@
   </div>
 
   <div id="slots" class="slots" hidden>
+    <div class="slot-stage">
     <div class="slot-machine">
       <div class="slot-ring" aria-hidden="true"></div>
-      <div class="slot-side left" aria-hidden="true"><span class="tok" style="--d:0">💣</span><span class="tok" style="--d:1">⚡</span><span class="tok" style="--d:2"><b class="gx">X</b></span><span class="tok" style="--d:3">🎲</span><span class="tok" style="--d:4"><b class="go">O</b></span></div>
-      <div class="slot-side right" aria-hidden="true"><span class="tok" style="--d:0"><b class="go">O</b></span><span class="tok" style="--d:1">🎭</span><span class="tok" style="--d:2"><b class="gx">X</b></span><span class="tok" style="--d:3">🎆</span><span class="tok" style="--d:4">🛡️</span></div>
+      <div class="slot-crew" aria-hidden="true"></div>
       <div class="slot-title" aria-label="Mystery Jackpot!"><i style="--i:0">M</i><i style="--i:1">Y</i><i style="--i:2">S</i><i style="--i:3">T</i><i style="--i:4">E</i><i style="--i:5">R</i><i style="--i:6">Y</i><i class="sp"></i><i style="--i:8">J</i><i style="--i:9">A</i><i style="--i:10">C</i><i style="--i:11">K</i><i style="--i:12">P</i><i style="--i:13">O</i><i style="--i:14">T</i><i style="--i:15">!</i></div>
       <div class="slot-who"></div>
       <div class="slot-body">
@@ -72,9 +72,10 @@
       </div>
       <div class="slot-controls">
         <button type="button" class="slot-tab" data-open="symbols">🎲 Symbols</button>
-        <div class="slot-mid"><div class="slot-result"></div><button id="slotSpin" type="button" class="spin-btn">SPIN</button></div>
+        <div class="slot-mid"><div class="slot-result"></div><button id="slotSpin" type="button" class="spin-btn">SPIN THE REELS!</button></div>
         <button type="button" class="slot-tab" data-open="lines">〰️ Paylines</button>
       </div>
+    </div>
     </div>
   </div>
 
@@ -130,7 +131,7 @@
             <li>👻 <b>Vanishing Marks:</b> you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; the dots on the badge count your marks). No winner within 18 moves is a stalemate.</li>
             <li>⬇️ <b>Gravity:</b> marks fall to the front-left end of their column.</li>
             <li>🔀 <b>Shifting Board:</b> every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around.</li>
-            <li>🌈 <b>Wild Square:</b> the rainbow star counts for both players and jumps to a new square after every turn.</li>
+            <li>⭐ <b>Wild Star:</b> the spinning star counts for both players and jumps to a new square after every turn.</li>
             <li>🙃 <b>Misère:</b> whoever makes three in a row <b>loses</b>.</li>
           </ul>
           Outside Vanishing Marks, a full board with no line is a stalemate. A 🎲 <b>rule pick</b> from the slot machine lets its winner choose the next game type instead of spinning.</li>
@@ -145,6 +146,7 @@
   <script src="js/sound.js"></script>
   <script src="js/render.js"></script>
   <script src="js/minimap.js"></script>
+  <script src="js/crew.js"></script>
   <script src="js/slots.js"></script>
   <script src="js/wheel.js"></script>
   <script src="js/game.js"></script>

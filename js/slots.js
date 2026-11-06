@@ -152,6 +152,7 @@ const Slots = {
     return new Promise((resolve) => {
       const el = document.getElementById('slots');
       this.buildChrome(level);
+      Crew.build(el.querySelector('.slot-crew'));
       const prize = this.roll(level);
       const { grid, wins } = this.makeGrid(prize, level);
       const pool = this.pool(level);
@@ -170,6 +171,7 @@ const Slots = {
       strips.forEach((s) => { s.style.transition = 'none'; s.style.transform = 'translateY(0)'; s.innerHTML = [rnd(), rnd(), rnd()].map((k) => this.cellHtml(k)).join(''); });
       el.hidden = false;
       requestAnimationFrame(() => el.classList.add('show'));
+      Crew.start(el);
       Sound.slotOpen();
 
       let pulled = false;

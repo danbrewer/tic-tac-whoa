@@ -913,3 +913,46 @@ body.reviewing .rulepin { opacity: 0.55; }
   .slot-pop .pay .cell .lbl { font-size: 8px; }
   .slot-pop .pay-txt { font-size: 10px; }
 }
+
+/* ---------- the prize crew: a parade travelling around the reels, inside the glass ring ---------- */
+.slot-stage { position: relative; width: min(1000px, 100%); display: flex; }
+.slot-stage .slot-machine { width: 100%; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); }
+.slot-crew { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; perspective: 900px; overflow: hidden; border-radius: inherit; }
+.slot-machine { --gut: 88px; }
+#slots .slot-body { padding: var(--gut); margin: calc(var(--gut) * -0.55) 0; }
+.crew { --sz: 170px; position: absolute; left: 0; top: 0; width: var(--sz); height: var(--sz); margin: calc(var(--sz) / -2) 0 0 calc(var(--sz) / -2); will-change: transform; }
+.crew svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 8px 8px rgba(0,0,0,0.4)) drop-shadow(0 0 10px rgba(255, 120, 230, 0.3)); }
+.slots.show .crew svg { animation: crewpop 0.6s cubic-bezier(.3,1.7,.5,1) backwards; animation-delay: var(--dl); }
+@keyframes crewpop { from { transform: scale(0); opacity: 0; } }
+.crew .cb { width: 100%; height: 100%; transform-style: preserve-3d; transform-origin: 50% 90%;
+  animation: throb calc(var(--dur, 0.9s) * 1.6) ease-in-out infinite; animation-delay: calc(var(--dl) * -3); }
+/* slow rock side to side (rotate on its own axis) + a heartbeat pulse; no bobbing */
+.crew .rk { width: 100%; height: 100%; transform-style: preserve-3d; transform-origin: 50% 85%; animation: rock calc(var(--dur, 0.9s) * 4.5) ease-in-out infinite; animation-delay: calc(var(--dl) * -7); }
+@keyframes rock { 0%, 100% { transform: rotateY(var(--face, 0deg)) rotateZ(calc(var(--lean, 0deg) - 7deg)); } 50% { transform: rotateY(var(--face, 0deg)) rotateZ(calc(var(--lean, 0deg) + 7deg)); } }
+@keyframes throb { 0%, 100% { transform: scale(1); } 45% { transform: scale(1.09); } 60% { transform: scale(1.03); } }
+.crew::before { content: ''; position: absolute; inset: 8%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 220, 255, 0.55), rgba(255, 90, 220, 0.18) 45%, transparent 70%);
+  animation: glowp calc(var(--dur, 0.9s) * 1.6) ease-in-out infinite; animation-delay: calc(var(--dl) * -3); }
+@keyframes glowp { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 45% { opacity: 1; transform: scale(1.15); } }
+.crew .eyes { transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; animation-delay: var(--bl); }
+@keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.08); } }
+/* pupils follow the way each character is heading, with the odd glance back (set from JS) */
+.crew .pupils { transform: translate(var(--lx, 0px), var(--ly, 0px)); transition: transform 0.25s ease-out; }
+.crew .spark { transform-box: fill-box; transform-origin: center; animation: spark 0.16s steps(2) infinite; }
+@keyframes spark { 50% { transform: scale(0.6) rotate(30deg); opacity: 0.7; } }
+.crew .flame { transform-box: fill-box; transform-origin: 50% 0; animation: flame 0.12s ease-in-out infinite alternate; }
+@keyframes flame { to { transform: scaleY(1.25) scaleX(0.9); } }
+.crew .zap, .crew .twinkle { animation: zap 0.9s steps(2) infinite; }
+@keyframes zap { 50% { opacity: 0.2; } }
+.slots.win .crew .cb { animation: cheer 0.3s ease-in-out infinite alternate; }
+@keyframes cheer { from { transform: scale(1) rotateZ(-6deg); } to { transform: scale(1.18) rotateZ(6deg); } }
+.slots.bust .crew .cb { animation: sag 0.8s ease forwards; }
+@keyframes sag { to { transform: translateY(6%) scale(1.06, 0.88) rotateZ(-8deg); } }
+@media (max-width: 640px) { #slots .reels { position: relative; z-index: 2; } .crew { --sz: 92px; } .slot-machine { --gut: 30px; } .slots { --cell: calc((100vw - 152px) / 5.9); } }
+.slots { overflow: hidden; }
+
+/* deep-space backdrop canvas behind the crew */
+.slot-sky { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; z-index: -1; }
+.slot-machine { background: #150626; }
+#slots .spin-btn { white-space: nowrap; font-size: 22px; padding: 12px 28px; }
+@media (max-width: 640px) { #slots .spin-btn { font-size: 14px; padding: 10px 14px; } }
+.slot-machine > .slot-ring { z-index: 3; }
