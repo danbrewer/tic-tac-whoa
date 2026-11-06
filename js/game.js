@@ -10,6 +10,19 @@ const PREFS_KEY = 'infinite-ttt-prefs-v1';
 const KEEP_MARKS = 3;   // Level 0: each player keeps only their 3 newest marks
 const MOVE_CAP = 18;    // Level 0: no winner after this many marks counts as a draw
 const DEAD = '#';       // neutral square that blocks both players
+const WILD = 'W';       // Wild square rule: counts for both players
+const SHIFT_EVERY = 3;  // Shifting board rule: a row or column slides every 3 moves
+
+// Level 0 rule variants. Before each Level 0 game the last winner spins the wheel (or a RULE PICK prize chooses).
+const RULES = {
+  classic: { icon: '⭕', name: 'Classic Tic-Tac-Toe', short: 'Plain tic-tac-toe. A full board with no line is a stalemate.' },
+  vanish:  { icon: '👻', name: 'Vanishing Marks', short: 'Keep only your 3 newest marks. Your 4th makes your oldest vanish.' },
+  gravity: { icon: '⬇️', name: 'Gravity', short: 'Marks fall to the front of their column, like a stacking game.' },
+  shift:   { icon: '🔀', name: 'Shifting Board', short: `Every ${SHIFT_EVERY} moves a row or column slides one space and wraps around.` },
+  wild:    { icon: '🌈', name: 'Wild Square', short: 'The rainbow square counts for both players and moves after every turn.' },
+  misere:  { icon: '🙃', name: 'Misère', short: 'Upside down: whoever makes three in a row LOSES.' },
+};
+const RULE_KEYS = Object.keys(RULES);
 
 class Board {
   constructor(level, starter) {
@@ -31,16 +44,67 @@ class Board {
     this.moves = 0;
     this.ghosts = [];              // vanishing marks still animating out
     this.jackpot = (Math.random() * 9) | 0;  // hidden mystery-jackpot square (-1 once found)
-    this.keep = { X: KEEP_MARKS, O: KEEP_MARKS };
+    this.keep = level === 0 ? { X: 99, O: 99 } : { X: KEEP_MARKS, O: KEEP_MARKS };
+    this.rule = 'classic';
+    this.ruled = false;            // rule chosen by the wheel / RULE PICK yet?
+    this.shift = null;             // Shifting board: the next slide { axis: 'row'|'col', idx, dir }
   }
 }
 
-function lineResult(owners) {
+// Cells of a row (j fixed, runs down-right on screen) or column (i fixed, runs down-left), in order.
+function lineCells(axis, idx) { return axis === 'row' ? [idx * 3, idx * 3 + 1, idx * 3 + 2] : [idx, idx + 3, idx + 6]; }
+function randomShift() { return { axis: Math.random() < 0.5 ? 'row' : 'col', idx: (Math.random() * 3) | 0, dir: Math.random() < 0.5 ? 1 : -1 }; }
+// Slide one line of owners one space (wrapping). Returns [{from, to}] for animation.
+function applyShift(o, sh) {
+  const cells = lineCells(sh.axis, sh.idx), vals = cells.map((k) => o[k]), moves = [];
+  cells.forEach((k, n) => {
+    const m = (n + sh.dir + 3) % 3;
+    o[cells[m]] = vals[n];
+    if (vals[n]) moves.push({ from: k, to: cells[m], wrap: Math.abs(m - n) === 2 });
+  });
+  return moves;
+}
+// Gravity: marks fall toward the front-left edge along their column (i fixed, j grows).
+function landingCell(b, k) {
+  if (k < 0 || !b || b.level !== 0) return k;
+  if (b.rule !== 'gravity') return b.cells[k] && !b.cells[k].owner && !b.cells[k].child ? k : -1;
+  const i = k % 3;
+  for (let j = 2; j >= 0; j--) if (!b.cells[j * 3 + i].owner) return j * 3 + i;
+  return -1;
+}
+
+// Lines of three (the wild square counts for either player). If several, the mover's line counts.
+// Misère flips the result: the player who made the line loses.
+function judge(owners, rule, mover) {
+  const wins = [];
   for (const line of LINES) {
-    const [a, b, c] = line;
-    if (owners[a] && owners[a] !== DEAD && owners[a] === owners[b] && owners[a] === owners[c]) return { p: owners[a], line };
+    let p = null, ok = true;
+    for (const i of line) {
+      const v = owners[i];
+      if (!v || v === DEAD) { ok = false; break; }
+      if (v === WILD) continue;
+      if (p && v !== p) { ok = false; break; }
+      p = v;
+    }
+    if (ok && p) wins.push({ p, line });
+  }
+  if (wins.length) {
+    const w = wins.find((x) => x.p === mover) || wins[0];
+    return rule === 'misere' ? { p: other(w.p), line: w.line, loser: w.p } : w;
   }
   return owners.every((o) => o) ? 'draw' : null;
+}
+function lineResult(owners) { return judge(owners, 'normal', null); }
+// Squares that would complete a line for each player, counting the wild square.
+function threatsW(o) {
+  const t = { X: 0, O: 0 };
+  for (const line of LINES) {
+    const v = line.map((i) => o[i]);
+    if (v.includes(DEAD) || v.filter((x) => !x).length !== 1) continue;
+    const marks = v.filter((x) => x === 'X' || x === 'O');
+    if (marks.length && marks.every((m) => m === marks[0])) t[marks[0]]++;
+  }
+  return t;
 }
 
 // ---------- computer player ----------
@@ -90,6 +154,62 @@ const AI = {
     }
     return picks[(Math.random() * picks.length) | 0];
   },
+  // Level 0 under any rule except vanishing: alpha-beta over the rule's own moves.
+  // Shifts beyond the next known one and wild-square moves are not predicted.
+  ruleMoves(st) {
+    if (st.rule === 'gravity') return [0, 1, 2].map((i) => { for (let j = 2; j >= 0; j--) if (!st.o[j * 3 + i]) return j * 3 + i; return -1; }).filter((k) => k >= 0);
+    return st.o.map((v, i) => (v ? -1 : i)).filter((i) => i >= 0);
+  },
+  ruleApply(st, p, k) {
+    const o = st.o.slice();
+    o[k] = p;
+    const moves = st.moves + 1;
+    let shift = st.shift;
+    if (st.rule === 'shift' && shift && moves % SHIFT_EVERY === 0) { applyShift(o, shift); shift = null; }
+    return { o, rule: st.rule, moves, shift };
+  },
+  ruleSearch(st, p, depth, alpha, beta, ply) {
+    const mv = this.ruleMoves(st);
+    if (!mv.length) return 0;
+    let best = -Infinity;
+    for (const k of mv) {
+      const s2 = this.ruleApply(st, p, k);
+      const r = judge(s2.o, s2.rule, p);
+      let v;
+      if (r === 'draw') v = 0;
+      else if (r) v = r.p === p ? 100 - ply : ply - 100;
+      else if (depth <= 1) { const t = threatsW(s2.o); v = st.rule === 'misere' ? (t[other(p)] - t[p]) : (t[p] * 3 - t[other(p)] * 4); }
+      else v = -this.ruleSearch(s2, other(p), depth - 1, -beta, -alpha, ply + 1);
+      if (v > best) best = v;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  },
+  chooseRuleMove(board, me) {
+    const st = { o: board.cells.map((c) => c.owner), rule: board.rule, moves: board.moves, shift: board.shift };
+    const mv = this.ruleMoves(st);
+    if (Math.random() < 0.12) return mv[(Math.random() * mv.length) | 0];
+    let best = -Infinity, picks = [];
+    for (const k of mv) {
+      const s2 = this.ruleApply(st, me, k);
+      const r = judge(s2.o, s2.rule, me);
+      const v = r === 'draw' ? 0 : r ? (r.p === me ? 1000 : -1000) : -this.ruleSearch(s2, other(me), 6, -Infinity, Infinity, 1);
+      if (v > best) { best = v; picks = [k]; } else if (v === best) picks.push(k);
+    }
+    return picks[(Math.random() * picks.length) | 0];
+  },
+  chooseL0(board, me) { return board.rule === 'vanish' ? this.chooseVanish(board, me) : this.chooseRuleMove(board, me); },
+  // RULE PICK: the computer favors lively rules, and avoids repeating the current one.
+  chooseRule(cur) {
+    const w = { gravity: 3, wild: 3, shift: 2.5, misere: 1.5, vanish: 1, classic: 0.5 };
+    if (cur) w[cur] *= 0.3;
+    const tot = Object.values(w).reduce((a, b) => a + b, 0);
+    let r = Math.random() * tot;
+    for (const [k, v] of Object.entries(w)) if ((r -= v) < 0) return k;
+    return 'gravity';
+  },
+
   // Best target for a slot prize: steal/bomb an opponent mark, or claim an empty square.
   pickTarget(b, me, cands, kind) {
     const o = b.cells.map((c) => c.owner);
@@ -122,7 +242,7 @@ const AI = {
 // ---------- persistence ----------
 function serialize(b) {
   return {
-    l: b.level, s: b.starter, t: b.turn, p: b.pending, sd: b.seeded, w: b.winner, wl: b.winLine, h: b.hist, mv: b.moves, jp: b.jackpot, kp: b.keep,
+    l: b.level, s: b.starter, t: b.turn, p: b.pending, sd: b.seeded, w: b.winner, wl: b.winLine, h: b.hist, mv: b.moves, jp: b.jackpot, kp: b.keep, r: b.rule, sh: b.shift, ru: b.ruled,
     c: b.cells.map((c) => [c.owner, c.child ? serialize(c.child) : null, c.record ? serialize(c.record) : null]),
   };
 }
@@ -133,6 +253,9 @@ function deserialize(d, parent = null, parentIndex = -1) {
   b.moves = d.mv || 0;
   if (d.jp !== undefined) b.jackpot = d.jp;
   if (d.kp) b.keep = d.kp;
+  b.rule = d.r || 'vanish';
+  if (d.sh) b.shift = d.sh;
+  b.ruled = d.ru !== undefined ? d.ru : true;
   b.parent = parent; b.parentIndex = parentIndex;
   b.born = -1e9;
   d.c.forEach(([owner, child, record], k) => {
@@ -157,6 +280,10 @@ const Game = {
   toastTimer: null,
   confirmTimer: null,
   gen: 0,
+  nextRule: null,   // rule won with RULE PICK for the next Level 0 game
+  nextRuleBy: null,
+  lastWinner: null, // winner of the latest Level 0 game: spins the rule wheel
+  dev: { on: false, force: '', tease: false, everywhere: false, reveal: false, wheel: '' },  // Developer Mode
   view: null,   // board being reviewed (null = following the live game)
   trail: [],    // boards to return to when zooming back in
 
@@ -183,15 +310,52 @@ const Game = {
     let restored = false;
     try {
       const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) { this.root = deserialize(JSON.parse(raw)); restored = true; }
+      if (raw) {
+        const d = JSON.parse(raw);
+        this.root = deserialize(d); restored = true;
+        this.nextRule = d.nr || null; this.nextRuleBy = d.nb || null; this.lastWinner = d.lw || null;
+      }
     } catch (e) { this.root = null; }
     if (!this.root) this.root = new Board(0, 'X');
     this.layoutAll();
     Renderer.setCam(viewOf(this.current()));
     this.updateHUD();
-    if (!restored) this.showHelp(true);
+    if (!restored) { this.showHelp(true); this.ruleCardOnHelpClose = true; }
     else this.toast(`Welcome back! Picking up at Level ${this.current().level}.`);
+    if (restored && !this.current().ruled) this.beginL0(this.current());
     this.scheduleCPU();
+  },
+
+  // Run the rule wheel for a Level 0 game outside of another sequence (new game, reload).
+  async beginL0(b) {
+    if (b.ruled || this.busy) return;
+    const gen = this.gen;
+    this.busy = true;
+    try { await this.startRule(b); } catch (e) { if (gen === this.gen) console.error(e); } finally {
+      if (gen === this.gen) { this.busy = false; this.settled(); }
+    }
+  },
+
+  // Decide a Level 0 game's rule: a RULE PICK prize if one is waiting, otherwise the last winner spins the wheel.
+  async startRule(b) {
+    let rule, how;
+    if (this.nextRule) {
+      const by = this.nextRuleBy;
+      rule = this.takeNextRule();
+      how = by ? `Picked by <b class="${by}">${by}</b>` : 'Rule pick';
+    } else {
+      const spinner = this.lastWinner || 'X';
+      this.updateHUD();
+      rule = await this.step(Wheel.spin(spinner, this.vsCPU && spinner === 'O', b.parent ? `for the ${CELL_NAMES[b.parentIndex]} square of Level ${b.parent.level}` : ''));
+      how = `Spun by <b class="${spinner}">${spinner}</b>`;
+    }
+    this.initRule(b, rule);
+    b.ruled = true;
+    b.born = performance.now();
+    this.updateHUD();
+    this.showRuleCard(b, how);
+    this.save();
+    await this.step(wait(900));
   },
 
   newGame() {
@@ -206,13 +370,16 @@ const Game = {
     ReviewSet.clear();
     Tweens.list = [];
     this.root = new Board(0, 'X');
+    this.nextRule = null; this.nextRuleBy = null; this.lastWinner = null;
+    Sound.stopMusic();
+    { const w = $('wheel'); w.hidden = true; w.classList.remove('show'); const r = $('rulepick'); r.hidden = true; r.classList.remove('show'); }
     this.layoutAll();
     Renderer.setCam(viewOf(this.root));
     Renderer.particles = [];
     this.save();
     this.updateHUD();
-    this.toast('New game! Level 0: X goes first.');
-    this.scheduleCPU();
+    this.toast('New game! X spins the wheel to pick the first game type.');
+    if ($('help').hidden) this.beginL0(this.root); else this.ruleCardOnHelpClose = true;
   },
 
   claim(b, k, p) {
@@ -239,8 +406,10 @@ const Game = {
   async play(k, byCPU = false) {
     if (this.busy) return;
     const b = this.current();
-    const c = b.cells[k];
     if (this.view) return;
+    if (b.level === 0 && !b.ruled) return;
+    if (b.level === 0 && !b.winner) { k = landingCell(b, k); if (k < 0) return; }
+    const c = b.cells[k];
     if (c && c.owner && c.record && !byCPU) { this.goTo(c.record); return; }
     if (!c || b.winner || c.owner || c.child) return;
     if (this.vsCPU && b.turn === 'O' && !byCPU) return;
@@ -256,6 +425,7 @@ const Game = {
         // Pick a square: zoom into a fresh game one level down to decide it.
         // Depth cap: every square on every level is decided by a single Level 0 game.
         const child = new Board(0, b.turn);
+        child.rule = 'classic';
         child.parent = b; child.parentIndex = k; child.alpha = 0;
         child.born = performance.now() + 350;
         b.pending = k;
@@ -267,6 +437,7 @@ const Game = {
         this.toast(`<b class="${b.turn}">${b.turn}</b> goes for the ${CELL_NAMES[k]} square. Win this Level ${child.level} game to claim it!`);
         Tweens.add(700, (e) => { child.alpha = e; }, Ease.outCubic);
         await this.step(Renderer.flyTo(viewOf(child), 1200));
+        await this.startRule(child);
       }
     } catch (e) {
       if (gen === this.gen) console.error(e);
@@ -278,26 +449,54 @@ const Game = {
     }
   },
 
-  async afterClaim(b, ck) {
+  judgeBoard(b) {
+    const o = b.cells.map((c) => c.owner);
+    return b.level === 0 ? judge(o, b.rule, b.turn) : lineResult(o);
+  },
+
+  async afterClaim(b, ck, dev = null) {
+    let first = b.level === 0 && !dev;
     for (;;) {
-      let res = lineResult(b.cells.map((c) => c.owner));
-      // Mystery jackpot: landing a mark on the hidden square spins the slot machine.
-      if (ck != null && ck === b.jackpot) {
-        const owner = b.cells[ck].owner;
+      let res = this.judgeBoard(b);
+      let extra = false, jpOwner = null;
+      // Level 0 rule effects after each move (gravity settles, the board shifts, the wild square moves).
+      // They run first so a move that ends up winning never opens the slot machine.
+      const mover = b.turn;
+      if (first && (!res || res === 'draw')) {
+        await this.postMove(b);
+        res = this.judgeBoard(b);
+      }
+      first = false;
+      // Developer Mode: "jackpot under every square"
+      if (this.dev.on && this.dev.everywhere && ck != null && b.cells[ck].owner && b.cells[ck].owner !== DEAD) b.jackpot = ck;
+      const devNow = !!dev;
+      if (dev) {
+        // a spin triggered from the Developer Mode panel (not a move)
+        if (dev.out.win) res = { p: dev.p, line: null };
+        extra = !!dev.out.extra; jpOwner = dev.p;
+        dev = null;
+      } else if (ck != null && ck === b.jackpot) {
+        // Mystery jackpot: landing a mark on the hidden square spins the slot machine,
+        // but only when the move hasn't already won the game.
+        const owner = b.level === 0 ? mover : b.cells[ck].owner;
         b.jackpot = -1;
-        if (owner === DEAD) {
+        if (b.cells[ck].owner === DEAD) {
           this.toast('The mystery jackpot was buried under stone!');
         } else if (owner && (!res || res === 'draw')) {
           const out = await this.jackpotSpin(b, ck, owner);
-          res = out.win ? { p: owner, line: null } : lineResult(b.cells.map((c) => c.owner));
-          if (!res && out.extra) {
-            const [x, y] = Renderer.boardScreenCenter(b);
-            Renderer.floatText(x, y - 40, 'GO AGAIN!', owner, 48);
-            this.toast(`<b class="${owner}">${owner}</b> goes again!`);
-            return;
-          }
+          res = out.win ? { p: owner, line: null } : this.judgeBoard(b);
+          extra = !!out.extra; jpOwner = owner;
         }
       }
+      if (!res && extra) {
+        const owner = jpOwner;
+        b.turn = owner;
+        const [x, y] = Renderer.boardScreenCenter(b);
+        Renderer.floatText(x, y - 40, 'GO AGAIN!', owner, 48);
+        this.toast(`<b class="${owner}">${owner}</b> goes again!`);
+        return;
+      }
+      if (devNow && !res) return;
       ck = null;
       const capped = res === null && b.level === 0 && b.moves >= MOVE_CAP;
       if (res === null && !capped) { b.turn = other(b.turn); return; }
@@ -308,6 +507,11 @@ const Game = {
       }
 
       b.winner = res.p; b.winLine = res.line; b.winTime = performance.now();
+      if (b.level === 0) this.lastWinner = res.p;
+      if (res.loser) {
+        const [mx, my] = Renderer.boardScreenCenter(b);
+        Renderer.floatText(mx, my - 90, `${res.loser} MADE THREE... AND LOSES!`, res.loser, 34);
+      }
       b.waveT = b.winTime + 150; b.waveAmp = 0.3;
       Sound.win();
       const [sx, sy] = Renderer.boardScreenCenter(b);
@@ -378,6 +582,170 @@ const Game = {
     await this.step(wait(700));
   },
 
+  // ---------- Level 0 rules ----------
+  initRule(b, rule) {
+    b.rule = RULES[rule] ? rule : 'vanish';
+    const k = b.rule === 'vanish' ? KEEP_MARKS : 99;
+    b.keep = { X: k, O: k };
+    b.shift = b.rule === 'shift' ? randomShift() : null;
+    b.shiftedAt = 0;
+    b.cells.forEach((c) => { if (c.owner === WILD) { c.owner = null; } });
+    if (b.rule === 'wild') {
+      const empt = b.cells.map((c, i) => (!c.owner && i !== b.jackpot ? i : -1)).filter((i) => i >= 0);
+      const w = empt[(Math.random() * empt.length) | 0];
+      b.cells[w].owner = WILD; b.cells[w].t = performance.now() + 700;
+    }
+  },
+  takeNextRule() {
+    const r = this.nextRule || 'vanish';
+    this.nextRule = null; this.nextRuleBy = null;
+    return r;
+  },
+
+  showRuleCard(b, how) {
+    const R = RULES[b.rule || 'vanish'];
+    const el = $('rulecard');
+    const fresh = b.rule !== 'vanish';
+    el.className = 'rulecard';
+    el.innerHTML = `<div class="rc-inner rule-${b.rule}">${how ? `<div class="rc-tag">${how}</div>` : ''}<div class="rc-icon">${R.icon}</div><div class="rc-kicker">Level 0 rule</div><div class="rc-name">${R.name}</div><div class="rc-line">${R.short}</div></div>`;
+    void el.offsetWidth;
+    el.classList.add('play');
+    Sound.ruleCard(fresh);
+    clearTimeout(this.ruleCardTimer);
+    this.ruleCardTimer = setTimeout(() => el.classList.remove('play'), 2900);
+  },
+
+  async postMove(b) {
+    const gen = this.gen;
+    if (b.rule === 'gravity' && this.settleGravity(b)) await this.step(wait(450));
+    if (b.rule === 'shift' && b.shift && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
+      b.shiftedAt = b.moves;
+      await this.step(wait(420));
+      this.doShift(b);
+      await this.step(wait(650));
+    }
+    if (b.rule === 'wild') {
+      await this.step(wait(250));
+      this.moveWild(b);
+      await this.step(wait(450));
+    }
+    if (gen !== this.gen) throw new Error('cancelled');
+  },
+
+  slideCell(b, to, from, wrapDir) {
+    const c = b.cells[to];
+    const fi = from % 3, fj = (from / 3) | 0, ti = to % 3, tj = (to / 3) | 0;
+    c.t = -1e9;
+    c.slide = wrapDir ? { dx: -wrapDir[0], dy: -wrapDir[1], t: performance.now() } : { dx: fi - ti, dy: fj - tj, t: performance.now() };
+  },
+
+  doShift(b) {
+    const sh = b.shift;
+    const o = b.cells.map((c) => c.owner);
+    const moves = applyShift(o, sh);
+    const d = sh.axis === 'row' ? [sh.dir, 0] : [0, sh.dir];
+    const now = performance.now();
+    const before = b.cells.map((c) => c.owner);
+    b.cells.forEach((c, k) => { c.owner = o[k]; });
+    for (const m of moves) {
+      this.slideCell(b, m.to, m.from, m.wrap ? d : null);
+      if (m.wrap) b.ghosts.push({ k: m.from, owner: before[m.from], t: now, dx: d[0], dy: d[1] });
+    }
+    // keep the history in step with where the marks went
+    for (const p of ['X', 'O']) b.hist[p] = b.hist[p].map((k) => { const m = moves.find((x) => x.from === k); return m ? m.to : k; });
+    Sound.shift();
+    Renderer.shake(9);
+    Renderer.kick(0.03);
+    lineCells(sh.axis, sh.idx).forEach((k) => Renderer.ripple(b, k, 'W', 0.9));
+    const [x, y] = Renderer.boardScreenCenter(b);
+    Renderer.floatText(x, y - 60, 'SHIFT!', null, 50);
+    b.shift = randomShift();
+  },
+
+  settleGravity(b) {
+    let moved = false;
+    for (let i = 0; i < 3; i++) {
+      const col = [2, 1, 0].map((j) => j * 3 + i);
+      const marks = col.filter((k) => b.cells[k].owner).map((k) => ({ k, o: b.cells[k].owner }));
+      col.forEach((k) => { b.cells[k].owner = null; });
+      marks.forEach((m, n) => {
+        const to = col[n];
+        b.cells[to].owner = m.o;
+        if (to !== m.k) { moved = true; this.slideCell(b, to, m.k); for (const p of ['X', 'O']) b.hist[p] = b.hist[p].map((h) => (h === m.k ? to : h)); }
+      });
+    }
+    if (moved) { Sound.poof(); Renderer.shake(4); }
+    return moved;
+  },
+
+  moveWild(b) {
+    const cur = b.cells.findIndex((c) => c.owner === WILD);
+    const o = b.cells.map((c) => c.owner);
+    if (cur >= 0) o[cur] = null;
+    const safe = (k) => { const o2 = o.slice(); o2[k] = WILD; const r = judge(o2, 'normal', null); return !r || r === 'draw'; };
+    let cands = o.map((v, k) => (!v && k !== cur && safe(k) ? k : -1)).filter((k) => k >= 0);
+    if (cands.length > 1) cands = cands.filter((k) => k !== b.jackpot);
+    if (!cands.length) return;
+    const to = cands[(Math.random() * cands.length) | 0];
+    if (cur >= 0) { b.cells[cur].owner = null; b.ghosts.push({ k: cur, owner: WILD, t: performance.now() }); }
+    b.cells[to].owner = WILD; b.cells[to].t = performance.now();
+    Sound.wild();
+    const gen = this.gen;
+    setTimeout(() => {
+      if (gen !== this.gen || !b.geo) return;
+      const [x, y] = Renderer.cellScreen(b, to);
+      Renderer.sparks(x, y, WILD, 26, 6);
+      Renderer.ripple(b, to, WILD, 1.1);
+    }, 273);
+  },
+
+  // ---------- Developer Mode ----------
+  async devSpin() {
+    const b = this.current();
+    if (this.busy || this.view || this.selecting) { this.toast('Wait for the current animation to finish, then spin.'); return; }
+    if (b.winner || (b.level === 0 && !b.ruled)) { this.toast('No live game to spin on right now.'); return; }
+    const p = b.turn, gen = this.gen;
+    const k = b.cells.findIndex((c) => !c.owner && !c.child);
+    this.busy = true;
+    try {
+      const out = await this.jackpotSpin(b, k >= 0 ? k : 4, p);
+      await this.afterClaim(b, null, { p, out });
+    } catch (e) {
+      if (gen === this.gen) console.error(e);
+    } finally {
+      if (gen === this.gen) { this.busy = false; this.settled(); }
+    }
+  },
+
+  setDev(on) {
+    this.dev.on = on;
+    this.savePrefs();
+    this.syncDevPanel();
+    this.toast(on ? '🛠 Developer Mode on (Shift+D to hide)' : 'Developer Mode off');
+  },
+
+  syncDevPanel() {
+    const d = this.dev;
+    $('devpanel').hidden = !d.on;
+    $('dvForce').value = d.force; $('dvWheel').value = d.wheel;
+    $('dvTease').checked = d.tease; $('dvEvery').checked = d.everywhere; $('dvReveal').checked = d.reveal;
+  },
+
+  initDevPanel() {
+    const opts = (items) => items.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+    $('dvForce').innerHTML = opts([['', '🎲 Random (normal odds)'], ['extra', '⚡ Extra turn'], ['bomb', '💣 Bomb'], ['steal', '🎭 Steal'],
+      ['shield', '🛡️ +1 mark'], ['rule', '🎲 Rule pick'], ['jackpot', '🎆 Instant win'], ['bust', '❌ No win']]);
+    $('dvWheel').innerHTML = opts([['', '🎡 Random'], ...RULE_KEYS.map((k) => [k, `${RULES[k].icon} ${RULES[k].name}`])]);
+    const bind = (id, key, prop = 'value') => $(id).addEventListener('change', (e) => { this.dev[key] = e.target[prop]; this.savePrefs(); });
+    bind('dvForce', 'force'); bind('dvWheel', 'wheel');
+    bind('dvTease', 'tease', 'checked'); bind('dvEvery', 'everywhere', 'checked'); bind('dvReveal', 'reveal', 'checked');
+    $('dvSpin').addEventListener('click', () => { Sound.ensure(); this.devSpin(); });
+    $('dvClose').addEventListener('click', () => this.setDev(false));
+    $('devpanel').querySelector('.dv-head span').addEventListener('click', () => $('devpanel').classList.toggle('collapsed'));
+    if (window.innerWidth <= 640) $('devpanel').classList.add('collapsed');
+    this.syncDevPanel();
+  },
+
   // Level 0: keep only each player's newest marks; the oldest one vanishes.
   vanish(b, p, k) {
     b.moves++;
@@ -415,7 +783,7 @@ const Game = {
     Renderer.ripple(b, k, p, 1.6);
     Renderer.floatText(x, y - 30, 'JACKPOT!', null, 54);
     await this.step(wait(900));
-    const spin = Slots.spin(p, b.level, this.vsCPU && p === 'O');
+    const spin = Slots.spin(p, b.level, this.vsCPU && p === 'O', { shield: b.level === 0 && b.rule === 'vanish' });
     await this.step(spin);
     const prize = await spin;
     return this.applyPrize(b, p, prize);
@@ -432,6 +800,15 @@ const Game = {
       return {};
     }
     if (prize === 'jackpot' && b.level === 0) return { win: true };
+    if (prize === 'rule') {
+      const rule = await this.step(RulePick.open(p, this.vsCPU && p === 'O', b.level === 0 ? b.rule : null, () => AI.chooseRule(b.level === 0 ? b.rule : null)));
+      this.nextRule = rule; this.nextRuleBy = p;
+      const R = RULES[rule];
+      this.toast(`<b class="${p}">${p}</b> picked ${R.icon} <b>${R.name}</b> for the next Level 0 game.`);
+      this.save();
+      this.updateHUD();
+      return {};
+    }
     let cands, verb;
     if (prize === 'jackpot') { cands = cellsOf((c) => !c.owner && !c.child); verb = 'Pick any empty square to claim'; }
     if (prize === 'steal') { cands = cellsOf((c) => c.owner === opp); verb = `Pick an <b class="${opp}">${opp}</b> mark to steal`; }
@@ -497,7 +874,7 @@ const Game = {
     Renderer.shake(8);
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, 'STALEMATE!', null, 46); }
     const P = b.parent, k = b.parentIndex;
-    this.toast(`No winner after ${MOVE_CAP} moves. The ${CELL_NAMES[k]} square of Level ${P.level} turns to stone.`);
+    this.toast(`${b.rule === 'vanish' ? `No winner after ${MOVE_CAP} moves` : 'The board filled up with no winner'}. The ${CELL_NAMES[k]} square of Level ${P.level} turns to stone.`);
     await this.step(wait(1300));
     Sound.zoomOut();
     Tweens.add(800, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, 250);
@@ -538,13 +915,16 @@ const Game = {
     });
     b.hist = { X: [], O: [] };
     b.moves = 0;
-    b.keep = { X: KEEP_MARKS, O: KEEP_MARKS };
+    b.ghosts = [];
+    if (big) b.keep = { X: KEEP_MARKS, O: KEEP_MARKS };
+    else { b.rule = 'classic'; b.keep = { X: 99, O: 99 }; b.shift = null; b.ruled = false; }
     const empties = b.cells.map((c, k) => (c.owner ? -1 : k)).filter((k) => k >= 0);
     b.jackpot = empties.length ? empties[(Math.random() * empties.length) | 0] : -1;
     b.starter = other(b.starter);
     b.turn = b.starter;
     b.born = performance.now();
     await this.step(wait(600));
+    if (!big) await this.startRule(b);
   },
 
   // ---------- level zoom / review ----------
@@ -627,18 +1007,22 @@ const Game = {
     clearTimeout(this.cpuTimer);
     if (!this.vsCPU || this.busy || this.view) return;
     const b = this.current();
-    if (b.turn !== 'O' || b.winner) return;
+    if (b.turn !== 'O' || b.winner || (b.level === 0 && !b.ruled)) return;
     this.cpuTimer = setTimeout(() => {
       if (this.busy || this.view) return;
       const c = this.current();
       if (c !== b || c.turn !== 'O') return;
-      this.play(c.level === 0 ? AI.chooseVanish(c, 'O') : AI.choose(c.cells.map((x) => x.owner), 'O'), true);
+      this.play(c.level === 0 ? AI.chooseL0(c, 'O') : AI.choose(c.cells.map((x) => x.owner), 'O'), true);
     }, 750);
   },
 
   // ---------- storage ----------
   save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize(this.root))); } catch (e) { /* storage unavailable */ }
+    try {
+      const d = serialize(this.root);
+      d.nr = this.nextRule; d.nb = this.nextRuleBy; d.lw = this.lastWinner;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(d));
+    } catch (e) { /* storage unavailable */ }
   },
   loadPrefs() {
     try {
@@ -646,10 +1030,12 @@ const Game = {
       this.vsCPU = !!p.vsCPU;
       Sound.on = p.sound !== false;
       this.best = p.best || 0;
+      if (p.dev) Object.assign(this.dev, p.dev);
     } catch (e) { /* defaults */ }
+    if (/[?&]dev\b/.test(location.search)) this.dev.on = true;
   },
   savePrefs() {
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ vsCPU: this.vsCPU, sound: Sound.on, best: this.best })); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ vsCPU: this.vsCPU, sound: Sound.on, best: this.best, dev: this.dev })); } catch (e) { /* ignore */ }
   },
 
   // ---------- HUD ----------
@@ -697,6 +1083,7 @@ const Game = {
     else if (cur.level === 0) txt = `<b class="${p}">${p}</b> ${who ? `(${who}) ` : ''}to move`;
     else txt = `<b class="${p}">${p}</b> ${who ? `(${who}) ` : ''}picks a square to fight for`;
     this.updateStakes(cur);
+    this.updateRuleBadge(cur);
     if (this.selecting) txt = `🎰 ${this.selecting.verb} <span class="hint-dim">(${this.vsCPU && this.selecting.p === 'O' ? 'computer choosing' : 'click a glowing ring'})</span>`;
     const turnEl = $('turn');
     if (turnEl.innerHTML !== txt) {
@@ -708,6 +1095,34 @@ const Game = {
     $('btnCpu').textContent = `vs Computer: ${this.vsCPU ? 'On' : 'Off'}`;
     $('btnCpu').classList.toggle('on', this.vsCPU);
     $('btnSound').textContent = `Sound: ${Sound.on ? 'On' : 'Off'}`;
+  },
+
+  updateRuleBadge(cur) {
+    let h = '';
+    if (!this.view && cur.level === 0 && !cur.winner && cur.ruled) {
+      const R = RULES[cur.rule] || RULES.vanish;
+      h = `<span class="rb-icon">${R.icon}</span><span class="rb-name">${R.name}</span>`;
+      if (cur.rule === 'vanish') {
+        h += ['X', 'O'].map((p) => {
+          const keep = cur.keep[p], n = Math.min(cur.hist[p].length, keep);
+          let dots = '';
+          for (let i = 0; i < keep; i++) dots += `<i class="${i < n ? 'on' : ''}${i === 0 && n >= keep ? ' old' : ''}${i === 0 && n >= keep && cur.turn === p ? ' next' : ''}"></i>`;
+          return `<span class="rb-dots ${p}"><b class="${p}">${p}</b>${dots}</span>`;
+        }).join('');
+      } else if (cur.rule === 'shift') {
+        const left = SHIFT_EVERY - (cur.moves % SHIFT_EVERY);
+        h += `<span class="rb-sub${left === 1 ? ' hot' : ''}">${left === 1 ? 'shifts after this move!' : `shifts in ${left} moves`}</span>`;
+      } else {
+        h += `<span class="rb-sub">${{ gravity: 'marks fall ↙', wild: '🌈 counts for both', misere: '3 in a row loses', classic: 'plain rules' }[cur.rule]}</span>`;
+      }
+    }
+    if (this.nextRule && !this.view) {
+      const N = RULES[this.nextRule];
+      h += `<span class="rb-next">Next game: ${N.icon} ${N.name}</span>`;
+    }
+    const el = $('rulebadge');
+    if (el.innerHTML !== h) el.innerHTML = h;
+    el.title = cur.level === 0 ? (RULES[cur.rule] || RULES.vanish).short : '';
   },
 
   // What the current game means for the boards above it.
@@ -750,7 +1165,7 @@ const Game = {
       }
     }
     if (html && !this.view && cur.jackpot >= 0) html += ' · <span class="jp">🎰 jackpot hidden here</span>';
-    if (html && cur.level === 0 && !this.view) {
+    if (html && cur.level === 0 && !this.view && cur.rule === 'vanish') {
       const left = MOVE_CAP - cur.moves;
       if (left <= 6) html += ` · <span class="warn">${left} move${left === 1 ? '' : 's'} until stalemate</span>`;
     }
@@ -786,7 +1201,10 @@ const Game = {
     el.classList.add('play');
   },
 
-  showHelp(show) { $('help').hidden = !show; },
+  showHelp(show) {
+    $('help').hidden = !show;
+    if (!show && this.ruleCardOnHelpClose) { this.ruleCardOnHelpClose = false; this.beginL0(this.current()); }
+  },
 };
 
 // ---------- wiring ----------
@@ -795,6 +1213,7 @@ const Game = {
   Renderer.init(canvas);
   MiniMap.init($('minimap'));
   Game.start();
+  Game.initDevPanel();
 
   const pos = (e) => [e.clientX, e.clientY];
   let downCell = -1;
@@ -802,7 +1221,7 @@ const Game = {
     const f = Game.focus();
     const k = Renderer.pick(f, ...pos(e));
     const cell = k >= 0 ? f.cells[k] : null;
-    const playable = cell && !cell.owner && !cell.child && Renderer.canHover;
+    const playable = cell && Renderer.canHover && (f.level === 0 ? landingCell(f, k) >= 0 : !cell.owner && !cell.child);
     if (k !== Renderer.hover) {
       Renderer.hoverT = performance.now();
       if (playable) Sound.tick(k);
@@ -875,14 +1294,17 @@ const Game = {
     e.deltaY > 0 ? Game.zoomOut() : Game.zoomIn();
   }, { passive: false });
   window.addEventListener('keydown', (e) => {
-    if (e.target.closest && e.target.closest('input,textarea')) return;
+    if (e.target.closest && e.target.closest('input,textarea,select')) return;
+    if (e.key === 'D' && e.shiftKey) { Game.setDev(!Game.dev.on); return; }
     if (e.key === 'Escape') { if (!$('help').hidden) Game.showHelp(false); else Game.backToLive(); }
     else if (e.key === '-' || e.key === '_' || e.key === 'PageUp') Game.zoomOut();
     else if (e.key === '+' || e.key === '=' || e.key === 'PageDown') Game.zoomIn();
   });
 
   $('btnHelp').addEventListener('click', () => Game.showHelp(true));
-  $('btnCloseHelp').addEventListener('click', () => { Sound.ensure(); Game.showHelp(false); });
+  $('btnCloseHelp').addEventListener('click', () => {
+    Sound.ensure(); Game.showHelp(false);
+  });
   $('help').addEventListener('click', (e) => { if (e.target.id === 'help') Game.showHelp(false); });
 
   let last = performance.now();

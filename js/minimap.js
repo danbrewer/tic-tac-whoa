@@ -131,6 +131,13 @@ const MiniMap = {
 
   glyph(p, x, y, r) {
     const ctx = this.ctx;
+    if (p === 'W') {
+      ctx.fillStyle = `hsl(${(performance.now() / 8) % 360},100%,62%)`;
+      ctx.beginPath();
+      for (let n = 0; n < 10; n++) { const rr = n % 2 ? r * 0.45 : r * 1.1, th = -Math.PI / 2 + (n / 10) * Math.PI * 2; n ? ctx.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)) : ctx.moveTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
+      ctx.closePath(); ctx.fill();
+      return;
+    }
     if (p === '#') {
       ctx.fillStyle = 'hsl(255,12%,58%)';
       ctx.fillRect(x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2);

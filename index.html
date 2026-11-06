@@ -39,6 +39,7 @@
   </div>
 
   <div class="hud-bottom">
+    <div id="rulebadge" class="rulebadge" aria-live="polite"></div>
     <div id="turn" class="turn"></div>
     <div class="controls">
       <button id="btnNew" type="button">New game</button>
@@ -55,7 +56,6 @@
       <div class="slot-who"></div>
       <div class="slot-body">
         <div class="reels"><svg class="winlines" preserveAspectRatio="none"></svg></div>
-        <button id="slotPull" class="lever" type="button" aria-label="Pull the lever"><span class="lever-stick"></span><span class="lever-ball"></span><span class="lever-label">PULL</span></button>
       </div>
       <div class="slot-controls">
         <div class="slot-result"></div>
@@ -69,6 +69,41 @@
     </div>
   </div>
 
+  <div id="devpanel" class="devpanel" hidden>
+    <div class="dv-head"><span>🛠 Developer Mode</span><button id="dvClose" type="button" title="Turn off Developer Mode (Shift+D)">×</button></div>
+    <label class="dv-row">Slot result<select id="dvForce"></select></label>
+    <label class="dv-check"><input type="checkbox" id="dvTease"> Tease 🎆 on reel 1 (wind-up)</label>
+    <button id="dvSpin" type="button" class="dv-spin">🎰 Spin the jackpot now</button>
+    <label class="dv-check"><input type="checkbox" id="dvEvery"> Jackpot under every square</label>
+    <label class="dv-check"><input type="checkbox" id="dvReveal"> Show the jackpot square</label>
+    <label class="dv-row">Wheel result<select id="dvWheel"></select></label>
+    <div class="dv-hint">Shift+D or ?dev in the address turns it on. Tap the title to fold it.</div>
+  </div>
+
+  <div id="rulecard" class="rulecard" aria-live="polite"></div>
+
+  <div id="wheel" class="wheelov" hidden>
+    <div class="wh-panel">
+      <div class="wh-title">🎡 WHEEL OF GAMES 🎡</div>
+      <div class="wh-who"></div>
+      <div class="wh-stage">
+        <canvas class="wh-canvas" aria-label="Wheel of game types"></canvas>
+        <div class="wh-pointer"></div>
+        <button type="button" class="wh-spin">SPIN</button>
+      </div>
+      <div class="wh-result"></div>
+    </div>
+  </div>
+
+  <div id="rulepick" class="rulepick" hidden>
+    <div class="rp-panel">
+      <div class="rp-title">🎲 RULE PICK 🎲</div>
+      <div class="rp-who"></div>
+      <div class="rp-cards"></div>
+      <div class="rp-hint"></div>
+    </div>
+  </div>
+
   <div id="help" class="modal" hidden>
     <div class="modal-card">
       <h2>How to play</h2>
@@ -79,8 +114,17 @@
         <li>Win three in a row on Level 1 and your mark becomes the center of Level 2, and so on, forever. Every square on every level is won with one Level 0 game.</li>
         <li><b>Glowing squares</b> on the bigger boards would complete a line for that color. The <b>stakes bar</b> at the top tells you what the current game means, and the <b>mini-map</b> on the left shows the live boards and earlier levels. Click a mini board to zoom to it.</li>
         <li><b>Level zoom:</b> use the zoom bar, the trail at the top, your scroll wheel, or the <b>+</b> / <b>−</b> keys to move between levels. Click any claimed square to zoom into the finished game that won it. Press <b>Esc</b> or <b>Back to game</b> to return.</li>
-        <li><b>Vanishing marks:</b> in a Level 0 game you only keep your <b>3 newest marks</b>. Placing a 4th makes your oldest one vanish (it flickers when it's next). If nobody wins within 18 moves, it's a stalemate.</li>
-        <li><b>Mystery jackpot:</b> every new board hides a jackpot under one square (watch for extra sparkle). Land a mark on it to spin the slot machine: ⚡ extra move, 🎭 steal a mark, 💣 bomb a mark or stone, 🛡️ keep 4 marks (Level 0), 777 instant win on Level 0 or a free square on big boards... or bust.</li>
+        <li><b>Wheel of games:</b> before every Level 0 game, the winner of the last Level 0 game spins the wheel to pick the game type (X spins first). A title card names the rule, and the badge above the turn bar keeps it on screen.
+          <ul class="rules">
+            <li>⭕ <b>Classic Tic-Tac-Toe:</b> plain rules.</li>
+            <li>👻 <b>Vanishing Marks:</b> you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; the dots on the badge count your marks). No winner within 18 moves is a stalemate.</li>
+            <li>⬇️ <b>Gravity:</b> marks fall to the front-left end of their column.</li>
+            <li>🔀 <b>Shifting Board:</b> every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around.</li>
+            <li>🌈 <b>Wild Square:</b> the rainbow star counts for both players and jumps to a new square after every turn.</li>
+            <li>🙃 <b>Misère:</b> whoever makes three in a row <b>loses</b>.</li>
+          </ul>
+          Outside Vanishing Marks, a full board with no line is a stalemate. A 🎲 <b>rule pick</b> from the slot machine lets its winner choose the next game type instead of spinning.</li>
+        <li><b>Mystery jackpot:</b> every new board hides a jackpot under one square (watch for a little extra sparkle). Land a mark on it to spin the slot machine: ⚡ extra move, 🎭 steal a mark, 💣 bomb a mark or stone, 🛡️ keep 4 marks (Vanishing Marks only), 🎲 <b>rule pick</b> (choose the next game type), 🎆 <b>INSTANT WIN</b> on Level 0 or a free square on big boards... or bust.</li>
         <li><b>Stone squares:</b> a stalemate turns the square it was deciding into stone, which blocks both players. If a whole big board fills with no line, the edges and stone squares clear, corners and center stay as a head start, and the other player picks first.</li>
       </ol>
       <p class="hint">Play hot-seat with a friend, or turn on <b>vs Computer</b> to play <span class="x">X</span> against a computer <span class="o">O</span>. Your game is saved in this browser automatically.</p>
@@ -92,6 +136,7 @@
   <script src="js/render.js"></script>
   <script src="js/minimap.js"></script>
   <script src="js/slots.js"></script>
+  <script src="js/wheel.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

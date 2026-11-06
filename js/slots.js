@@ -7,7 +7,8 @@ const SLOT_SYMS = {
   bomb:    { e: '💣', label: 'BOMB', prize: true },
   steal:   { e: '🎭', label: 'STEAL', prize: true },
   shield:  { e: '🛡️', label: '+1 MARK', prize: true },
-  jackpot: { e: '7', label: '777 JACKPOT', prize: true },
+  rule:    { e: '🎲', label: 'RULE PICK', prize: true },
+  jackpot: { e: '🎆', label: 'INSTANT WIN', prize: true },
   cherry:  { e: '🍒', label: '' },
   lemon:   { e: '🍋', label: '' },
   bell:    { e: '🔔', label: '' },
@@ -17,13 +18,14 @@ const PRIZES = {
   steal:   { name: 'STEAL', desc: "Flip one of your opponent's marks to yours." },
   bomb:    { name: 'BOMB', desc: 'Blow up one opponent mark (or a stone square).' },
   shield:  { name: '+1 MARK', desc: 'Keep 4 marks instead of 3 for the rest of this game.' },
-  jackpot: { name: '777 JACKPOT!', desc: '' },
+  rule:    { name: 'RULE PICK', desc: 'Choose the rule for the next Level 0 game.' },
+  jackpot: { name: 'INSTANT WIN!', desc: '' },
   bust:    { name: 'NO WIN', desc: 'No luck this time.' },
 };
 // Odds (percent) of each outcome. Tune here.
 const SLOT_ODDS = {
-  level0: { extra: 25, bomb: 18, steal: 12, shield: 15, jackpot: 5, bust: 25 },
-  big:    { extra: 30, bomb: 20, steal: 15, jackpot: 5, bust: 30 },
+  level0: { extra: 22, bomb: 15, steal: 10, shield: 12, rule: 16, jackpot: 5, bust: 20 },
+  big:    { extra: 25, bomb: 17, steal: 12, rule: 18, jackpot: 5, bust: 23 },
 };
 // Rows: 0 = top, 1 = middle, 2 = bottom. One entry per reel.
 const PAYLINES = [
@@ -41,7 +43,9 @@ const REELS = 5, ROWS = 3;
 
 const Slots = {
   roll(level) {
-    const odds = level === 0 ? SLOT_ODDS.level0 : SLOT_ODDS.big;
+    if (Game.dev.on && Game.dev.force) return Game.dev.force;   // Developer Mode
+    const odds = { ...(level === 0 ? SLOT_ODDS.level0 : SLOT_ODDS.big) };
+    if (!this.shieldOK) delete odds.shield;
     const total = Object.values(odds).reduce((a, b) => a + b, 0);
     let r = Math.random() * total;
     for (const [k, w] of Object.entries(odds)) { if ((r -= w) < 0) return k; }
@@ -49,12 +53,12 @@ const Slots = {
   },
 
   pool(level) {
-    return Object.keys(SLOT_SYMS).filter((k) => level === 0 || k !== 'shield');
+    return Object.keys(SLOT_SYMS).filter((k) => k !== 'shield' || this.shieldOK);
   },
 
   cellHtml(key) {
     const s = SLOT_SYMS[key];
-    const icon = key === 'jackpot' ? '<span class="seven">7</span>' : s.e;
+    const icon = s.e;
     return `<div class="cell s-${key}"><div class="icon">${icon}</div>${s.label ? `<div class="lbl">${s.label}</div>` : ''}</div>`;
   },
 
@@ -76,6 +80,10 @@ const Slots = {
     const rnd = (a) => a[(Math.random() * a.length) | 0];
     for (let attempt = 0; attempt < 2000; attempt++) {
       const grid = Array.from({ length: REELS }, () => Array.from({ length: ROWS }, () => rnd(pool)));
+      // keep the INSTANT WIN tease on reel 1 special: it only shows up there now and then
+      const tease = Game.dev.on && Game.dev.tease;
+      if (tease) grid[0][(Math.random() * ROWS) | 0] = 'jackpot';
+      else if (prize !== 'jackpot') grid[0] = grid[0].map((k) => (k === 'jackpot' && Math.random() < 0.6 ? rnd(pool.filter((x) => x !== 'jackpot')) : k));
       let win = null;
       if (prize !== 'bust') {
         const li = (Math.random() * PAYLINES.length) | 0;
@@ -111,7 +119,7 @@ const Slots = {
     }
     // paytable
     const pool = this.pool(level).filter((k) => SLOT_SYMS[k].prize);
-    el.querySelector('.paytable').innerHTML = pool.map((k) => `<div class="pay" data-k="${k}">${this.cellHtml(k)}<div class="pay-txt">${k === 'jackpot' ? (level === 0 ? 'Win this game' : 'Claim any square') : PRIZES[k].desc.replace(/\s*\(.*\)/, '')}</div></div>`).join('');
+    el.querySelector('.paytable').innerHTML = pool.map((k) => `<div class="pay" data-k="${k}">${this.cellHtml(k)}<div class="pay-txt">${k === 'jackpot' ? (level === 0 ? 'Win this game' : 'Claim any square') : k === 'rule' ? "Pick the next game's rule" : PRIZES[k].desc.replace(/\s*\(.*\)/, '')}</div></div>`).join('');
     // payline legend
     el.querySelector('.lines').innerHTML = PAYLINES.map((pl, li) => {
       let dots = '';
@@ -120,7 +128,8 @@ const Slots = {
     }).join('');
   },
 
-  spin(player, level, auto) {
+  spin(player, level, auto, opts = {}) {
+    this.shieldOK = opts.shield !== undefined ? !!opts.shield : level === 0;
     return new Promise((resolve) => {
       const el = document.getElementById('slots');
       this.buildChrome(level);
@@ -130,10 +139,9 @@ const Slots = {
       el.querySelector('.slot-who').innerHTML = `<b class="${player}">${player}</b> found the mystery jackpot! Line up 3+ prize symbols from the left on any payline.`;
       const res = el.querySelector('.slot-result');
       res.className = 'slot-result';
-      res.innerHTML = auto ? 'The computer pulls the lever...' : 'Pull the lever or press SPIN!';
-      const lever = document.getElementById('slotPull');
+      res.innerHTML = auto ? 'The computer spins...' : 'Press SPIN!';
       const spinBtn = document.getElementById('slotSpin');
-      lever.disabled = auto; spinBtn.disabled = auto;
+      spinBtn.disabled = auto;
       el.classList.remove('win', 'bust');
       el.querySelector('svg.winlines').innerHTML = '';
       const strips = [...el.querySelectorAll('.strip')];
@@ -149,17 +157,29 @@ const Slots = {
         if (pulled) return;
         pulled = true;
         window.removeEventListener('keydown', onKey);
-        lever.disabled = true; spinBtn.disabled = true;
-        lever.classList.add('pulled');
-        setTimeout(() => lever.classList.remove('pulled'), 450);
+        spinBtn.disabled = true;
         res.innerHTML = '';
         Sound.lever();
+        Sound.startMusic();
         const cell = strips[0].parentElement.clientHeight / ROWS;
-        // Tension: if the first two reels already lead a line, the later reels slow down.
-        const teaser = PAYLINES.some((pl) => grid[0][pl.rows[0]] === grid[1][pl.rows[1]] && SLOT_SYMS[grid[0][pl.rows[0]]].prize);
-        const stops = [1000, 1400, 1800, 2200, 2600].map((t, i) => t + (teaser && i >= 2 ? (i - 1) * 450 : 0));
+        // Big drama: an INSTANT WIN on the first reel winds up the rest, which spin much longer.
+        const windup = grid[0].includes('jackpot');
+        // Small drama: the first two reels already lead a line, so the later reels slow down a bit.
+        const teaser = !windup && PAYLINES.some((pl) => grid[0][pl.rows[0]] === grid[1][pl.rows[1]] && SLOT_SYMS[grid[0][pl.rows[0]]].prize);
+        const stops = windup ? [1000, 2100, 3100, 4100, 5100] : [1000, 1400, 1800, 2200, 2600].map((t, i) => t + (teaser && i >= 2 ? (i - 1) * 450 : 0));
+        if (windup) {
+          setTimeout(() => {
+            const c0 = strips[0].querySelectorAll('.cell');
+            [...c0].slice(-ROWS).forEach((c) => c.classList.contains('s-jackpot') && c.classList.add('tease'));
+            strips.slice(1).forEach((s) => s.parentElement.classList.add('tension'));
+            el.classList.add('windup');
+            res.innerHTML = '<span class="tease-txt">🎆 INSTANT WIN on reel 1...</span>';
+            Sound.windup((stops[REELS - 1] - stops[0]) / 1000);
+            Sound.musicIntensity(1);
+          }, stops[0] + 30);
+        }
         strips.forEach((strip, i) => {
-          const n = 18 + i * 6 + (teaser && i >= 2 ? i * 4 : 0);
+          const n = Math.round(18 + i * 6 + (teaser && i >= 2 ? i * 4 : 0) + (windup && i >= 1 ? i * 9 : 0));
           let html = '';
           for (let j = 0; j < n; j++) html += this.cellHtml(rnd());
           html += grid[i].map((k) => this.cellHtml(k)).join('');
@@ -174,6 +194,7 @@ const Slots = {
             Sound.reelStop(i);
             Renderer.shake(2);
             strip.parentElement.classList.remove('tension');
+            if (i === REELS - 1) { Sound.stopMusic(); el.classList.remove('windup'); }
             if (i === 1 && teaser) { strips.slice(2).forEach((s) => s.parentElement.classList.add('tension')); Sound.tension(); }
           }, stops[i]);
         });
@@ -183,7 +204,6 @@ const Slots = {
         tick();
         setTimeout(() => this.reveal(el, res, player, level, prize, grid, wins, resolve), last + 200);
       };
-      lever.onclick = pull;
       spinBtn.onclick = pull;
       if (auto) setTimeout(pull, 900);
       else window.addEventListener('keydown', onKey);
@@ -192,7 +212,7 @@ const Slots = {
 
   reveal(el, res, player, level, prize, grid, wins, resolve) {
     const p = PRIZES[prize];
-    const desc = prize === 'jackpot' ? (level === 0 ? 'You win this game outright!' : 'Claim any empty square instantly!') : p.desc;
+    const desc = prize === 'jackpot' ? (level === 0 ? 'You win this game on the spot!' : 'Claim any empty square instantly!') : p.desc;
     if (prize !== 'bust') {
       const w = wins[0];
       const kind = w.n === 5 ? 'FIVE' : w.n === 4 ? 'FOUR' : 'THREE';
@@ -206,6 +226,12 @@ const Slots = {
     res.classList.add(prize === 'bust' ? 'is-bust' : 'is-win');
     el.classList.add(prize === 'bust' ? 'bust' : 'win');
     if (prize === 'bust') Sound.slotBust(); else Sound.slotWin(prize === 'jackpot' || wins[0].n === 5);
+    if (prize === 'jackpot') {
+      Renderer.fireworks(player, 7);
+      Sound.fireworks();
+      el.classList.add('instant');
+      setTimeout(() => el.classList.remove('instant'), 3600);
+    }
     if (prize !== 'bust') {
       const r = el.querySelector('.reels').getBoundingClientRect();
       Renderer.burst(r.left + r.width / 2, r.top + r.height / 2, player, prize === 'jackpot' ? 160 : 60 + wins[0].n * 20);
@@ -246,5 +272,62 @@ const Slots = {
       html += `<polyline class="wl glow" points="${d}" style="animation-delay:${wi * 0.25}s"/><polyline class="wl" points="${d}" style="animation-delay:${wi * 0.25}s"/>`;
     });
     svg.innerHTML = html;
+  },
+};
+
+// RULE PICK prize: the winner chooses the rule for the next Level 0 game from a hand of cards.
+const RulePick = {
+  open(player, auto, current, cpuPick) {
+    return new Promise((resolve) => {
+      const el = document.getElementById('rulepick');
+      el.querySelector('.rp-who').innerHTML = `<b class="${player}">${player}</b> ${auto ? '(computer) ' : ''}chooses the rule for the next Level 0 game`;
+      const hand = el.querySelector('.rp-cards');
+      hand.innerHTML = RULE_KEYS.map((k, i) => {
+        const R = RULES[k];
+        return `<button type="button" class="rp-card rule-${k}${k === current ? ' current' : ''}" data-k="${k}" style="--i:${i}" ${auto ? 'disabled' : ''}>
+          <span class="rp-icon">${R.icon}</span><span class="rp-name">${R.name}</span><span class="rp-line">${R.short}</span>${k === current ? '<span class="rp-now">playing now</span>' : ''}</button>`;
+      }).join('');
+      el.classList.remove('picked');
+      el.hidden = false;
+      requestAnimationFrame(() => el.classList.add('show'));
+      Sound.slotOpen();
+      RULE_KEYS.forEach((_, i) => setTimeout(() => Sound.cardFlip(i), 250 + i * 110));
+      const cards = [...hand.querySelectorAll('.rp-card')];
+      let done = false;
+      const choose = (k) => {
+        if (done) return; done = true;
+        const card = cards.find((c) => c.dataset.k === k);
+        cards.forEach((c) => { c.disabled = true; c.classList.toggle('chosen', c === card); c.classList.toggle('gone', c !== card); });
+        el.classList.add('picked');
+        Sound.cardPick();
+        const r = card.getBoundingClientRect();
+        Renderer.burst(r.left + r.width / 2, r.top + r.height / 2, player, 110);
+        Renderer.flash(0.35, '255,210,63');
+        el.querySelector('.rp-hint').innerHTML = `${RULES[k].icon} <b>${RULES[k].name}</b> it is!`;
+        setTimeout(() => {
+          el.classList.remove('show');
+          setTimeout(() => { el.hidden = true; resolve(k); }, 260);
+        }, 1700);
+      };
+      if (auto) {
+        // the computer "thinks": a highlight runs across the hand and slows down onto its pick
+        const pick = cpuPick();
+        el.querySelector('.rp-hint').textContent = 'The computer is choosing...';
+        const target = RULE_KEYS.indexOf(pick);
+        const steps = 2 * RULE_KEYS.length + target;
+        let n = 0;
+        const hop = () => {
+          cards.forEach((c, i) => c.classList.toggle('lit', i === n % cards.length));
+          Sound.reelTick();
+          if (n >= steps) { setTimeout(() => choose(pick), 350); return; }
+          n++;
+          setTimeout(hop, 70 + n * n * 1.6);
+        };
+        setTimeout(hop, 1100);
+      } else {
+        el.querySelector('.rp-hint').textContent = 'Click a card to choose';
+        cards.forEach((c) => c.addEventListener('click', () => choose(c.dataset.k)));
+      }
+    });
   },
 };

@@ -6,7 +6,7 @@ const ISO_Y = 0.5;
 // All sizes are fractions of a board's cell size, so a nested board is an exact
 // scaled copy of its parent and zooming is a pure camera scale.
 const GEO = { margin: 0.1, gap: 0.07, tileH: 0.2, baseH: 0.1, pad: 0.14, pieceH: 0.17 };
-const PIECE_COL = { X: { h: 322, s: 100, l: 62 }, O: { h: 188, s: 100, l: 52 }, '#': { h: 255, s: 12, l: 58 } };
+const PIECE_COL = { X: { h: 322, s: 100, l: 62 }, O: { h: 188, s: 100, l: 52 }, '#': { h: 255, s: 12, l: 58 }, W: { h: 48, s: 100, l: 60 } };
 const LEVEL_HUES = [212, 268, 158, 28, 296, 48, 128, 345, 190];
 const ORDER = [0, 1, 3, 2, 4, 6, 5, 7, 8]; // back-to-front painter order (by col+row)
 
@@ -126,7 +126,7 @@ const Renderer = {
   },
 
   // Screen space left for the board once the HUD (and zoom bar) are placed.
-  bottomReserve() { return this.W <= 520 ? 235 : 115; },
+  bottomReserve() { return this.W <= 520 ? 268 : 150; },
   fitK() {
     const w = this.W <= 520 ? this.W * 0.92 : this.W - 250;
     return Math.max(40, Math.min(w / (2 * ISO_X), (this.H - (this.W <= 520 ? 180 : 155) - this.bottomReserve()) / 1.2));
@@ -293,7 +293,17 @@ const Renderer = {
     const breathe = 0.04 * Math.sin(this.now / 650 + cx * 9 + cy * 5);
     const glow = Math.min(46, px * (0.12 + breathe + 0.18 * pulse));
     const opts = { glow, topDl: 6 + 14 * pulse, stroke: 'rgba(255,255,255,0.55)', lw: Math.max(0.6, px * 0.012) };
-    if (owner === '#') {
+    if (owner === 'W') {
+      // wild square: a spinning rainbow star
+      const hue = (this.now / 8 + cx * 40) % 360;
+      const rot = this.now / 1400;
+      const pts = [];
+      for (let n = 0; n < 10; n++) {
+        const r = (n % 2 ? 0.17 : 0.4) * s * wk, th = rot + (n / 10) * Math.PI * 2;
+        pts.push([cx + r * Math.cos(th), cy + r * Math.sin(th)]);
+      }
+      this.prism(pts, zz, zz + h * 0.9, { h: hue, s: 100, l: 62 }, { ...opts, glow: glow + 8, topDl: 16 });
+    } else if (owner === '#') {
       // dead square: a cracked stone slab
       const w = 0.33 * s * wk;
       this.prism(rect(cx - w, cy - w, cx + w, cy + w), zz, zz + h * 1.25, c, { topDl: 0, stroke: 'rgba(255,255,255,0.35)', lw: Math.max(0.6, px * 0.012) });
@@ -368,7 +378,9 @@ const Renderer = {
       }
       const ta = a * clamp01(p * 2.5);
       const sub = shownChild(c);
-      const hov = b === cur && k === this.hover && this.canHover && !c.owner && !c.child && !b.winner;
+      const hk = b === cur && b.level === 0 && b.rule === 'gravity' && this.hover >= 0 ? landingCell(b, this.hover) : this.hover;
+      const hov = b === cur && k === hk && this.canHover && !c.owner && !c.child && !b.winner;
+      const colHov = b === cur && b.rule === 'gravity' && this.canHover && hk >= 0 && !b.winner && i === hk % 3 && !hov;
       const inspect = b === cur && k === this.hover && this.canInspect && !sub && (c.record || c.child);
       const lift = hov ? 0.07 * s * (1 + 1.4 * Math.sin(clamp01((now - this.hoverT) / 260) * Math.PI) * (1 - clamp01((now - this.hoverT) / 260))) : 0;
       const gp = (GEO.gap * s) / 2;
@@ -377,6 +389,7 @@ const Renderer = {
         let tc = tileC;
         if (sub) tc = { h: hue, s: 75, l: 34 };
         if (hov) tc = { h: PIECE_COL[b.turn].h, s: 75, l: 34 };
+        if (colHov) tc = { h: PIECE_COL[b.turn].h, s: 45, l: 28 };
         if (inspect) tc = { h: hue, s: 80, l: 42 };
         // threat highlight: this square would complete a line
         let tEdge = null;
@@ -399,6 +412,27 @@ const Renderer = {
       }
       const cx = g.ox + (i + 0.5) * s, cy = g.oy + (j + 0.5) * s;
       const pz = zt + tz;
+      // Shifting board: chevrons on the line that slides next, stronger as it nears
+      if (b.rule === 'shift' && b.shift && !b.winner && ta > 0.3 && lineCells(b.shift.axis, b.shift.idx).includes(k)) {
+        const left = SHIFT_EVERY - (b.moves % SHIFT_EVERY);
+        const urg = left === 1 ? 1 : left === 2 ? 0.55 : 0.3;
+        const pul = 0.5 + 0.5 * Math.sin(now / (left === 1 ? 110 : 260));
+        const [dx, dy] = b.shift.axis === 'row' ? [b.shift.dir, 0] : [0, b.shift.dir];
+        const off = ((now / (left === 1 ? 260 : 600)) % 1) * 0.12;
+        for (const base of [-0.12, 0.1]) {
+          const u = base + off;
+          const tip = [cx + dx * (u + 0.14) * s, cy + dy * (u + 0.14) * s];
+          const w1 = [cx + (dx * u - dy * 0.2) * s, cy + (dy * u + dx * 0.2) * s];
+          const w2 = [cx + (dx * u + dy * 0.2) * s, cy + (dy * u - dx * 0.2) * s];
+          const pts = [w1, tip, w2].map(([x, y]) => this.project(x, y, pz + 0.004 * s));
+          ctx.globalAlpha = ta * (0.25 + 0.6 * urg) * (0.6 + 0.4 * pul);
+          ctx.strokeStyle = left === 1 ? '#ffb347' : '#fff6c8';
+          ctx.lineWidth = Math.max(1.5, px * 0.045);
+          ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.beginPath(); pts.forEach(([x, y], n) => (n ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
       if (c.owner) {
         const dp = clamp01((now - c.t) / 750);
         const drop = (1 - Ease.outBounce(dp)) * 1.8 * s;
@@ -425,7 +459,13 @@ const Renderer = {
             ctx.setLineDash([]);
           }
         }
-        this.piece(c.owner, cx, cy, pz, s, a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5), drop, pulse, 1 + sq * 0.55, 1 - sq);
+        let pcx = cx, pcy = cy, hop = 0;
+        if (c.slide) {
+          const q = clamp01((now - c.slide.t) / 420);
+          if (q >= 1) c.slide = null;
+          else { const e = 1 - Ease.outCubic(q); pcx += c.slide.dx * e * s; pcy += c.slide.dy * e * s; hop = Math.sin(q * Math.PI) * 0.25 * s; }
+        }
+        this.piece(c.owner, pcx, pcy, pz, s, a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5), drop + hop, pulse, 1 + sq * 0.55, 1 - sq);
       } else if (hov) {
         const bob = (0.5 + 0.5 * Math.sin(now / 180)) * 0.12 * s;
         const hp = Ease.outBack(clamp01((now - this.hoverT) / 220));
@@ -435,7 +475,8 @@ const Renderer = {
         for (const gh of b.ghosts) {
           if (gh.k !== k) continue;
           const q = clamp01((now - gh.t) / 450);
-          this.piece(gh.owner, cx, cy, pz, s, a * (1 - q) * (q === 0 ? 0.6 : 1), q * 0.9 * s, q, 1 + q * 0.5, 1 - q * 0.7);
+          const gx = cx + (gh.dx || 0) * Ease.outCubic(q) * s, gy = cy + (gh.dy || 0) * Ease.outCubic(q) * s;
+          this.piece(gh.owner, gx, gy, pz, s, a * (1 - q) * (q === 0 ? 0.6 : 1), q * 0.9 * s, q, 1 + q * 0.5, 1 - q * 0.7);
         }
       }
       // prize target selection
@@ -465,6 +506,17 @@ const Renderer = {
           ctx.globalAlpha = a * 0.6;
           this.twinkle(sx, sy, sz);
         }
+      }
+      // Developer Mode: mark the hidden jackpot square
+      if (typeof Game !== 'undefined' && Game.dev.on && Game.dev.reveal && k === b.jackpot && !c.owner && !sub && !b.winner && a > 0.3) {
+        const pts = [];
+        const rr = 0.4 * s;
+        for (let n = 0; n < 4; n++) { const th = (n / 4) * Math.PI * 2 + now / 700; pts.push(this.project(cx + rr * Math.cos(th), cy + rr * Math.sin(th), pz + 0.02 * s)); }
+        ctx.globalAlpha = a;
+        ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 14;
+        ctx.setLineDash([Math.max(3, px * 0.06), Math.max(2, px * 0.04)]);
+        this.fillPoly(pts, 'rgba(255,210,63,0.18)', 'rgba(255,210,63,0.95)', Math.max(2, px * 0.03));
+        ctx.setLineDash([]); ctx.shadowBlur = 0;
       }
       ctx.globalAlpha = 1;
       if (sub) this.drawBoard(sub, now, cur);
