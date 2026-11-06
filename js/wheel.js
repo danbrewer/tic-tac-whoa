@@ -71,6 +71,85 @@ const Wheel = {
     });
   },
 
+  // Glowing comets racing around the rim, seen through a translucent glassy ring.
+  // mode 'face' = the ring on top of the wheel; 'side' = the band around the slab's front edge.
+  rimLights(ctx, g, now, mode) {
+    const { R, r, K, cx, cy, depth } = g;
+    const Ro = R * 0.985, Ri = r, rm = (Ro + Ri) / 2, band = Ro - Ri;
+    const landed = this.hit >= 0;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 320);
+    const path = () => {
+      ctx.beginPath();
+      if (mode === 'face') {
+        ctx.ellipse(cx, cy, Ro, Ro * K, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, Ri, Ri * K, 0, 0, Math.PI * 2, true);
+      } else {
+        ctx.ellipse(cx, cy + depth, Ro, Ro * K, 0, 0, Math.PI);
+        ctx.ellipse(cx, cy, Ro, Ro * K, 0, Math.PI, 0, true);
+      }
+    };
+    ctx.save();
+    path(); ctx.clip();
+    // tinted glass body
+    ctx.fillStyle = mode === 'face' ? `rgba(90, 10, 150, ${0.55 + 0.15 * pulse})` : 'rgba(60, 10, 90, 0.55)';
+    path(); ctx.fill();
+    // the racing lights
+    ctx.globalCompositeOperation = 'lighter';
+    const comets = 6, trail = 14, ph = this.rimPhase || 0;
+    for (let c = 0; c < comets; c++) {
+      const hue = this.sus > 0.3 && !landed ? 20 + c * 9 : (c * 72 + now / 18) % 360;
+      for (let j = trail - 1; j >= 0; j--) {
+        const ang = ph + (c / comets) * Math.PI * 2 - j * 0.045;
+        const sn = Math.sin(ang), cs = Math.cos(ang);
+        const fade = 1 - j / trail;
+        let x, y, sx, sy;
+        if (mode === 'face') { x = cx + cs * rm; y = cy + sn * rm * K; sx = band * (1.05 - j * 0.045); sy = sx * K; }
+        else { if (sn < -0.05) continue; x = cx + cs * Ro; y = cy + depth * 0.5 + sn * Ro * K; sx = band * (0.7 - j * 0.03) * (0.4 + 0.6 * Math.abs(sn)); sy = depth * 0.8; }
+        if (sx <= 0) continue;
+        const gr = ctx.createRadialGradient(x, y, 0, x, y, sx);
+        gr.addColorStop(0, `hsla(${hue}, 100%, ${j === 0 ? 92 : 70}%, ${0.95 * fade})`);
+        gr.addColorStop(0.4, `hsla(${hue}, 100%, 60%, ${0.5 * fade})`);
+        gr.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+        ctx.fillStyle = gr;
+        ctx.save(); ctx.translate(x, y); ctx.scale(1, sy / sx); ctx.translate(-x, -y);
+        ctx.beginPath(); ctx.arc(x, y, sx, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+    // landing: the whole ring flashes gold
+    if (landed) {
+      ctx.fillStyle = `rgba(255, 210, 63, ${0.25 + 0.3 * (0.5 + 0.5 * Math.sin(now / 55))})`;
+      path(); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    // glassy surface: a soft sheen across the top and a pulsing frosted layer
+    const sheen = ctx.createLinearGradient(cx - Ro, cy - Ro * K, cx + Ro * 0.4, cy + Ro * K);
+    sheen.addColorStop(0, `rgba(255,255,255,${0.16 + 0.08 * pulse})`);
+    sheen.addColorStop(0.45, `rgba(255,255,255,${0.02 + 0.03 * pulse})`);
+    sheen.addColorStop(1, 'rgba(255,255,255,0.06)');
+    ctx.fillStyle = sheen; path(); ctx.fill();
+    ctx.restore();
+    // crisp glass edges and a pulsing outer glow
+    ctx.save();
+    ctx.lineWidth = Math.max(1.5, R * 0.007);
+    if (mode === 'face') {
+      ctx.strokeStyle = 'rgba(255, 240, 200, 0.85)';
+      ctx.beginPath(); ctx.ellipse(cx, cy, Ri, Ri * K, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowColor = landed ? '#ffd23f' : `hsl(${(now / 18) % 360}, 100%, 70%)`;
+      ctx.shadowBlur = R * (0.04 + 0.05 * pulse);
+      ctx.strokeStyle = `rgba(255, 250, 230, ${0.7 + 0.3 * pulse})`;
+      ctx.beginPath(); ctx.ellipse(cx, cy, Ro, Ro * K, 0, 0, Math.PI * 2); ctx.stroke();
+      // specular highlight on the back-left of the ring
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = R * 0.01; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.ellipse(cx, cy, rm + band * 0.25, (rm + band * 0.25) * K, 0, Math.PI * 1.08, Math.PI * 1.38); ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(255, 240, 200, 0.5)';
+      ctx.beginPath(); ctx.ellipse(cx, cy + depth, Ro, Ro * K, 0, 0, Math.PI); ctx.stroke();
+    }
+    ctx.restore();
+  },
+
   draw(now = performance.now()) {
     const cv = this.canvas();
     const css = cv.clientWidth;
@@ -93,25 +172,16 @@ const Wheel = {
     ctx.fillStyle = side;
     ctx.beginPath(); ctx.ellipse(cx, cy + depth, R * 0.985, R * 0.985 * K, 0, 0, Math.PI); ctx.lineTo(cx - R * 0.985, cy); ctx.lineTo(cx + R * 0.985, cy); ctx.closePath(); ctx.fill();
     ctx.fillRect(cx - R * 0.985, cy, R * 1.97, depth);
-    // bulbs along the front of the slab
-    const rate = 140 - this.speed * 100;
-    const blink = this.hit >= 0 ? Math.floor(now / 70) % 2 === 0 : this.sus > 0.55 ? Math.floor(now / (220 - this.sus * 120)) % 2 === 0 : null;
-    for (let b = 0; b < 22; b++) {
-      const a = Math.PI * (0.04 + (b / 21) * 0.92);
-      const on = blink !== null ? blink : (Math.floor(now / rate) + b) % 2 === 0;
-      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * 0.985, cy + depth * 0.5 + Math.sin(a) * R * 0.985 * K, R * 0.014, 0, Math.PI * 2);
-      ctx.fillStyle = on ? '#fffbe0' : '#8a4a00';
-      ctx.shadowColor = '#fff6c8'; ctx.shadowBlur = on ? R * 0.04 : 0;
-      ctx.fill();
-    }
-    ctx.shadowBlur = 0;
-
+    // racing lights inside the translucent band around the slab's front edge
+    const dt = Math.min(64, now - (this.lastNow || now)); this.lastNow = now;
+    this.rimPhase = (this.rimPhase || 0) + dt * (0.0011 + this.speed * 0.014 + (this.hit >= 0 ? 0.005 : 0)) * (1 - this.sus * 0.55);
+    this.rimLights(ctx, g, now, 'side');
     // the face, drawn in the plane and squashed into the iso view
     ctx.save();
     ctx.translate(cx, cy); ctx.scale(1, K);
     ctx.beginPath(); ctx.arc(0, 0, R * 0.985, 0, Math.PI * 2);
-    const rim = ctx.createLinearGradient(-R, -R, R, R);
-    rim.addColorStop(0, '#ffe66b'); rim.addColorStop(0.5, '#ff9f1c'); rim.addColorStop(1, '#ffd23f');
+    const rim = ctx.createRadialGradient(0, 0, r, 0, 0, R);
+    rim.addColorStop(0, '#12002a'); rim.addColorStop(0.5, '#2a0a52'); rim.addColorStop(1, '#14002e');
     ctx.fillStyle = rim; ctx.fill();
     for (let i = 0; i < n; i++) {
       // segment 0 starts at the pointer, which sits at the FRONT of the wheel (+90°)
@@ -194,17 +264,8 @@ const Wheel = {
     }
     ctx.restore();
     ctx.globalAlpha = 1;
-    // rim bulbs on the face
-    const bulbs = 48;
-    for (let b = 0; b < bulbs; b++) {
-      const a = (b / bulbs) * Math.PI * 2;
-      const on = blink !== null ? blink : (Math.floor(now / rate) + b) % 2 === 0;
-      ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * R * 0.945, cy + Math.sin(a) * R * 0.945 * K, R * 0.016, R * 0.016 * K, 0, 0, Math.PI * 2);
-      ctx.fillStyle = on ? '#fffbe0' : '#b36b00';
-      ctx.shadowColor = '#fff6c8'; ctx.shadowBlur = on ? R * 0.05 : 0;
-      ctx.fill();
-    }
-    ctx.shadowBlur = 0;
+    // the outer ring: a pulsing translucent band with racing lights glowing under its surface
+    this.rimLights(ctx, g, now, 'face');
     // hub cap under the SPIN button
     ctx.fillStyle = '#7a3d00';
     ctx.beginPath(); ctx.ellipse(cx, cy + R * 0.03, R * 0.25, R * 0.25 * K, 0, 0, Math.PI * 2); ctx.fill();
