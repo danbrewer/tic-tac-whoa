@@ -30,7 +30,7 @@ const Sound = {
   noise(dur, { vol = 0.2, when = 0, from = 400, to = 4000, q = 1.2 } = {}) {
     if (!this.on || !this.ctx) return;
     if (!this.noiseBuf) {
-      const len = this.ctx.sampleRate * 2;
+      const len = this.ctx.sampleRate * 4;
       this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -273,15 +273,72 @@ const Sound = {
     this.tone(124, 0.06, { type: 'triangle', vol: vol * 0.25, slideTo: 60 });
     this.tone(52, 0.14, { type: 'sine', vol: vol * 0.75, when: gap, slideTo: 34 });
   },
-  // rocket lift-off: ignition thump, then a rising roar
-  rocket() {
+  // filtered noise with an attack/hold/release envelope and a sweeping cutoff (for roars and rumbles)
+  roar(dur, { type = 'lowpass', from = 200, to = 2000, vol = 0.5, attack = 0.2, release = 0.6, when = 0, q = 0.7 } = {}) {
     if (!this.on || !this.ctx) return;
-    this.bigBoom(0.6, 2);
-    this.noise(2.2, { vol: 0.45, from: 180, to: 2400, q: 0.45 });
-    this.noise(2.0, { vol: 0.3, from: 90, to: 260, q: 0.4 });
-    this.tone(45, 2.0, { type: 'sawtooth', vol: 0.08, slideTo: 140 });
-    this.tone(30, 1.6, { type: 'sine', vol: 0.4, slideTo: 60 });
+    this.noise(0.001, { vol: 0.0002 }); // makes sure the shared noise buffer exists
+    const t0 = this.ctx.currentTime + when;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(from, t0); f.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
+    g.gain.setValueAtTime(vol, t0 + Math.max(attack, dur - release));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f).connect(g).connect(this.ctx.destination);
+    src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
   },
+  // deep "brown" noise (random walk) — the rumbling body of a rocket engine, with no pitch at all
+  brownBuf() {
+    if (this._brown) return this._brown;
+    const len = this.ctx.sampleRate * 4, b = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = b.getChannelData(0);
+    let y = 0;
+    for (let i = 0; i < len; i++) { y = (y + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = y * 3.5; }
+    return (this._brown = b);
+  },
+  // unpitched engine roar: brown noise -> lowpass -> soft saturation -> envelope
+  engine(dur, { cut = 180, cutTo = cut, vol = 0.6, attack = 0.3, release = 1.5, when = 0, drive = 2 } = {}) {
+    if (!this.on || !this.ctx) return;
+    const t0 = this.ctx.currentTime + when;
+    const src = this.ctx.createBufferSource(); src.buffer = this.brownBuf(); src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.5;
+    f.frequency.setValueAtTime(cut, t0); f.frequency.exponentialRampToValueAtTime(cutTo, t0 + dur);
+    const ws = this.ctx.createWaveShaper(), c = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; c[i] = Math.tanh(x * drive); }
+    ws.curve = c;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
+    g.gain.setValueAtTime(vol, t0 + Math.max(attack, dur - release));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f).connect(ws).connect(g).connect(this.ctx.destination);
+    src.start(t0, Math.random() * 2); src.stop(t0 + dur + 0.05);
+  },
+  // the sharp popping crackle of rocket exhaust
+  crackle(dur, { rate = 60, vol = 0.12, when = 0 } = {}) {
+    for (let t = 0; t < dur; t += (Math.random() * 2) / rate) {
+      const k = 1 - t / dur;
+      this.noise(0.012 + Math.random() * 0.02, { vol: vol * k * (0.4 + Math.random()), from: 900 + Math.random() * 2500, to: 600, q: 1.5, when: when + t });
+    }
+  },
+  // the engines building while the wheel squirts flames before lift-off
+  rocketRumble(dur) {
+    this.engine(dur + 0.2, { cut: 90, cutTo: 260, vol: 0.55, attack: dur * 0.85, release: 0.15 });
+    this.crackle(dur, { rate: 25, vol: 0.06 });
+  },
+  // LIFT-OFF, space-shuttle style: a huge unpitched roar — a deep sub rumble, a thick low-mid body,
+  // a hissy top and crackle — swelling in, holding, then fading as the wheel climbs away
+  liftoff() {
+    if (!this.on || !this.ctx) return;
+    this.roar(0.5, { type: 'lowpass', from: 300, to: 60, vol: 0.7, attack: 0.01, release: 0.45, q: 0.7 }); // ignition thump
+    this.engine(4.2, { cut: 110, cutTo: 70, vol: 0.85, attack: 0.25, release: 2.4, drive: 2.5 });           // sub rumble
+    this.engine(3.8, { cut: 420, cutTo: 200, vol: 0.4, attack: 0.15, release: 2.2, drive: 3 });             // low-mid body
+    this.roar(3.2, { type: 'lowpass', from: 1400, to: 500, vol: 0.18, attack: 0.1, release: 2.0, q: 0.5 }); // roar air
+    this.roar(2.4, { type: 'highpass', from: 3500, to: 2500, vol: 0.06, attack: 0.05, release: 1.6 });     // hiss
+    this.crackle(2.8, { rate: 70, vol: 0.13, when: 0.1 });
+  },
+  rocket() { this.liftoff(); },
   whoosh() { this.noise(0.6, { vol: 0.25, from: 300, to: 3500, q: 0.7 }); },
   boomSmall() {
     this.tone(90, 0.35, { type: 'sine', vol: 0.3, slideTo: 35 });

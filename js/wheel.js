@@ -376,7 +376,7 @@ const Wheel = {
     const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
     ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: 300, fill: 'forwards' }));
     const RUMBLE = 800, FLY = 1000;
-    Sound.rocket && Sound.rocket();
+    Sound.rocketRumble && Sound.rocketRumble(RUMBLE / 1000);
     const sh = []; for (let k = 0; k < 10; k++) sh.push({ transform: `translate(${(Math.random() - 0.5) * 8}px, ${(Math.random() - 0.5) * 5}px)` });
     sh.push({ transform: 'none' });
     stage.animate(sh, { duration: RUMBLE });
@@ -394,6 +394,7 @@ const Wheel = {
       }
     }, RUMBLE + FLY);
     setTimeout(() => {
+      Sound.liftoff && Sound.liftoff();
       Fx.dust(f0, 0.8);
       Renderer.flash && Renderer.flash(0.3, '255,200,120');
       stage.animate([
