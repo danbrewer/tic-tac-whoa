@@ -340,6 +340,74 @@ const Wheel = {
     this.raf = requestAnimationFrame(tick);
   },
 
+  // where the wheel's base meets the floor, in screen space
+  footprint(stage) {
+    const r = stage.getBoundingClientRect(), wh = r.width;
+    const rx = wh * 0.47;
+    return { x: r.left + wh / 2, y: r.top + wh * 0.6, w: wh * 0.94, cx: r.left + wh / 2, cy: r.top + wh * 0.35, rx, ry: rx * WHEEL_K };
+  },
+  // the wheel plummets from above the screen, slams onto the board with a BOOM and a cloud of dust
+  dropIn(el) {
+    const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
+    const FALL = 620;
+    Sound.whoosh && Sound.whoosh();
+    // fall, then (exactly when the fall animation ends) squash + BOOM + dust
+    const fall = stage.animate([
+      { transform: 'translateY(-115vh) rotate(-6deg) scale(0.9, 1.08)' },
+      { transform: 'translateY(0) rotate(0) scale(0.92, 1.08)' },
+    ], { duration: FALL, easing: 'cubic-bezier(.5,0,1,1)', fill: 'backwards' });
+    ui.forEach((u, i) => u.animate([{ opacity: 0, transform: 'translateY(-30px) scale(0.8)' }, { opacity: 1, transform: 'none' }],
+      { duration: 450, delay: FALL + 120 + i * 90, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
+    fall.onfinish = () => {
+      const f = this.footprint(stage);
+      stage.animate([
+        { transform: 'scale(1.12, 0.8)' }, { transform: 'translateY(-3%) scale(0.97, 1.04)', offset: 0.5 }, { transform: 'none' },
+      ], { duration: 380, easing: 'ease-out' });
+      Sound.bigBoom(1, 0);
+      Fx.dust(f);
+      Renderer.flash && Renderer.flash(0.35, '255,240,220');
+      const sh = []; for (let k = 0; k < 12; k++) { const m = 18 * (1 - k / 12); sh.push({ transform: `translate(${(Math.random() - 0.5) * m}px, ${(Math.random() - 0.3) * m * 1.6}px)` }); }
+      sh.push({ transform: 'none' });
+      document.body.animate(sh, { duration: 700 });
+    };
+  },
+  // when the game type is picked the wheel rumbles, ignites, and blasts off like a rocket
+  blastOff(el, done) {
+    const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
+    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: 300, fill: 'forwards' }));
+    const RUMBLE = 800, FLY = 1000;
+    Sound.rocket && Sound.rocket();
+    const sh = []; for (let k = 0; k < 10; k++) sh.push({ transform: `translate(${(Math.random() - 0.5) * 8}px, ${(Math.random() - 0.5) * 5}px)` });
+    sh.push({ transform: 'none' });
+    stage.animate(sh, { duration: RUMBLE });
+    const t0 = performance.now(), f0 = this.footprint(stage);
+    // exhaust: fire and smoke pour out of the base, following the wheel up
+    Fx.emit((now) => {
+      const t = now - t0, f = this.footprint(stage);
+      // before lift-off: fire squirts out of every side of the base, building up
+      if (t < RUMBLE + 120) Fx.flameRing(f, 4 + Math.round((t / RUMBLE) * 16), 0.6 + (t / RUMBLE) * 0.8);
+      const n = t < RUMBLE ? 1 : 6;
+      for (let i = 0; i < n; i++) {
+        const x = f.x + (Math.random() - 0.5) * f.w * (t < RUMBLE ? 0.5 : 0.35);
+        Fx.add({ x, y: f.y, vx: (Math.random() - 0.5) * 140, vy: 380 + Math.random() * 380, r0: f.w * 0.05, r1: f.w * 0.11, c: Math.random() < 0.5 ? '255,200,80' : '255,110,40', a: 0.9, life: 260 + Math.random() * 200, drag: 0.9, add: true });
+        Fx.add({ x, y: f.y + 20, vx: (Math.random() - 0.5) * 220, vy: 120 + Math.random() * 200, r0: f.w * 0.06, r1: f.w * (0.16 + Math.random() * 0.1), c: '200,190,205', a: 0.45, life: 1400 + Math.random() * 800, drag: 0.95, g: -20 });
+      }
+    }, RUMBLE + FLY);
+    setTimeout(() => {
+      Fx.dust(f0, 0.8);
+      Renderer.flash && Renderer.flash(0.3, '255,200,120');
+      stage.animate([
+        { transform: 'translateY(0) scale(1)' },
+        { transform: 'translateY(-4%) scale(0.95, 1.08)', offset: 0.12 },
+        { transform: 'translateY(-140vh) scale(0.85, 1.18) rotate(3deg)' },
+      ], { duration: FLY, easing: 'cubic-bezier(.6,0,.9,.6)', fill: 'forwards' });
+    }, RUMBLE);
+    setTimeout(() => {
+      done();
+      setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, 400);
+    }, RUMBLE + FLY);
+  },
+
   spin(player, auto, sub) {
     return new Promise((resolve) => {
       const el = document.getElementById('wheel');
@@ -348,15 +416,16 @@ const Wheel = {
       const pointer = el.querySelector('.wh-pointer');
       el.querySelector('.wh-who').innerHTML = `<b class="${player}">${player}</b> ${auto ? '(computer) ' : ''}spins to pick the game type${sub ? ` ${sub}` : ''}`;
       res.className = 'wh-result';
-      res.textContent = auto ? 'The computer spins...' : 'Press SPIN!';
+      res.textContent = auto ? 'The computer spins...' : '';
       this.hit = -1; this.speed = 0; this.sus = 0; this.under = -1; this.sparks = []; this.lift = null;
       this.angle = ((this.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
       el.classList.remove('landed', 'spinning', 'lifting');
       el.style.setProperty('--sus', 0); el.style.setProperty('--jit', 0);
-      btn.textContent = 'SPIN';
+      btn.textContent = 'SPIN!';
       btn.disabled = auto;
       el.hidden = false;
       requestAnimationFrame(() => el.classList.add('show'));
+      this.dropIn(el);
       this.loop();
       Sound.slotOpen();
 
@@ -383,9 +452,20 @@ const Wheel = {
         Sound.wheelPull(pullT / 1000);
         let end = base;
         while (end < a0 - pull + Math.PI * 2 * 6) end += Math.PI * 2;
-        const start = a0 - pull, T = 5600 + Math.random() * 900;
+        const start = a0 - pull;
+        // two-phase motion: (A) a long cubic slow-down from the launch, then (B) a constant-deceleration crawl
+        // over the last ~4 spokes, so every final spoke is visibly slower than the one before, right up to the stop
+        const TOT = end - start, dB = seg * 3.3 + within, TB = 3400, vB = (2 * dB) / TB;
+        const TA = 6800 + Math.random() * 400, DA = TOT - dB;
+        const v0 = vB + ((DA - vB * TA) * 4) / TA, aB = (vB * vB) / (2 * dB), T = TA + TB;
+        const posAt = (t) => {
+          if (t <= TA) { const u = t / TA; return vB * t + ((v0 - vB) * TA / 4) * (1 - Math.pow(1 - u, 4)); }
+          const s = Math.min(TB, t - TA); return DA + vB * s - (aB * s * s) / 2;
+        };
+        const velAt = (t) => (t <= TA ? vB + (v0 - vB) * Math.pow(1 - t / TA, 3) : Math.max(0, vB - aB * (t - TA)));
         const t0 = performance.now();
-        let launched = 0, lastSeg = segAt(a0), rolled = false;
+        let launched = 0, lastSeg = segAt(a0), rolled = false, nextBeat = 0, beatN = 0;
+        const BEATS = [1200, 1200, 1000, 1000, 800, 800, 600, 600];
         const live = (i) => {
           const sg = WHEEL_SEGS[i];
           res.innerHTML = `<span class="wh-live" style="color:${sg.col};font-size:${Math.round(18 + this.sus * 22)}px">${RULES[sg.k].icon} ${sg.label}</span>`;
@@ -402,15 +482,30 @@ const Wheel = {
           }
           if (!launched) { launched = now; Sound.lever(); Sound.wheelLaunch(); el.style.setProperty('--jit', 0); }
           const q = Math.min(1, (now - launched) / T);
-          const e = 1 - Math.pow(1 - q, 4);
-          this.angle = start + (end - start) * e;
+          const tt = q * T;
+          this.angle = q >= 1 ? end : start + posAt(tt);
           // angular speed relative to the launch speed (1 at release, 0 at rest)
-          this.speed = Math.pow(1 - q, 3);
+          this.speed = velAt(tt) / v0;
           // suspense ramps up over the last ~40% of the spin
           this.sus = Math.max(0, Math.min(1, (q - 0.55) / 0.4));
           el.style.setProperty('--sus', this.sus.toFixed(3));
           el.style.setProperty('--hubrate', `${(0.5 - this.sus * 0.38).toFixed(2)}s`);
           if (this.sus > 0 && !rolled) { rolled = true; Sound.drumroll(((1 - q) * T) / 1000); }
+          // heartbeat: a slow resting pulse while the wheel slows, racing hardest as the last few spokes pass the
+          // pointer (45 -> ~165 bpm); it stops the moment the wheel stops
+          if (q < 1) {
+            if (!nextBeat) nextBeat = launched;
+            if (now >= nextBeat) {
+              // stepped pairs: 1.2s, 1.2s, 1.0s, 1.0s, 0.8s, 0.8s, 0.6s, 0.6s, then 0.4s until the wheel stops
+              const gap = BEATS[beatN] || 400; beatN++;
+              const bpm = 60000 / gap;
+              nextBeat += gap;
+              if (nextBeat > launched + T - 120) nextBeat = Infinity; // no beat right on (or after) the stop
+              const hk = Math.max(0, Math.min(1, (bpm - 45) / 120)); Sound.heartPulse(0.3 + hk * 0.7, 0.24 - hk * 0.13);
+              const stage = el.querySelector('.wh-stage');
+              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out', composite: 'add' });
+            }
+          }
           const cur = segAt(this.angle);
           this.under = cur;
           if (cur !== lastSeg) {
@@ -439,8 +534,10 @@ const Wheel = {
         const finish = () => {
           if (done) return; done = true;
           el.removeEventListener('click', finish);
-          el.classList.remove('show');
-          setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, 260);
+          this.blastOff(el, () => {
+            el.classList.remove('show');
+            setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, 260);
+          });
         };
         // the winning wedge pops out of the wheel, flips up to face the player and hovers, glowing
         setTimeout(() => {

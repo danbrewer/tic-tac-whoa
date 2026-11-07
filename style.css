@@ -721,7 +721,7 @@ body.reviewing .rulepin { opacity: 0.55; }
 .wh-title { font-size: clamp(26px, 4.4vw, 44px); font-weight: 700; letter-spacing: 0.06em; color: #fff6c8; text-shadow: 0 0 18px #ffd23f, 0 3px 0 #7a2a00; animation: titleglow 0.8s ease-in-out infinite alternate; }
 .wh-who { font-size: clamp(14px, 2vw, 18px); margin: 2px 0 10px; }
 .wh-who b.X { color: var(--x); } .wh-who b.O { color: var(--o); }
-.wh-stage { --wh: min(600px, 92vw, calc((100vh - 190px) / 0.72)); position: relative; width: var(--wh); height: calc(var(--wh) * 0.72); margin: 0 auto; cursor: pointer; }
+.wh-stage { --wh: min(600px, 92vw, calc((100vh - 235px) / 0.72)); position: relative; width: var(--wh); height: calc(var(--wh) * 0.72); margin: 0 auto; cursor: pointer; }
 /* the canvas is square and pokes up above the stage so the winning wedge has room to rise */
 .wh-canvas { position: absolute; left: 0; top: calc(var(--wh) * -0.28); width: var(--wh); height: var(--wh); display: block; pointer-events: none; }
 .wheelov.landed .wh-canvas { animation: whwin 0.45s ease-in-out 3; }
@@ -956,3 +956,88 @@ body.reviewing .rulepin { opacity: 0.55; }
 #slots .spin-btn { white-space: nowrap; font-size: 22px; padding: 12px 28px; }
 @media (max-width: 640px) { #slots .spin-btn { font-size: 14px; padding: 10px 14px; } }
 .slot-machine > .slot-ring { z-index: 3; }
+.boomfx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; }
+
+/* ---------- "Mystery JACKPOT!" Vegas marquee title ---------- */
+#slots .slot-title { display: block; position: relative; z-index: 2; margin: -4px auto 4px; padding: 0.5em 0 0; width: max-content; max-width: 100%;
+  font-size: clamp(42px, 6.6vw, 78px); line-height: 1; text-shadow: none; animation: mjthrob 1.6s ease-in-out infinite; }
+@keyframes mjthrob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+/* rotating sunburst behind the words */
+.mj-burst { position: absolute; left: 50%; top: 58%; width: 3.6em; height: 3.6em; margin: -1.8em 0 0 -1.8em; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 214, 80, 0.55) 0 7deg, rgba(255, 60, 170, 0) 7deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, rgba(0,0,0,0.6) 42%, transparent 70%); mask: radial-gradient(circle, #000 18%, rgba(0,0,0,0.6) 42%, transparent 70%);
+  animation: mjspin 14s linear infinite; transform: scaleX(1.9); }
+@keyframes mjspin { to { transform: scaleX(1.9) rotate(360deg); } }
+/* neon script "Mystery", tilted and buzzing like a real neon tube */
+.mj-mystery { position: absolute; z-index: 2; left: -0.25em; top: -0.12em; font-family: 'Pacifico', cursive; font-weight: 400; font-size: 0.62em; color: #fff0fb; transform: rotate(-9deg);
+  white-space: nowrap; letter-spacing: 0.01em;
+  text-shadow: 0 0 0.06em #fff, 0 0 0.16em #ff4fd8, 0 0 0.35em #ff2bc2, 0 0 0.7em #ff00b3, 0 0 1.2em #b0009a;
+  animation: mjneon 4.2s infinite; }
+@keyframes mjneon { 0%, 17%, 19%, 22%, 61%, 63%, 100% { opacity: 1; } 18%, 21%, 62% { opacity: 0.55; text-shadow: 0 0 0.06em #fff, 0 0 0.16em #ff4fd8; } }
+/* big chunky gold JACKPOT! with a deep 3D extrusion, a shine sweep and stomping letters */
+.mj-jackpot { position: relative; z-index: 1; display: flex; font-family: 'Luckiest Guy', 'Fredoka', sans-serif; letter-spacing: 0.02em; padding-left: 0.55em;
+  filter: drop-shadow(0 0.02em 0 #c25e00) drop-shadow(0 0.02em 0 #a24400) drop-shadow(0 0.02em 0 #7e2f00) drop-shadow(0 0.02em 0 #5a1d00)
+          drop-shadow(0 0.03em 0 #3a0f00) drop-shadow(0 0.12em 0.1em rgba(0, 0, 0, 0.55)) drop-shadow(0 0 0.25em rgba(255, 190, 40, 0.55)); }
+.mj-jackpot i { font-style: normal; display: inline-block; position: relative;
+  background: linear-gradient(180deg, #fffbe0 0%, #ffe76a 30%, #ffb400 55%, #ff7a00 80%, #ffd24a 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: 0.035em #5a1d00; text-shadow: none; paint-order: stroke fill;
+  animation: mjstomp 1.6s cubic-bezier(.3,1.6,.5,1) infinite; animation-delay: calc(var(--i) * 0.07s); }
+.mj-jackpot i:last-child { animation: mjbang 0.8s ease-in-out infinite alternate; transform-origin: 50% 90%; }
+@keyframes mjstomp { 0%, 55%, 100% { transform: translateY(0) scale(1); } 20% { transform: translateY(-0.14em) scale(1.08) rotate(-3deg); } 35% { transform: translateY(0.02em) scale(1.04, 0.94); } }
+@keyframes mjbang { from { transform: rotate(-12deg) scale(1); } to { transform: rotate(14deg) scale(1.2); } }
+/* glint sweeping across the gold */
+.mj-jackpot::after { content: ''; position: absolute; inset: 0.4em -0.2em 0 0.4em; pointer-events: none; mix-blend-mode: overlay;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.95) 48%, transparent 56%) no-repeat; background-size: 250% 100%;
+  animation: mjglint 2.8s ease-in-out infinite; }
+@keyframes mjglint { 0% { background-position: 150% 0; } 60%, 100% { background-position: -60% 0; } }
+.mj-spark { position: absolute; color: #fff7c2; font-size: 0.32em; text-shadow: 0 0 0.4em #ffd23f, 0 0 0.8em #ff4fd8; animation: mjtw 1.4s ease-in-out infinite; pointer-events: none; }
+.mj-spark.s1 { left: -0.4em; top: 1.1em; } .mj-spark.s2 { right: -0.5em; top: 0.25em; animation-delay: -0.5s; font-size: 0.4em; }
+.mj-spark.s3 { right: 0.4em; bottom: -0.25em; animation-delay: -0.9s; } .mj-spark.s4 { left: 2.6em; top: 0.1em; animation-delay: -0.2s; font-size: 0.24em; }
+@keyframes mjtw { 0%, 100% { transform: scale(0.3) rotate(0); opacity: 0.2; } 50% { transform: scale(1.2) rotate(90deg); opacity: 1; } }
+.slots.win .mj-jackpot i { animation-duration: 0.5s; }
+@media (max-width: 640px) { #slots .slot-title { font-size: 40px; } }
+
+/* ---------- "Wheel of GAMES!" carnival title ---------- */
+#wheel .wh-title { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.25em; width: max-content; max-width: 100%; margin: 0 auto;
+  font-size: clamp(40px, 6.2vw, 72px); line-height: 1; letter-spacing: 0; color: inherit; text-shadow: none; padding-top: 0.72em;
+  animation: wtthrob 1.4s ease-in-out infinite; }
+@keyframes wtthrob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+.wt-burst { position: absolute; left: 50%; top: 60%; width: 3.4em; height: 3.4em; margin: -1.7em 0 0 -1.7em; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(41, 211, 255, 0.45) 0 6deg, transparent 6deg 15deg, rgba(255, 80, 200, 0.45) 15deg 21deg, transparent 21deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 15%, rgba(0,0,0,0.55) 42%, transparent 70%); mask: radial-gradient(circle, #000 15%, rgba(0,0,0,0.55) 42%, transparent 70%);
+  transform: scaleX(2); animation: wtburst 18s linear infinite reverse; }
+@keyframes wtburst { to { transform: scaleX(2) rotate(360deg); } }
+.wt-words { position: relative; display: block; }
+/* neon-script "Wheel of", cyan tube that buzzes */
+.wt-of { position: absolute; z-index: 2; left: 50%; top: -0.9em; font-family: 'Pacifico', cursive; font-size: 0.5em; color: #effdff; white-space: nowrap; transform: translateX(-50%) rotate(-5deg);
+  text-shadow: 0 0 0.06em #fff, 0 0 0.16em #4fe6ff, 0 0 0.35em #19c3ff, 0 0 0.7em #0090ff, 0 0 1.2em #0050c0; animation: mjneon 5.1s infinite; animation-delay: -1.3s; }
+/* chunky carnival letters, each its own colour, bouncing in a wave */
+.wt-games { position: relative; z-index: 1; display: flex; font-family: 'Luckiest Guy', 'Fredoka', sans-serif; letter-spacing: 0.03em; }
+.wt-games i { font-style: normal; display: inline-block; color: var(--c); -webkit-text-stroke: 0.035em #fff; paint-order: stroke fill;
+  text-shadow: 0 0.025em 0 #2a0040, 0 0.05em 0 #2a0040, 0 0.075em 0 #2a0040, 0 0.1em 0 #2a0040, 0 0.16em 0.12em rgba(0,0,0,0.55), 0 0 0.35em var(--c);
+  animation: wthop 1.4s cubic-bezier(.3,1.6,.5,1) infinite; animation-delay: calc(var(--i) * 0.09s); }
+.wt-games i:last-child { animation: mjbang 0.8s ease-in-out infinite alternate; transform-origin: 50% 90%; }
+@keyframes wthop { 0%, 55%, 100% { transform: translateY(0) rotate(0); } 20% { transform: translateY(-0.16em) rotate(-6deg) scale(1.1); } 36% { transform: translateY(0.02em) scale(1.06, 0.92); } }
+/* little spinning prize wheels either side */
+.wt-wheel { position: relative; flex: none; width: 0.9em; height: 0.9em; border-radius: 50%; margin-top: 0.12em;
+  background: radial-gradient(circle, #fff6c8 0 12%, #a35a00 12% 16%, transparent 16%),
+    conic-gradient(#ff3b5c 0 45deg, #ff9f1c 0 90deg, #ffe14d 0 135deg, #3ddc84 0 180deg, #29d3ff 0 225deg, #5b6bff 0 270deg, #c86bff 0 315deg, #ff5fc8 0 360deg);
+  box-shadow: 0 0 0 0.05em #fff6c8, 0 0 0 0.09em #a35a00, 0 0.08em 0.1em rgba(0,0,0,0.5), 0 0 0.4em rgba(255, 210, 63, 0.6);
+  animation: wtspin 2.4s linear infinite; }
+.wt-wheel.r { animation-direction: reverse; }
+@keyframes wtspin { to { transform: rotate(360deg); } }
+#wheel.spinning .wt-wheel { animation-duration: 0.35s; }
+#wheel.spinning .wh-title { animation-duration: 0.5s; }
+#wheel.spinning .wt-games i { animation-duration: 0.6s; }
+#wheel .mj-spark.s1 { left: -0.2em; top: 0.4em; } #wheel .mj-spark.s2 { right: -0.3em; top: 0.1em; } #wheel .mj-spark.s3 { right: 1.4em; bottom: -0.3em; }
+/* sweeping carnival spotlights behind the wheel */
+.wh-panel { position: relative; }
+.wh-panel::before, .wh-panel::after { content: ''; position: absolute; bottom: -10%; width: 70vmax; height: 140vmax; pointer-events: none; z-index: -1; opacity: 0.5;
+  background: conic-gradient(from 168deg at 50% 100%, transparent 0deg, rgba(255, 240, 180, 0.32) 10deg, rgba(255, 240, 180, 0.08) 22deg, transparent 24deg);
+  transform-origin: 50% 100%; animation: wtbeam 7s ease-in-out infinite alternate; }
+.wh-panel::before { left: -35vmax; }
+.wh-panel::after { right: -35vmax; animation-delay: -3.5s; background: conic-gradient(from 168deg at 50% 100%, transparent 0deg, rgba(120, 220, 255, 0.3) 10deg, rgba(120, 220, 255, 0.08) 22deg, transparent 24deg); }
+@keyframes wtbeam { from { transform: rotate(-28deg); } to { transform: rotate(28deg); } }
+#wheel .wh-spin { font-family: 'Luckiest Guy', 'Fredoka', sans-serif; letter-spacing: 0.04em; font-weight: 400; }
+@media (max-width: 640px) { #wheel .wh-title { font-size: 40px; } }
+.iconfly { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; line-height: 1; will-change: transform; filter: drop-shadow(0 0 30px rgba(255, 220, 120, 0.9)) drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }

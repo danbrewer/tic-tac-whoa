@@ -6,7 +6,7 @@
   <title>Infinite Tic-Tac-Toe</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Luckiest+Guy&family=Pacifico&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -55,7 +55,7 @@
     <div class="slot-machine">
       <div class="slot-ring" aria-hidden="true"></div>
       <div class="slot-crew" aria-hidden="true"></div>
-      <div class="slot-title" aria-label="Mystery Jackpot!"><i style="--i:0">M</i><i style="--i:1">Y</i><i style="--i:2">S</i><i style="--i:3">T</i><i style="--i:4">E</i><i style="--i:5">R</i><i style="--i:6">Y</i><i class="sp"></i><i style="--i:8">J</i><i style="--i:9">A</i><i style="--i:10">C</i><i style="--i:11">K</i><i style="--i:12">P</i><i style="--i:13">O</i><i style="--i:14">T</i><i style="--i:15">!</i></div>
+      <div class="slot-title" aria-label="Mystery Jackpot!"><span class="mj-burst" aria-hidden="true"></span><span class="mj-mystery" aria-hidden="true">Mystery</span><span class="mj-jackpot" aria-hidden="true"><i style="--i:0">J</i><i style="--i:1">A</i><i style="--i:2">C</i><i style="--i:3">K</i><i style="--i:4">P</i><i style="--i:5">O</i><i style="--i:6">T</i><i style="--i:7">!</i></span><span class="mj-spark s1">✦</span><span class="mj-spark s2">✦</span><span class="mj-spark s3">✧</span><span class="mj-spark s4">✦</span></div>
       <div class="slot-who"></div>
       <div class="slot-body">
         <div class="reels"><svg class="winlines" preserveAspectRatio="none"></svg></div>
@@ -95,12 +95,12 @@
 
   <div id="wheel" class="wheelov" hidden>
     <div class="wh-panel">
-      <div class="wh-title">🎡 WHEEL OF GAMES 🎡</div>
+      <div class="wh-title" aria-label="Wheel of Games!"><span class="wt-burst" aria-hidden="true"></span><span class="wt-wheel" aria-hidden="true"></span><span class="wt-words" aria-hidden="true"><span class="wt-of">Wheel of</span><span class="wt-games"><i style="--i:0;--c:#ff3b5c">G</i><i style="--i:1;--c:#ff9f1c">A</i><i style="--i:2;--c:#ffe14d">M</i><i style="--i:3;--c:#3ddc84">E</i><i style="--i:4;--c:#29d3ff">S</i><i style="--i:5;--c:#c86bff">!</i></span></span><span class="wt-wheel r" aria-hidden="true"></span><span class="mj-spark s1">✦</span><span class="mj-spark s2">✦</span><span class="mj-spark s3">✧</span></div>
       <div class="wh-who"></div>
       <div class="wh-stage">
         <canvas class="wh-canvas" aria-label="Wheel of game types"></canvas>
         <div class="wh-pointer"></div>
-        <button type="button" class="wh-spin">SPIN</button>
+        <button type="button" class="wh-spin">SPIN!</button>
       </div>
       <div class="wh-result"></div>
     </div>
@@ -147,6 +147,7 @@
   <script src="js/render.js"></script>
   <script src="js/minimap.js"></script>
   <script src="js/crew.js"></script>
+  <script src="js/boom.js"></script>
   <script src="js/slots.js"></script>
   <script src="js/wheel.js"></script>
   <script src="js/game.js"></script>

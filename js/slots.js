@@ -294,6 +294,7 @@ const Slots = {
       if (done) return; done = true;
       el.removeEventListener('click', finish);
       this.explodeBanner();
+      Boom.run(el.querySelector('.slot-machine').getBoundingClientRect());
       el.classList.remove('show');
       setTimeout(() => { el.hidden = true; resolve(prize); }, 250);
     };
@@ -552,6 +553,8 @@ const RulePick = {
         // 1) the chosen card swells and trembles like it's about to blow
         Sound.windup(0.4);
         card.style.zIndex = 3;
+        // the game's icon leaps out of the card to centre stage, and later lands on the title card
+        IconFly.lift(card.querySelector('.rp-icon'));
         card.animate([
           { transform: 'scale(1) rotate(0)', filter: 'brightness(1)', opacity: 1 },
           { transform: 'scale(1.12) rotate(-5deg)', filter: 'brightness(1.2)', opacity: 1, offset: 0.25 },

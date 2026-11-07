@@ -616,6 +616,7 @@ const Game = {
     this.updateRulePin(this.current ? this.current() : b);
     void el.offsetWidth;
     el.classList.add('play');
+    IconFly.land(el.querySelector('.rc-icon'));
     Sound.ruleCard(rule !== 'vanish');
     const settle = () => {
       this.ruleFly = null;

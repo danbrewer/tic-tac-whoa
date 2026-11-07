@@ -256,6 +256,33 @@ const Sound = {
     this.tone(2200 - q * 1100, 0.03 + q * 0.03, { type: 'square', vol: 0.025 + q * 0.05 });
     if (q > 0.5) this.tone(180 - q * 60, 0.06, { type: 'sine', vol: 0.12 * q });
   },
+  // Deep, layered explosion: sub-bass drop, low rumble and a crack. i staggers the pitch lower each time.
+  bigBoom(size = 1, i = 0) {
+    if (!this.on || !this.ctx) return;
+    const f = 62 - Math.min(i, 6) * 4;
+    this.tone(f, 1.4 * size + 0.4, { type: 'sine', vol: 0.55 * Math.min(1, size + 0.2), slideTo: 18 });
+    this.tone(f * 0.62, 1.8 * size + 0.4, { type: 'triangle', vol: 0.35 * size, slideTo: 14 });
+    this.noise(1.6 * size + 0.4, { vol: 0.5 * size, from: 260, to: 28, q: 0.35 });
+    this.noise(0.35, { vol: 0.28 * size, from: 3200, to: 300, q: 0.6 });
+    if (i === 0) this.tone(34, 2.4, { type: 'sine', vol: 0.5, when: 0.05, slideTo: 16 });
+  },
+  // one "lub-dub" heartbeat; v is loudness 0..1, gap shortens as the heart races
+  heartPulse(v = 0.5, gap = 0.16) {
+    const vol = 0.25 + v * 0.4;
+    this.tone(62, 0.16, { type: 'sine', vol, slideTo: 38 });
+    this.tone(124, 0.06, { type: 'triangle', vol: vol * 0.25, slideTo: 60 });
+    this.tone(52, 0.14, { type: 'sine', vol: vol * 0.75, when: gap, slideTo: 34 });
+  },
+  // rocket lift-off: ignition thump, then a rising roar
+  rocket() {
+    if (!this.on || !this.ctx) return;
+    this.bigBoom(0.6, 2);
+    this.noise(2.2, { vol: 0.45, from: 180, to: 2400, q: 0.45 });
+    this.noise(2.0, { vol: 0.3, from: 90, to: 260, q: 0.4 });
+    this.tone(45, 2.0, { type: 'sawtooth', vol: 0.08, slideTo: 140 });
+    this.tone(30, 1.6, { type: 'sine', vol: 0.4, slideTo: 60 });
+  },
+  whoosh() { this.noise(0.6, { vol: 0.25, from: 300, to: 3500, q: 0.7 }); },
   boomSmall() {
     this.tone(90, 0.35, { type: 'sine', vol: 0.3, slideTo: 35 });
     this.noise(0.3, { vol: 0.18, from: 2500, to: 200, q: 0.5 });
