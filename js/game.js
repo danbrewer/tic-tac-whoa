@@ -18,8 +18,8 @@ const RULES = {
   classic: { icon: '⭕', name: 'Classic Tic-Tac-Toe', short: 'Plain tic-tac-toe. A full board with no line is a stalemate.' },
   vanish:  { icon: '👻', name: 'Vanishing Marks', short: 'Keep only your 3 newest marks. Your 4th makes your oldest vanish.' },
   gravity: { icon: '⬇️', name: 'Gravity', short: 'The board stands up: marks drop to the bottom of their column, like Connect Four.' },
-  shift:   { icon: '🔀', name: 'Shifting Board', short: `Every ${SHIFT_EVERY} moves a row or column slides one space and wraps around.` },
-  wild:    { icon: '⭐', name: 'Wild Star', short: 'The spinning star counts for both players and jumps to a new square after every turn.' },
+  shift:   { icon: '🔀', name: 'Shifting Squares', short: `Every ${SHIFT_EVERY} moves a row or column slides one space and wraps around.` },
+  wild:    { icon: '⭐', name: 'Wild Square', short: 'The shape-shifting mark counts for both players and jumps to a new square after every turn.' },
   misere:  { icon: '🙃', name: 'Misère', short: 'Upside down: whoever makes three in a row LOSES.' },
 };
 const RULE_KEYS = Object.keys(RULES);

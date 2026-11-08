@@ -132,10 +132,23 @@ const MiniMap = {
   glyph(p, x, y, r) {
     const ctx = this.ctx;
     if (p === 'W') {
-      ctx.fillStyle = `hsl(${(performance.now() / 8) % 360},100%,62%)`;
+      // the wild mark: an X whose arms curl into an O and back, turning slowly
+      const now = performance.now(), ph = (now % 3600) / 3600;
+      const tri = ph < 0.15 ? 0 : ph < 0.5 ? (ph - 0.15) / 0.35 : ph < 0.65 ? 1 : 1 - (ph - 0.65) / 0.35;
+      const m = tri * tri * (3 - 2 * tri), rot = now / 1100;
+      ctx.strokeStyle = `hsl(${(322 - 134 * m + 360) % 360},100%,66%)`;
+      ctx.lineWidth = Math.max(1.5, r * 0.45); ctx.lineCap = 'round';
       ctx.beginPath();
-      for (let n = 0; n < 10; n++) { const rr = n % 2 ? r * 0.45 : r * 1.1, th = -Math.PI / 2 + (n / 10) * Math.PI * 2; n ? ctx.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)) : ctx.moveTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
-      ctx.closePath(); ctx.fill();
+      for (let k = 0; k < 4; k++) {
+        const phi = rot + Math.PI / 4 + (k * Math.PI) / 2;
+        for (let i = 0; i <= 8; i++) {
+          const t = i / 8, xr = r * 1.3 * t, ps = phi + (t - 0.5) * (Math.PI / 2), ro = r * 0.85;
+          const px = x + xr * Math.cos(phi) + (ro * Math.cos(ps) - xr * Math.cos(phi)) * m;
+          const py = y + xr * Math.sin(phi) + (ro * Math.sin(ps) - xr * Math.sin(phi)) * m;
+          i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        }
+      }
+      ctx.stroke();
       return;
     }
     if (p === '#') {

@@ -610,15 +610,8 @@ const Renderer = {
     const glow = Math.min(46, px * (0.12 + breathe + 0.18 * pulse));
     const opts = { glow, topDl: 6 + 14 * pulse, stroke: 'rgba(255,255,255,0.55)', lw: Math.max(0.6, px * 0.012) };
     if (owner === 'W') {
-      // wild square: a spinning rainbow star
-      const hue = (this.now / 8 + cx * 40) % 360;
-      const rot = this.now / 1400;
-      const pts = [];
-      for (let n = 0; n < 10; n++) {
-        const r = (n % 2 ? 0.17 : 0.4) * s * wk, th = rot + (n / 10) * Math.PI * 2;
-        pts.push([cx + r * Math.cos(th), cy + r * Math.sin(th)]);
-      }
-      this.prism(pts, zz, zz + h * 0.9, { h: hue, s: 100, l: 62 }, { ...opts, glow: glow + 8, topDl: 16 });
+      // wild square: a spinning mark that morphs X -> O -> X
+      this.wildMark(cx, cy, zz, zz + h * 0.9, s * wk, cx * 3 + cy * 7, { ...opts, glow: glow + 8, topDl: 16 });
     } else if (owner === '#') {
       // dead square: a cracked stone slab
       const w = 0.33 * s * wk;
@@ -638,6 +631,71 @@ const Renderer = {
     } else {
       this.ring(cx, cy, 0.32 * s * wk, 0.185 * s * wk, zz, zz + h, c, opts);
     }
+  },
+
+  // Wild square mark: four strips that are the arms of an X and unroll into the quarter arcs of an O.
+  wildMark(cx, cy, z0, z1, s, seed, opts) {
+    const P = 3600, ph = ((this.now + seed * 500) % P) / P;            // hold X, morph, hold O, morph back
+    const tri = ph < 0.15 ? 0 : ph < 0.5 ? (ph - 0.15) / 0.35 : ph < 0.65 ? 1 : 1 - (ph - 0.65) / 0.35;
+    const m = tri * tri * (3 - 2 * tri);
+    const rot = this.now / 1100 + seed;
+    const ax = 0.085 * s, bx = 0.42 * s;                               // X arm half-width and length
+    const rm = 0.2525 * s, ho = 0.0675 * s;                             // O mid radius and half-width
+    const c = { h: (322 - 134 * m + 360) % 360, s: 100, l: 62 - 10 * m };
+    const M = 14, strips = [];
+    for (let k = 0; k < 4; k++) {
+      const phi = rot + Math.PI / 4 + (k * Math.PI) / 2;
+      const mid = [];
+      for (let i = 0; i <= M; i++) {
+        const t = i / M;
+        const xr = bx * t, xx = xr * Math.cos(phi), xy = xr * Math.sin(phi);
+        const ps = phi + (t - 0.5) * (Math.PI / 2), ox = rm * Math.cos(ps), oy = rm * Math.sin(ps);
+        mid.push([xx + (ox - xx) * m, xy + (oy - xy) * m]);
+      }
+      const hw = ax + (ho - ax) * m, L = [], R = [];
+      for (let i = 0; i <= M; i++) {
+        const a = mid[Math.max(0, i - 1)], b = mid[Math.min(M, i + 1)];
+        let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+        L.push([cx + mid[i][0] - ty * hw, cy + mid[i][1] + tx * hw]);
+        R.push([cx + mid[i][0] + ty * hw, cy + mid[i][1] - tx * hw]);
+      }
+      let pts = L.concat(R.reverse());
+      let area = 0;
+      for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; area += a[0] * b[1] - b[0] * a[1]; }
+      if (area < 0) pts = pts.reverse();
+      strips.push(pts);
+    }
+    // caps: the X's inner ends meet in the middle and the O's ends butt together, so hide them there
+    const capIn = m > 0.12 && m < 0.88, capOut = m < 0.88;
+    const xf = this.xf, tk = xf ? xf.c - xf.s : 1, faces = [];
+    for (const pts of strips) {
+      const n = pts.length, half = n / 2;
+      for (let i = 0; i < n; i++) {
+        // edge half-1 -> half is one end cap, edge n-1 -> 0 the other
+        if ((i === half - 1 || i === n - 1) && !(capIn && capOut)) {
+          const a0 = pts[i], b0 = pts[(i + 1) % n];
+          const r = Math.hypot((a0[0] + b0[0]) / 2 - cx, (a0[1] + b0[1]) / 2 - cy);
+          const outer = r > 0.2 * s;
+          if (outer ? !capOut : !capIn) continue;
+        }
+        const a = pts[i], b = pts[(i + 1) % n];
+        const nx = b[1] - a[1], ny = -(b[0] - a[0]);
+        if (nx + ny * tk > 1e-15) faces.push({ a, b, d: a[0] + a[1] * tk + b[0] + b[1] * tk, nx, ny });
+      }
+    }
+    faces.sort((f, g) => f.d - g.d);
+    for (const f of faces) {
+      const q = [this.project(f.a[0], f.a[1], z0), this.project(f.b[0], f.b[1], z0),
+                 this.project(f.b[0], f.b[1], z1), this.project(f.a[0], f.a[1], z1)];
+      const fill = this.sideShade(c, f.nx, f.ny);
+      this.fillPoly(q, fill, fill, 0.6);
+    }
+    const ctx = this.ctx, tops = strips.map((pts) => pts.map((p) => this.project(p[0], p[1], z1)));
+    // outline first at double width, then the fills cover the inner half and the seams between strips
+    if (opts.stroke) tops.forEach((t) => this.fillPoly(t, null, opts.stroke, (opts.lw || 1) * 2));
+    if (opts.glow) { ctx.shadowColor = col(c, 5); ctx.shadowBlur = opts.glow; }
+    tops.forEach((t) => this.fillPoly(t, col(c, opts.topDl || 0)));
+    if (opts.glow) ctx.shadowBlur = 0;
   },
 
   // ---------- scene ----------
