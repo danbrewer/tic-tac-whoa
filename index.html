@@ -46,8 +46,16 @@
       <button id="btnNew" type="button">New game</button>
       <button id="btnCpu" type="button">vs Computer: Off</button>
       <button id="btnSound" type="button">Sound: On</button>
+      <button id="btnMix" type="button" aria-expanded="false" aria-controls="mixer" title="Volume mix">🎚️ Mix</button>
       <button id="btnHelp" type="button">How to play</button>
     </div>
+  </div>
+
+  <div id="mixer" class="mixer" hidden>
+    <div class="mx-title">Volume mix</div>
+    <label class="mx-row"><span>Sound effects</span><input id="mxSfx" type="range" min="0" max="100" step="1"><b id="mxSfxV"></b></label>
+    <label class="mx-row"><span>Voices</span><input id="mxVox" type="range" min="0" max="100" step="1"><b id="mxVoxV"></b></label>
+    <button id="mxTest" type="button">▶ Test voice</button>
   </div>
 
   <div id="slots" class="slots" hidden>
@@ -129,7 +137,7 @@
           <ul class="rules">
             <li>⭕ <b>Classic Tic-Tac-Toe:</b> plain rules.</li>
             <li>👻 <b>Vanishing Marks:</b> you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; the dots on the badge count your marks). No winner within 18 moves is a stalemate.</li>
-            <li>⬇️ <b>Gravity:</b> marks fall to the front-left end of their column.</li>
+            <li>⬇️ <b>Gravity:</b> the board stands up like Connect Four, and marks drop to the bottom of their column.</li>
             <li>🔀 <b>Shifting Board:</b> every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around.</li>
             <li>⭐ <b>Wild Star:</b> the spinning star counts for both players and jumps to a new square after every turn.</li>
             <li>🙃 <b>Misère:</b> whoever makes three in a row <b>loses</b>.</li>

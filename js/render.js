@@ -84,12 +84,28 @@ function layout(b, ox, oy, oz, s) {
   });
 }
 
+// ---------- Gravity: the Level 0 board stands up like a Connect Four frame ----------
+// A gravity game's board rotates about its front edge until it is vertical; row 0 ends up at the top.
+// (it stays upright for a moment after a win so the winning line is seen in Connect Four position)
+const wantsUpright = (b) => !!(b && b.level === 0 && b.rule === 'gravity' && (!b.winner || performance.now() - (b.winTime || 0) < 1300));
+// world-space transform for a board tilted by t (0 flat .. 1 upright)
+function tiltXf(b, t) {
+  if (!b || !b.geo || !(t > 0.001)) return null;
+  const g = b.geo, pad = GEO.pad * g.s, Y0 = g.oy + 3 * g.s + pad, Z0 = g.oz;
+  const th = t * Math.PI / 2, c = Math.cos(th), sn = Math.sin(th);
+  const f = (x, y, z) => { const dy = y - Y0, dz = z - Z0; return [x, Y0 + dy * c + dz * sn, Z0 - dy * sn + dz * c]; };
+  f.c = c; f.s = sn;
+  return f;
+}
+
 // Camera view that frames a board: focus point in projected iso space + log zoom.
 function viewOf(b) {
   const g = b.geo, s = g.s;
   const E = s * (3 + 2 * GEO.pad);
-  const cx = g.ox + 1.5 * s, cy = g.oy + 1.5 * s;
-  return { px: (cx - cy) * ISO_X, py: (cx + cy) * ISO_Y - g.top, L: -Math.log(E) };
+  let cx = g.ox + 1.5 * s, cy = g.oy + 1.5 * s, cz = g.top;
+  const xf = wantsUpright(b) ? tiltXf(b, 1) : null;
+  if (xf) { [cx, cy, cz] = xf(cx, cy, cz); cz += 0.35 * s; } // leave room above for the disc waiting at the top
+  return { px: (cx - cy) * ISO_X, py: (cx + cy) * ISO_Y - cz, L: -Math.log(E) - (xf ? 0.3 : 0) };
 }
 
 const Renderer = {
@@ -154,12 +170,27 @@ const Renderer = {
   },
 
   project(x, y, z) {
+    if (this.xf) [x, y, z] = this.xf(x, y, z);
     return [(x - y) * ISO_X * this.zm + this.offX, ((x + y) * ISO_Y - z) * this.zm + this.offY];
   },
 
   // Screen point -> cell index on board b (on the plane of its tile tops), or -1.
   pick(b, sx, sy) {
     if (!b || !b.geo) return -1;
+    if (b.tilt > 0.5 && b.quads) {
+      const inPoly = (q) => {
+        let inside = false;
+        for (let i = 0, j = q.length - 1; i < q.length; j = i++) {
+          const [xi, yi] = q[i], [xj, yj] = q[j];
+          if ((yi > sy) !== (yj > sy) && sx < ((xj - xi) * (sy - yi)) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+      };
+      for (let k = 0; k < 9; k++) if (b.quads[k] && inPoly(b.quads[k])) return k;
+      // the open space above each column also counts as that column (drop it in from the top)
+      for (let i = 0; i < 3; i++) if (b.quadsAbove && b.quadsAbove[i] && inPoly(b.quadsAbove[i])) return i;
+      return -1;
+    }
     const zm = this.zoom();
     const px = (sx - this.W / 2) / zm + this.cam.px;
     const py = (sy - this.centerY()) / zm + this.cam.py;
@@ -173,8 +204,11 @@ const Renderer = {
   },
 
   boardScreenCenter(b) {
-    const g = b.geo;
-    return this.project(g.ox + 1.5 * g.s, g.oy + 1.5 * g.s, g.top);
+    const g = b.geo, prev = this.xf;
+    this.xf = tiltXf(b, b.tilt);
+    const r = this.project(g.ox + 1.5 * g.s, g.oy + 1.5 * g.s, g.top);
+    this.xf = prev;
+    return r;
   },
 
   // ---------- primitives ----------
@@ -202,10 +236,12 @@ const Renderer = {
     }
     if (area < 0) pts = pts.slice().reverse();
     const faces = [];
+    const xf = this.xf, tc = xf ? xf.c : 1, ts = xf ? xf.s : 0;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length];
       const nx = b[1] - a[1], ny = -(b[0] - a[0]);
-      if (nx + ny > 1e-15) faces.push({ a, b, d: a[0] + a[1] + b[0] + b[1], nx, ny });
+      // visible if the (tilted) face normal points toward the viewer (+1,+1,+1)
+      if (nx + ny * (tc - ts) > 1e-15) faces.push({ a, b, d: a[0] + a[1] * (tc - ts) + b[0] + b[1] * (tc - ts), nx, ny });
     }
     faces.sort((f, g) => f.d - g.d);
     for (const f of faces) {
@@ -233,7 +269,7 @@ const Renderer = {
     for (let n = 0; n < N; n++) {
       const th = ((n + 0.5) / N) * Math.PI * 2;
       const nx = -Math.cos(th), ny = -Math.sin(th);
-      if (nx + ny <= 0) continue;
+      if (nx + ny * this.tk() <= 0) continue;
       const a = inner[n], b = inner[n + 1];
       const q = [this.project(a[0], a[1], z0), this.project(b[0], b[1], z0), this.project(b[0], b[1], z1), this.project(a[0], a[1], z1)];
       const fill = col(c, -30 - 6 * ((nx - ny) / (Math.abs(nx) + Math.abs(ny))));
@@ -244,8 +280,8 @@ const Renderer = {
     for (let n = 0; n < N; n++) {
       const th = ((n + 0.5) / N) * Math.PI * 2;
       const nx = Math.cos(th), ny = Math.sin(th);
-      if (nx + ny <= 0) continue;
-      faces.push({ a: outer[n], b: outer[n + 1], nx, ny, d: outer[n][0] + outer[n][1] });
+      if (nx + ny * this.tk() <= 0) continue;
+      faces.push({ a: outer[n], b: outer[n + 1], nx, ny, d: outer[n][0] + outer[n][1] * this.tk() });
     }
     faces.sort((f, g) => f.d - g.d);
     for (const f of faces) {
@@ -269,6 +305,286 @@ const Renderer = {
     ctx.shadowBlur = 0;
     if (opts.stroke) { ctx.strokeStyle = opts.stroke; ctx.lineWidth = opts.lw || 1; ctx.stroke(); }
   },
+
+  // One massive telescopic hydraulic ram that lives in a mechanical pit under the Gravity board:
+  // the board is the pit's hatch, and the ram pushes it up and holds it upright. Everything is
+  // real 3D geometry run through the iso projection.
+  hydraulics(b, a) {
+    const g = b.geo, s = g.s, pad = GEO.pad * s, ctx = this.ctx;
+    const Y0 = g.oy + 3 * s + pad, Z0 = g.oz, xf = tiltXf(b, b.tilt);
+    const cx = g.ox + 1.5 * s, Ay = g.oy - pad + 0.82 * s,   // pivot assembly tucked against the back wall
+      D = 0.9 * s, Zf = Z0 - D;   // pit only as deep as the pivot assembly
+    const ap = a * Math.min(1, b.tilt * 5);                 // the pit fades in as the hatch opens
+    // pit opening = the board's footprint (the flat board covers it like a hatch)
+    const X0 = g.ox - pad + 0.04 * s, X1 = g.ox + 3 * s + pad - 0.04 * s, Yb = g.oy - pad + 0.04 * s, Yf = Y0 - 0.04 * s, rim = 0.55 * s;
+    const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
+    const add = (p, q, k = 1) => [p[0] + q[0] * k, p[1] + q[1] * k, p[2] + q[2] * k];
+    const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+    const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+    const norm = p => { const l = Math.hypot(...p) || 1; return [p[0] / l, p[1] / l, p[2] / l]; };
+    const LGT = norm([-0.35, 0.45, 0.85]), HV = norm(add(LGT, norm([1, 1, 1])));
+    // ---- tiny mesh kit: faces are collected per group, culled, depth sorted and shaded
+    let faces = [], phase = -1;   // phase 0: only parts below the deck, 1: only parts above it
+    const face = (pts, c, ctr, chrome, flat) => faces.push({ pts, c, ctr, chrome, flat });
+    const m3 = p => p.reduce((acc, q) => acc + q[2], 0) / p.length;   // deeper in the pit = darker
+    const flush = () => {
+      const vis = [];
+      for (const f of faces) {
+        const p = f.pts, m = [0, 0, 0];
+        for (const q of p) { m[0] += q[0] / p.length; m[1] += q[1] / p.length; m[2] += q[2] / p.length; }
+        let n = norm(cross(sub(p[1], p[0]), sub(p[2], p[0])));
+        if (dot(n, sub(m, f.ctr)) < 0) n = [-n[0], -n[1], -n[2]];
+        if (n[0] + n[1] + n[2] <= 1e-6) continue;
+        if (phase === 0 ? m[2] > Z0 + 1e-6 : phase === 1 ? m[2] <= Z0 + 1e-6 : false) continue;           // faces away from the (1,1,1) viewer
+        vis.push({ f, n, d: m[0] + m[1] + m[2] });
+      }
+      vis.sort((p, q) => p.d - q.d);
+      for (const { f, n } of vis) {
+        const lam = Math.max(0, dot(n, LGT));
+        let k = (0.42 + 0.68 * lam) * (f.flat ? 1 : 0.6 + 0.4 * Math.min(1, Math.max(0, (m3(f.pts) - Zf) / D))), spec = 0;
+        if (f.chrome) spec = Math.pow(Math.max(0, dot(n, HV)), 14) * 0.9;
+        const rgb = f.c.map(v => Math.min(255, Math.round(v * k + 255 * spec)));
+        const fill = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        this.fillPoly(f.pts.map(q => this.project(q[0], q[1], q[2])), fill, fill, 0.7);
+      }
+      faces = [];
+    };
+    const box = (x0, x1, y0, y1, z0, z1, c, T = null) => {
+      const P = (x, y, z) => T ? T(x, y, z) : [x, y, z];
+      const v = [P(x0, y0, z0), P(x1, y0, z0), P(x1, y1, z0), P(x0, y1, z0), P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)];
+      const ctr = P((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+      for (const ix of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) face(ix.map(i => v[i]), c, ctr);
+    };
+    const cyl = (P0, P1, r, n, c, chrome, caps = true, segs = 1) => {
+      const d = norm(sub(P1, P0));
+      let e1 = cross(d, [0, 0, 1]); if (Math.hypot(...e1) < 1e-3) e1 = cross(d, [1, 0, 0]);
+      e1 = norm(e1); const e2 = cross(d, e1);
+      const ring = P => Array.from({ length: n }, (_, i) => { const t = (i / n) * Math.PI * 2; return add(add(P, e1, r * Math.cos(t)), e2, r * Math.sin(t)); });
+      let prev = ring(P0);
+      if (caps) face(prev, c.map(v => v * 0.85), add(P0, d, r), chrome);
+      for (let k = 1; k <= segs; k++) {
+        const Pk = add(P0, sub(P1, P0), k / segs), Pm = add(P0, sub(P1, P0), (k - 0.5) / segs), cur = ring(Pk);
+        for (let i = 0; i < n; i++) face([prev[i], prev[(i + 1) % n], cur[(i + 1) % n], cur[i]], c, Pm, chrome);
+        prev = cur;
+        if (k === segs && caps) face(cur, c.map(v => v * 0.85), add(Pk, d, -r), chrome);
+      }
+    };
+    const disc = (P, ax, r, n, c) => { // flat disc facing +axis (ax: 'x' | 'y' | 'z')
+      const pts = Array.from({ length: n }, (_, i) => { const t = (i / n) * Math.PI * 2, u = r * Math.cos(t), v = r * Math.sin(t);
+        return ax === 'x' ? [P[0], P[1] + u, P[2] + v] : ax === 'y' ? [P[0] + u, P[1], P[2] + v] : [P[0] + u, P[1] + v, P[2]]; });
+      face(pts, c, ax === 'x' ? [P[0] - 1, P[1], P[2]] : ax === 'y' ? [P[0], P[1] - 1, P[2]] : [P[0], P[1], P[2] - 1]);
+    };
+    const STEEL = [58, 63, 92], DARK = [36, 39, 58], BOLT = [170, 178, 196], CHROME = [150, 160, 178],
+      YEL = [255, 194, 26], PUMP = [214, 84, 34], HOSE = [26, 28, 40], RUB = [20, 20, 28], WALL = [46, 50, 76], DECK = [52, 57, 86];
+
+    // geometry of the ram
+    const slabT = 0.16 * s, Pz = Zf + slabT + 0.42 * s;
+    const P = [cx, Ay, Pz];                                         // lower pivot (in the clevis)
+    const B = xf(cx, Y0 - 2.2 * s, Z0 - 0.16 * s);                  // upper pivot (bracket under the board)
+    const L = Math.hypot(...sub(B, P)), d = norm(sub(B, P));
+    // telescopic: fixed barrel, a second-stage sleeve, then the chrome rod
+    const barrel = Math.min(L, 1.15 * s), M = add(P, d, barrel);
+    const sleeve = Math.max(0, Math.min(L - barrel, 1.15 * s)), M2 = add(M, d, sleeve);
+
+    // ---- the pit: floor, far walls (inner faces) and their plumbing
+    let beam = () => {};
+    const pit = () => {
+      ctx.globalAlpha = ap;
+      face([[X0, Yb, Zf], [X1, Yb, Zf], [X1, Yf, Zf], [X0, Yf, Zf]], [34, 36, 54], [cx, Ay, Zf - 1], false, true); flush();
+      for (let i = 1; i < 12; i++) { const x = X0 + (X1 - X0) * i / 12;      // floor grating
+        face([[x - 0.012 * s, Yb, Zf + 0.002 * s], [x + 0.012 * s, Yb, Zf + 0.002 * s], [x + 0.012 * s, Yf, Zf + 0.002 * s], [x - 0.012 * s, Yf, Zf + 0.002 * s]], [22, 24, 36], [x, Ay, Zf - 1], false, true); }
+      flush();
+      face([[X0, Yb, Zf], [X0, Yf, Zf], [X0, Yf, Z0], [X0, Yb, Z0]], WALL, [X0 - 1, Ay, Zf]);       // left wall
+      face([[X0, Yb, Zf], [X1, Yb, Zf], [X1, Yb, Z0], [X0, Yb, Z0]], WALL, [cx, Yb - 1, Zf]);       // back wall
+      flush();
+      for (let i = 1; i < 6; i++) { const y = Yb + (Yf - Yb) * i / 6;          // wall panel ribs
+        box(X0, X0 + 0.05 * s, y - 0.03 * s, y + 0.03 * s, Zf, Z0 - 0.02 * s, [38, 41, 64]); flush(); }
+      for (let i = 1; i < 6; i++) { const x = X0 + (X1 - X0) * i / 6;
+        box(x - 0.03 * s, x + 0.03 * s, Yb, Yb + 0.05 * s, Zf, Z0 - 0.02 * s, [38, 41, 64]); flush(); }
+      for (const [z, c] of [[Zf + 0.66 * s, [120, 60, 40]], [Zf + 0.44 * s, [60, 110, 150]]]) {   // pipes along the back wall
+        cyl([X0 + 0.06 * s, Yb + 0.16 * s, z], [X1, Yb + 0.16 * s, z], 0.07 * s, 10, c, false, false); flush(); }
+      cyl([X0 + 0.16 * s, Yb + 0.16 * s, Zf], [X0 + 0.16 * s, Yb + 0.16 * s, Z0 - 0.02 * s], 0.07 * s, 10, [120, 60, 40], false, false); flush();
+      // work lamp on an arm off the back wall, its shade pointing straight down: a soft, dim
+      // cone of light (true 3D cone run through the iso projection) and an iso pool on the floor
+      const lx = X0 + (X1 - X0) * 0.84, ldir = [0, 0, -1], Lp = [lx, Yb + 0.34 * s, Z0 - 0.1 * s];
+      const F = [Lp[0], Lp[1], Zf], R = 0.42 * s, rm = 0.12 * s, P1 = add(Lp, ldir, 0.05 * s);
+      const circ = (C, r, n = 32) => Array.from({ length: n }, (_, i) => { const th = i / n * Math.PI * 2; return [C[0] + r * Math.cos(th), C[1] + r * Math.sin(th), C[2]]; });
+      const hull2 = pts => {
+        const ps = pts.slice().sort((p, q) => p[0] - q[0] || p[1] - q[1]), cr = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+        const lo = [], up = [];
+        for (const p of ps) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+        for (const p of ps.slice().reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+        return lo.slice(0, -1).concat(up.slice(0, -1)); };
+      const path = pts => { ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); };
+      const [fx, fy] = this.project(...F), [mx, my] = this.project(...P1), zm = this.zm;
+      const beamFns = [];
+      // soft pool: a radial gradient drawn in floor space, so it lands as a proper iso ellipse
+      beamFns.push(() => {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        ctx.transform(ISO_X * zm, ISO_Y * zm, -ISO_X * zm, ISO_Y * zm, fx, fy);
+        const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 1.15);
+        gr.addColorStop(0, 'rgba(255,176,90,0.14)'); gr.addColorStop(0.5, 'rgba(255,160,70,0.06)'); gr.addColorStop(1, 'rgba(255,150,60,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, R * 1.15, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      });
+      // soft cone: a stack of horizontal discs from the shade's mouth to the floor, each a radial
+      // gradient drawn in floor space (so every slice is a true iso ellipse) that fades to nothing
+      // at its rim. Added together they read as a soft cone of light with no hard edges anywhere.
+      beamFns.push(() => {
+        const N = 26;
+        for (let k = 0; k < N; k++) {
+          const v = k / (N - 1), z = P1[2] + (Zf - P1[2]) * v, r = rm * 0.8 + (R - rm * 0.8) * v;
+          const [qx, qy] = this.project(F[0], F[1], z);
+          ctx.save(); ctx.globalCompositeOperation = 'lighter';
+          ctx.transform(ISO_X * zm, ISO_Y * zm, -ISO_X * zm, ISO_Y * zm, qx, qy);
+          const al = 0.075 * (1 - 0.6 * v);
+          const g2 = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+          g2.addColorStop(0, `rgba(255,190,110,${al})`); g2.addColorStop(0.45, `rgba(255,180,95,${al * 0.6})`); g2.addColorStop(1, 'rgba(255,170,80,0)');
+          ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+      });
+      beam = () => { ctx.globalAlpha = ap; beamFns.forEach(f => f()); };
+      // wall bracket and arm
+      box(lx - 0.06 * s, lx + 0.06 * s, Yb, Yb + 0.05 * s, Lp[2] - 0.04 * s, Lp[2] + 0.12 * s, DARK); flush();
+      box(lx - 0.02 * s, lx + 0.02 * s, Yb + 0.05 * s, Lp[1], Lp[2] + 0.06 * s, Lp[2] + 0.1 * s, [90, 96, 120]); flush();
+      // conical shade (frustum) opening downward, its bulb hidden inside
+      { const P0 = add(Lp, ldir, -0.1 * s), n = 16;
+        const r0 = circ(P0, 0.04 * s, n), r1 = circ(P1, rm, n), mid = add(Lp, ldir, -0.02 * s);
+        for (let i = 0; i < n; i++) face([r0[i], r0[(i + 1) % n], r1[(i + 1) % n], r1[i]], [200, 140, 40], mid, false);
+        face(r0, [150, 105, 30], add(P0, ldir, 1));
+        flush();
+      }
+      ctx.globalAlpha = ap * 0.45; this.ellipse(cx, Ay, Zf + 0.003 * s, 1.0 * s, 'rgba(0,0,0,0.85)');
+      ctx.globalAlpha = a;
+    };
+    // ---- the deck around the opening and the mechanical room's outer walls
+    const deck = () => {
+      ctx.globalAlpha = ap;
+      const ox0 = X0 - rim, ox1 = X1 + rim, oy0 = Yb - rim, oy1 = Yf + rim, zb = Zf - 0.12 * s;
+      face([[ox1, oy0, zb], [ox1, oy1, zb], [ox1, oy1, Z0], [ox1, oy0, Z0]], [40, 44, 68], [ox1 - 1, Ay, Z0]);   // right outer wall
+      face([[ox0, oy1, zb], [ox1, oy1, zb], [ox1, oy1, Z0], [ox0, oy1, Z0]], [40, 44, 68], [cx, oy1 - 1, Z0]);   // front outer wall
+      flush();
+      for (const k of [0.25, 0.5, 0.75]) {                                   // structural ribs on the outer walls
+        const y = oy0 + (oy1 - oy0) * k, x = ox0 + (ox1 - ox0) * k;
+        box(ox1, ox1 + 0.06 * s, y - 0.06 * s, y + 0.06 * s, zb, Z0, [52, 57, 88]); flush();
+        box(x - 0.06 * s, x + 0.06 * s, oy1, oy1 + 0.06 * s, zb, Z0, [52, 57, 88]); flush();
+      }
+      // deck top with the hatch opening cut out
+      const outer = [[ox0, oy0], [ox1, oy0], [ox1, oy1], [ox0, oy1]].map(([x, y]) => this.project(x, y, Z0));
+      const hole = [[X0, Yb], [X0, Yf], [X1, Yf], [X1, Yb]].map(([x, y]) => this.project(x, y, Z0));
+      ctx.beginPath();
+      for (const poly of [outer, hole]) { ctx.moveTo(poly[0][0], poly[0][1]); for (const q of poly.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); }
+      ctx.fillStyle = 'rgb(58,63,96)'; ctx.fill('evenodd');
+      ctx.strokeStyle = 'rgba(140,150,200,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+      // hazard stripes around the rim of the opening
+      const zt = Z0 + 0.002 * s, w = 0.13 * s, edges = [[[X0, Yb], [X1, Yb], [0, -1]], [[X1, Yb], [X1, Yf], [1, 0]], [[X1, Yf], [X0, Yf], [0, 1]], [[X0, Yf], [X0, Yb], [-1, 0]]];
+      for (const [p0, p1, [nx, ny]] of edges) {
+        const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), n = Math.round(len / (0.2 * s)), ux = (p1[0] - p0[0]) / len, uy = (p1[1] - p0[1]) / len;
+        for (let i = 0; i < n; i++) {
+          const t0 = i * len / n, t1 = (i + 1) * len / n, sk = 0.08 * s;
+          face([[p0[0] + ux * t0 + nx * w, p0[1] + uy * t0 + ny * w, zt], [p0[0] + ux * t1 + nx * w, p0[1] + uy * t1 + ny * w, zt],
+                [p0[0] + ux * (t1 - sk), p0[1] + uy * (t1 - sk), zt], [p0[0] + ux * (t0 - sk), p0[1] + uy * (t0 - sk), zt]], i % 2 ? RUB : YEL, [p0[0], p0[1], zt - 1], false, true);
+        }
+      }
+      flush();
+      // deck bolts
+      for (const [x, y] of [[ox0 + 0.2 * s, oy1 - 0.2 * s], [ox1 - 0.2 * s, oy1 - 0.2 * s], [ox1 - 0.2 * s, oy0 + 0.2 * s], [cx, oy1 - 0.2 * s], [ox1 - 0.2 * s, Ay]]) {
+        cyl([x, y, Z0], [x, y, Z0 + 0.04 * s], 0.06 * s, 6, BOLT, false, true); flush(); }
+      ctx.globalAlpha = a;
+    };
+    const mech = () => {
+
+    // 1. foundation slab with hazard chevrons on its front strip
+    box(cx - 0.85 * s, cx + 0.85 * s, Ay - 0.7 * s, Ay + 0.7 * s, Zf, Zf + slabT, STEEL); flush();
+    for (let i = 0; i < 8; i++) {
+      const x0 = cx - 0.85 * s + i * 0.2125 * s, zt = Zf + slabT + 0.002 * s, y0 = Ay + 0.52 * s, y1 = Ay + 0.68 * s;
+      face([[x0, y1, zt], [x0 + 0.1 * s, y1, zt], [x0 + 0.16 * s, y0, zt], [x0 + 0.06 * s, y0, zt]], i % 2 ? RUB : YEL, [x0, y0, Zf]);
+    }
+    flush();
+    // anchor bolts (hex heads + washers)
+    const bolt = (x, y) => { disc([x, y, Zf + slabT + 0.002 * s], 'z', 0.1 * s, 12, DARK); cyl([x, y, Zf + slabT], [x, y, Zf + slabT + 0.07 * s], 0.065 * s, 6, BOLT, true); };
+    for (const [x, y] of [[-0.68, -0.53], [0.68, -0.53]]) bolt(cx + x * s, Ay + y * s);
+    flush();
+    for (const [x, y] of [[-0.68, 0.36], [0.68, 0.36]]) bolt(cx + x * s, Ay + y * s);
+    flush();
+    // 2. hydraulic pump with a pressure gauge, on the far side of the slab
+    const pz0 = Zf + slabT, pz1 = pz0 + 0.42 * s, px0 = cx - 0.8 * s, px1 = cx - 0.52 * s, py0 = Ay - 0.55 * s, py1 = Ay - 0.05 * s;
+    box(px0, px1, py0, py1, pz0, pz1, PUMP); flush();
+    box(px0 + 0.03 * s, px1 - 0.03 * s, py0 + 0.05 * s, py1 - 0.05 * s, pz1, pz1 + 0.05 * s, DARK); flush();
+    disc([px1 - 0.14 * s, py1 + 0.004 * s, pz0 + 0.24 * s], 'y', 0.1 * s, 16, [235, 238, 245]);
+    disc([px1 - 0.14 * s, py1 + 0.006 * s, pz0 + 0.24 * s], 'y', 0.02 * s, 8, [30, 30, 40]);
+    flush();
+    { const ang = -0.6 + 0.9 * b.tilt, gx = px1 - 0.14 * s, gz = pz0 + 0.24 * s, gy = py1 + 0.008 * s;   // needle climbs with the pressure
+      face([[gx - 0.008 * s, gy, gz], [gx + 0.008 * s, gy, gz], [gx + Math.sin(ang) * 0.085 * s, gy, gz + Math.cos(ang) * 0.085 * s]], [230, 40, 60], [gx, gy - 1, gz]); flush(); }
+    // 3. pressure hose from the pump up to the barrel's port (far side of the barrel)
+    { const e1 = norm(cross(d, [0, 0, 1])), port = add(add(P, d, barrel * 0.62), e1, (d[1] >= 0 ? 0.3 : -0.3) * s);
+      const H0 = [cx - 0.66 * s, Ay - 0.3 * s, pz1 + 0.05 * s], C1 = [H0[0], H0[1], H0[2] + 0.5 * s], C2 = add(port, [-0.35 * s, 0, 0]);
+      const bez = t => { const u = 1 - t; return [0, 1, 2].map(i => u * u * u * H0[i] + 3 * u * u * t * C1[i] + 3 * u * t * t * C2[i] + t * t * t * port[i]); };
+      let q0 = bez(0);
+      for (let i = 1; i <= 10; i++) { const q1 = bez(i / 10); cyl(q0, q1, 0.05 * s, 8, HOSE, false, false); q0 = q1; }
+      flush();
+    }
+    // 4. far clevis plate
+    const clev = x0 => { box(x0, x0 + 0.1 * s, Ay - 0.34 * s, Ay + 0.34 * s, Zf + slabT, Pz + 0.3 * s, DARK);
+      // triangular gussets
+      const gx = x0 + 0.05 * s, zt = Zf + slabT;
+      face([[gx - 0.03 * s, Ay - 0.34 * s, zt], [gx - 0.03 * s, Ay - 0.56 * s, zt], [gx - 0.03 * s, Ay - 0.34 * s, zt + 0.42 * s]], STEEL, [gx + 1, Ay, zt]);
+      face([[gx + 0.03 * s, Ay - 0.34 * s, zt], [gx + 0.03 * s, Ay - 0.56 * s, zt], [gx + 0.03 * s, Ay - 0.34 * s, zt + 0.42 * s]], STEEL, [gx - 1, Ay, zt]); };
+    clev(cx - 0.46 * s); flush();
+    // 5. the ram itself: barrel, gland, hazard collar, chrome rod, upper bracket
+    const T = (x, y, z) => xf(x, y, z);
+    const by = Y0 - 2.2 * s;
+    box(cx - 0.3 * s, cx - 0.2 * s, by - 0.26 * s, by + 0.26 * s, Z0 - 0.34 * s, Z0, DARK, T); flush();
+    cyl(add(P, d, -0.12 * s), M, 0.3 * s, 18, [74, 80, 116], true, true, 4);
+    if (sleeve > 0.01 * s) cyl(add(M, d, 0.04 * s), M2, 0.22 * s, 16, [96, 104, 132], true, true, Math.max(1, Math.ceil(sleeve / (0.3 * s))));
+    cyl(add(P, d, 0.18 * s), add(P, d, 0.3 * s), 0.33 * s, 18, STEEL, false, true);           // base ring
+    if (barrel > 0.5 * s) cyl(add(M, d, -0.28 * s), add(M, d, -0.04 * s), 0.34 * s, 18, YEL, false, true);  // hazard collar
+    cyl(add(M, d, -0.04 * s), add(M, d, 0.06 * s), 0.24 * s, 18, STEEL, true, true);          // gland nut
+    if (sleeve > 0.01 * s) cyl(add(M2, d, -0.04 * s), add(M2, d, 0.04 * s), 0.25 * s, 16, YEL, false, true);   // stage-2 collar
+    if (L > barrel + sleeve + 0.01 * s) cyl(add(M2, d, 0.04 * s), B, 0.14 * s, 16, CHROME, true, false, Math.max(1, Math.ceil((L - barrel - sleeve) / (0.3 * s))));
+    cyl(add(B, [-0.18 * s, 0, 0]), add(B, [0.18 * s, 0, 0]), 0.12 * s, 14, STEEL, false, true);   // rod-end eye
+    flush();
+    box(cx + 0.2 * s, cx + 0.3 * s, by - 0.26 * s, by + 0.26 * s, Z0 - 0.34 * s, Z0, DARK, T); flush();
+    cyl([cx + 0.3 * s, B[1], B[2]], [cx + 0.36 * s, B[1], B[2]], 0.08 * s, 6, BOLT, false, true); flush();
+    // 6. near clevis plate and the lower pivot pin's nut
+    clev(cx + 0.36 * s); flush();
+    cyl([cx + 0.46 * s, Ay, Pz], [cx + 0.52 * s, Ay, Pz], 0.15 * s, 6, BOLT, false, true);
+    cyl([cx + 0.52 * s, Ay, Pz], [cx + 0.56 * s, Ay, Pz], 0.07 * s, 12, CHROME, true, true);
+    flush();
+    };
+    ctx.globalAlpha = a;
+    pit();
+    ctx.globalAlpha = ap; phase = 0; mech(); beam();
+    phase = -1; deck();
+    ctx.globalAlpha = ap; phase = 1; mech();
+    ctx.globalAlpha = 1;
+  },
+
+  // dust puffing out around the edges of the board as it locks upright
+  lockPuff(b) {
+    if (typeof Fx === 'undefined') return;
+    const g = b.geo, s = g.s, pad = GEO.pad * s, prev = this.xf;
+    this.xf = tiltXf(b, 1);
+    const zb = g.oz + GEO.baseH * s;
+    const corners = rect(g.ox - pad, g.oy - pad, g.ox + 3 * s + pad, g.oy + 3 * s + pad).map(([x, y]) => this.project(x, y, zb));
+    const [cx, cy] = this.project(g.ox + 1.5 * s, g.oy + 1.5 * s, zb);
+    this.xf = prev;
+    const px = s * this.zm;
+    for (let e = 0; e < 4; e++) {
+      const p0 = corners[e], p1 = corners[(e + 1) % 4];
+      for (let n = 0; n < 9; n++) {
+        const t = Math.random(), x = p0[0] + (p1[0] - p0[0]) * t, y = p0[1] + (p1[1] - p0[1]) * t;
+        let vx = x - cx, vy = y - cy; const d = Math.hypot(vx, vy) || 1; vx /= d; vy /= d;
+        const sp = px * (0.6 + Math.random() * 0.9);
+        const sh = (160 + Math.random() * 50) | 0;
+        Fx.add({ x, y, vx: vx * sp, vy: vy * sp - px * 0.2, r0: px * 0.08, r1: px * (0.25 + Math.random() * 0.2), c: `${sh + 30},${sh + 15},${sh}`, a: 0.6, life: 900 + Math.random() * 700, drag: 0.9, g: 20 });
+      }
+    }
+  },
+
+  // how much a footprint's y axis still points toward the viewer under the current tilt (1 flat .. -1 upright)
+  tk() { return this.xf ? this.xf.c - this.xf.s : 1; },
 
   ellipse(cx, cy, z, r, fill) {
     const pts = [];
@@ -347,8 +663,39 @@ const Renderer = {
       return;
     }
 
+    // Gravity: ease the board up to vertical (and back down once the game is over)
+    if (b.level === 0) {
+      const want = wantsUpright(b) ? 1 : 0;
+      if (b.tilt === undefined) b.tilt = 0;
+      const dtt = Math.min(100, now - (b.tiltLast || now)); b.tiltLast = now;
+      const RAISE = 1700;
+      if (want && !b.tiltStarted) {
+        b.tiltStarted = true; b.tiltFrom = b.tilt; b.tiltT = now + 350;
+        if (b === cur) this.flyTo(viewOf(b), 1300);
+        if (typeof Sound !== 'undefined' && Sound.hydraulic && b.tilt < 0.9) setTimeout(() => Sound.hydraulic(RAISE / 1000), 300);
+      }
+      if (want && b.tiltStarted) {
+        // hydraulic: a slow, smooth push that eases in and out, then the board locks into place
+        const q = clamp01((now - b.tiltT) / RAISE);
+        b.tilt = lerp(b.tiltFrom, 1, Ease.inOutCubic(q));
+        if (q >= 1 && !b.tiltLanded) {
+          b.tiltLanded = true;
+          if (b === cur && b.tiltFrom < 0.9) { this.shake(7); this.lockPuff(b); if (typeof Sound !== 'undefined' && Sound.clunk) Sound.clunk(); }
+        }
+      } else if (!want) {
+        b.tiltStarted = false; b.tiltLanded = false;
+        b.tilt = Math.max(0, b.tilt - dtt / 700);
+      }
+    }
+    const prevXf = this.xf;
+    this.xf = tiltXf(b, b.tilt);
+    const upright = b.tilt > 0.5;
+    const late = [];
+    if (upright) { b.quads = []; b.quadsAbove = []; } else { b.quads = null; }
+
     const a = b.alpha;
     const zb = g.oz + GEO.baseH * s, zt = g.top, pad = GEO.pad * s;
+    if (b.level === 0 && b.tilt > 0.003 && a > 0.003) { this.xf = null; this.hydraulics(b, a); this.xf = tiltXf(b, b.tilt); }
     if (a > 0.003) {
       ctx.globalAlpha = a;
       const basePts = rect(g.ox - pad, g.oy - pad, g.ox + 3 * s + pad, g.oy + 3 * s + pad);
@@ -367,7 +714,9 @@ const Renderer = {
     const wins = b.winLine ? new Set(b.winLine) : null;
     if (b.ghosts && b.ghosts.length) b.ghosts = b.ghosts.filter((gh) => now - gh.t < 460);
     const threats = b.level >= 1 && !b.winner ? threatsOf(b.cells.map((c) => c.owner)) : null;
-    for (const k of ORDER) {
+    const tkk = this.tk();
+    const order = this.xf ? ORDER.slice().sort((p, q) => ((p % 3) + ((p / 3) | 0) * tkk) - ((q % 3) + ((q / 3) | 0) * tkk)) : ORDER;
+    for (const k of order) {
       const c = b.cells[k];
       const i = k % 3, j = (k / 3) | 0;
       const p = clamp01((now - b.born - k * 45) / 450);
@@ -409,6 +758,10 @@ const Renderer = {
         this.prism(rect(g.ox + i * s + gp, g.oy + j * s + gp, g.ox + (i + 1) * s - gp, g.oy + (j + 1) * s - gp),
           zb + tz, zt + tz + lift, tc, { stroke: pulseEdge, lw: Math.max(1, px * (inspect || tEdge ? 0.045 : 0.022)) });
         ctx.shadowBlur = 0;
+      }
+      if (upright) {
+        b.quads[k] = rect(g.ox + i * s, g.oy + j * s, g.ox + (i + 1) * s, g.oy + (j + 1) * s).map(([x, y]) => this.project(x, y, zt));
+        if (j === 0) b.quadsAbove[i] = rect(g.ox + i * s, g.oy - 1.6 * s, g.ox + (i + 1) * s, g.oy).map(([x, y]) => this.project(x, y, zt));
       }
       const cx = g.ox + (i + 0.5) * s, cy = g.oy + (j + 0.5) * s;
       const pz = zt + tz;
@@ -465,7 +818,27 @@ const Renderer = {
           if (q >= 1) c.slide = null;
           else { const e = 1 - Ease.outCubic(q); pcx += c.slide.dx * e * s; pcy += c.slide.dy * e * s; hop = Math.sin(q * Math.PI) * 0.25 * s; }
         }
-        this.piece(c.owner, pcx, pcy, pz, s, a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5), drop + hop, pulse, 1 + sq * 0.55, 1 - sq);
+        if (upright) {
+          // Connect Four: the disc drops in from above the frame, down its column, and bounces to rest
+          const fall = (1 - Ease.outBounce(dp)) * (j + 1.6) * s;
+          const al = a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5);
+          late.push(() => this.piece(c.owner, pcx, pcy - fall, pz, s, al, hop, pulse, 1, 1));
+        } else {
+          this.piece(c.owner, pcx, pcy, pz, s, a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5), drop + hop, pulse, 1 + sq * 0.55, 1 - sq);
+        }
+      } else if (hov && upright) {
+        // hover: the disc waits above the slot at the top of the column
+        const bob = (0.5 + 0.5 * Math.sin(now / 180)) * 0.12 * s;
+        const hp = Ease.outBack(clamp01((now - this.hoverT) / 220));
+        const ax = cx, ay = g.oy - 0.75 * s - bob;
+        late.push(() => {
+          // a faint guide down the column to where it will land
+          const p0 = this.project(ax, ay + 0.35 * s, pz + 0.01 * s), p1 = this.project(cx, cy, pz + 0.01 * s);
+          ctx.globalAlpha = a * 0.35; ctx.setLineDash([Math.max(3, px * 0.06), Math.max(3, px * 0.06)]);
+          ctx.strokeStyle = col(PIECE_COL[b.turn], 15); ctx.lineWidth = Math.max(1.5, px * 0.03);
+          ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); ctx.setLineDash([]);
+          this.piece(b.turn, ax, ay, pz, s, 0.75 * a, 0, 0, 0.6 + 0.4 * hp, hp);
+        });
       } else if (hov) {
         const bob = (0.5 + 0.5 * Math.sin(now / 180)) * 0.12 * s;
         const hp = Ease.outBack(clamp01((now - this.hoverT) / 220));
@@ -522,6 +895,8 @@ const Renderer = {
       if (sub) this.drawBoard(sub, now, cur);
     }
 
+    for (const f of late) f();
+    ctx.globalAlpha = 1;
     if (b.winLine && a > 0.003) {
       const p = clamp01((now - b.winTime) / 450);
       const ci = (k) => [g.ox + ((k % 3) + 0.5) * s, g.oy + (((k / 3) | 0) + 0.5) * s];
@@ -545,6 +920,7 @@ const Renderer = {
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    this.xf = prevXf;
   },
 
   drawBackground(now, level) {
@@ -606,11 +982,14 @@ const Renderer = {
   kick(a) { this.fx.kick += a; },
   ripple(b, k, owner, big = 1) {
     const g = b.geo, s = g.s;
-    this.fx.ripples.push({ x: g.ox + ((k % 3) + 0.5) * s, y: g.oy + (((k / 3) | 0) + 0.5) * s, z: g.top + 0.002 * s, s: s * big, t: performance.now(), h: PIECE_COL[owner].h });
+    this.fx.ripples.push({ b, x: g.ox + ((k % 3) + 0.5) * s, y: g.oy + (((k / 3) | 0) + 0.5) * s, z: g.top + 0.002 * s, s: s * big, t: performance.now(), h: PIECE_COL[owner].h });
   },
   cellScreen(b, k) {
-    const g = b.geo;
-    return this.project(g.ox + ((k % 3) + 0.5) * g.s, g.oy + (((k / 3) | 0) + 0.5) * g.s, g.top);
+    const g = b.geo, prev = this.xf;
+    this.xf = tiltXf(b, b.tilt);
+    const r = this.project(g.ox + ((k % 3) + 0.5) * g.s, g.oy + (((k / 3) | 0) + 0.5) * g.s, g.top + (b.tilt > 0.5 ? GEO.pieceH * g.s : 0));
+    this.xf = prev;
+    return r;
   },
   floatText(x, y, text, owner, size = 34) {
     this.fx.texts.push({ x, y, text, h: owner ? PIECE_COL[owner].h : 48, size, t: performance.now() });
@@ -647,6 +1026,7 @@ const Renderer = {
         const q = clamp01((p - delay) / (1 - delay));
         if (q <= 0) continue;
         const R = rp.s * (0.25 + 0.75 * Ease.outCubic(q));
+        this.xf = rp.b ? tiltXf(rp.b, rp.b.tilt) : null;
         const pts = [];
         for (let n = 0; n < 32; n++) {
           const th = (n / 32) * Math.PI * 2;
@@ -657,6 +1037,7 @@ const Renderer = {
         ctx.shadowBlur = 16;
         this.fillPoly(pts, null, `hsl(${rp.h},100%,75%)`, Math.max(1.5, rp.s * this.zm * 0.05 * (1 - q)));
         ctx.shadowBlur = 0;
+        this.xf = null;
       }
       return true;
     });

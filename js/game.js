@@ -17,7 +17,7 @@ const SHIFT_EVERY = 3;  // Shifting board rule: a row or column slides every 3 m
 const RULES = {
   classic: { icon: '⭕', name: 'Classic Tic-Tac-Toe', short: 'Plain tic-tac-toe. A full board with no line is a stalemate.' },
   vanish:  { icon: '👻', name: 'Vanishing Marks', short: 'Keep only your 3 newest marks. Your 4th makes your oldest vanish.' },
-  gravity: { icon: '⬇️', name: 'Gravity', short: 'Marks fall to the front of their column, like a stacking game.' },
+  gravity: { icon: '⬇️', name: 'Gravity', short: 'The board stands up: marks drop to the bottom of their column, like Connect Four.' },
   shift:   { icon: '🔀', name: 'Shifting Board', short: `Every ${SHIFT_EVERY} moves a row or column slides one space and wraps around.` },
   wild:    { icon: '⭐', name: 'Wild Star', short: 'The spinning star counts for both players and jumps to a new square after every turn.' },
   misere:  { icon: '🙃', name: 'Misère', short: 'Upside down: whoever makes three in a row LOSES.' },
@@ -618,6 +618,7 @@ const Game = {
     el.classList.add('play');
     IconFly.land(el.querySelector('.rc-icon'));
     Sound.ruleCard(rule !== 'vanish');
+    Sound.ruleVoice(rule);   // booming hall announcement for rules that have one
     const settle = () => {
       this.ruleFly = null;
       el.classList.remove('play');
@@ -1112,13 +1113,14 @@ const Game = {
       const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
       this.vsCPU = !!p.vsCPU;
       Sound.on = p.sound !== false;
+      Sound.setMix(p.sfxVol != null ? p.sfxVol : null, p.voiceVol != null ? p.voiceVol : null);
       this.best = p.best || 0;
       if (p.dev) Object.assign(this.dev, p.dev);
     } catch (e) { /* defaults */ }
     if (/[?&]dev\b/.test(location.search)) this.dev.on = true;
   },
   savePrefs() {
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ vsCPU: this.vsCPU, sound: Sound.on, best: this.best, dev: this.dev })); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ vsCPU: this.vsCPU, sound: Sound.on, sfxVol: Sound.sfxVol, voiceVol: Sound.voiceVol, best: this.best, dev: this.dev })); } catch (e) { /* ignore */ }
   },
 
   // ---------- HUD ----------
@@ -1344,6 +1346,25 @@ const Game = {
     Game.updateHUD();
     Game.toast(Game.vsCPU ? 'You are <b class="X">X</b>, the computer plays <b class="O">O</b>.' : 'Hot-seat mode: two players, one screen.');
     Game.scheduleCPU();
+  });
+  // volume mix popover: separate levels for sound effects and voice-overs
+  const mixer = $('mixer'), mxSfx = $('mxSfx'), mxVox = $('mxVox');
+  const showMix = () => {
+    mxSfx.value = Math.round(Sound.sfxVol * 100); mxVox.value = Math.round(Sound.voiceVol * 100);
+    $('mxSfxV').textContent = mxSfx.value + '%'; $('mxVoxV').textContent = mxVox.value + '%';
+  };
+  $('btnMix').addEventListener('click', (e) => {
+    e.stopPropagation();
+    mixer.hidden = !mixer.hidden; $('btnMix').setAttribute('aria-expanded', String(!mixer.hidden));
+    $('btnMix').classList.toggle('on', !mixer.hidden);
+    showMix();
+  });
+  const onMix = () => { Sound.setMix(mxSfx.value / 100, mxVox.value / 100); showMix(); Game.savePrefs(); };
+  mxSfx.addEventListener('input', onMix); mxVox.addEventListener('input', onMix);
+  mxSfx.addEventListener('change', () => { Sound.ensure(); Sound.slotWin(false); });
+  $('mxTest').addEventListener('click', () => { Sound.ensure(); Sound.voice('instant-win'); });
+  document.addEventListener('pointerdown', (e) => {
+    if (!mixer.hidden && !mixer.contains(e.target) && e.target !== $('btnMix')) { mixer.hidden = true; $('btnMix').classList.remove('on'); $('btnMix').setAttribute('aria-expanded', 'false'); }
   });
   $('btnSound').addEventListener('click', () => {
     Sound.on = !Sound.on;

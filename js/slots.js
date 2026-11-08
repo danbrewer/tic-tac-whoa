@@ -280,6 +280,7 @@ const Slots = {
       Renderer.fireworks(player, 9);
       Sound.fireworks();
       Sound.fanfare();
+      Sound.instantWin();                       // booming "INSTANT WIN!" voice-over in a big hall
       el.classList.add('instant');
       setTimeout(() => el.classList.remove('instant'), 5200);
       this.instantBanner(el, wins);

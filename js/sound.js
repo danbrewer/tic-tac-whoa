@@ -3,12 +3,43 @@
 const Sound = {
   ctx: null,
   on: true,
+  // mix levels (0..1): sound effects and recorded voice-overs each get their own bus
+  sfxVol: 1,
+  voiceVol: 0.5,
+  sfx() { return this.bus('_sfxBus', this.sfxVol); },
+  vox() { return this.bus('_voxBus', this.voiceVol); },
+  bus(key, v) {
+    const b = this[key];
+    if (b && b.context === this.ctx) return b;
+    const g = this.ctx.createGain(); g.gain.value = v; g.connect(this.ctx.destination);
+    return (this[key] = g);
+  },
+  setMix(sfx, voice) {
+    if (sfx != null) this.sfxVol = Math.max(0, Math.min(1, sfx));
+    if (voice != null) this.voiceVol = Math.max(0, Math.min(1, voice));
+    const now = this.ctx ? this.ctx.currentTime : 0;
+    if (this._sfxBus && this._sfxBus.context === this.ctx) this._sfxBus.gain.setTargetAtTime(this.sfxVol, now, 0.03);
+    if (this._voxBus && this._voxBus.context === this.ctx) this._voxBus.gain.setTargetAtTime(this.voiceVol, now, 0.03);
+  },
 
   ensure() {
     if (!this.ctx) {
       try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; }
     }
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    // resume from any non-running state ('suspended', or Safari's 'interrupted')
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
+      const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {});
+    }
+    // Safari only truly unlocks audio once a sound starts inside a user gesture: play one silent sample
+    if (this.ctx) { this.loadVoice('instant-win'); Object.values(this.RULE_VOICES).forEach(n => this.loadVoice(n)); }
+    if (this.ctx && !this._unlocked) {
+      try {
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.ctx.createBuffer(1, 1, 22050);
+        src.connect(this.ctx.destination); src.start(0);
+        this._unlocked = true;
+      } catch (e) { /* ignore */ }
+    }
   },
 
   tone(freq, dur, { type = 'sine', vol = 0.12, when = 0, slideTo = null } = {}) {
@@ -22,7 +53,7 @@ const Sound = {
     gain.gain.setValueAtTime(0.0001, t0);
     gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(gain).connect(this.ctx.destination);
+    osc.connect(gain).connect(this.sfx());
     osc.start(t0);
     osc.stop(t0 + dur + 0.05);
   },
@@ -46,7 +77,7 @@ const Sound = {
     gain.gain.setValueAtTime(0.0001, t0);
     gain.gain.exponentialRampToValueAtTime(vol, t0 + dur * 0.3);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(bp).connect(gain).connect(this.ctx.destination);
+    src.connect(bp).connect(gain).connect(this.sfx());
     src.start(t0, Math.random() * 0.15);
     src.stop(t0 + dur + 0.05);
   },
@@ -214,7 +245,7 @@ const Sound = {
     gain.gain.exponentialRampToValueAtTime(0.09, t0 + dur);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.15);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(600, t0); lp.frequency.exponentialRampToValueAtTime(6000, t0 + dur);
-    osc.connect(lp).connect(gain).connect(ctx.destination);
+    osc.connect(lp).connect(gain).connect(this.sfx());
     osc.start(t0); lfo.start(t0); osc.stop(t0 + dur + 0.2); lfo.stop(t0 + dur + 0.2);
     this.noise(dur, { vol: 0.12, from: 300, to: 8000, q: 2 });
   },
@@ -286,7 +317,7 @@ const Sound = {
     g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
     g.gain.setValueAtTime(vol, t0 + Math.max(attack, dur - release));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(f).connect(g).connect(this.ctx.destination);
+    src.connect(f).connect(g).connect(this.sfx());
     src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
   },
   // deep "brown" noise (random walk) — the rumbling body of a rocket engine, with no pitch at all
@@ -312,7 +343,7 @@ const Sound = {
     g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
     g.gain.setValueAtTime(vol, t0 + Math.max(attack, dur - release));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(f).connect(ws).connect(g).connect(this.ctx.destination);
+    src.connect(f).connect(ws).connect(g).connect(this.sfx());
     src.start(t0, Math.random() * 2); src.stop(t0 + dur + 0.05);
   },
   // the sharp popping crackle of rocket exhaust
@@ -337,6 +368,186 @@ const Sound = {
     this.roar(3.2, { type: 'lowpass', from: 1400, to: 500, vol: 0.18, attack: 0.1, release: 2.0, q: 0.5 }); // roar air
     this.roar(2.4, { type: 'highpass', from: 3500, to: 2500, vol: 0.06, attack: 0.05, release: 1.6 });     // hiss
     this.crackle(2.8, { rate: 70, vol: 0.13, when: 0.1 });
+  },
+  // a send to a shared echo (feedback delay) for big, cavernous hits
+  echoBus() {
+    if (this._echo) return this._echo;
+    const ctx = this.ctx, inp = ctx.createGain(), d = ctx.createDelay(1), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
+    d.delayTime.value = 0.23; fb.gain.value = 0.42; lp.type = 'lowpass'; lp.frequency.value = 2200;
+    inp.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(this.sfx());
+    return (this._echo = inp);
+  },
+  // hydraulic ram: motor whine climbing in pitch, hissing fluid, and a pump thudding away
+  // hydraulic lift: the electric pump motor spins up, holds a high strained whine (rising a little
+  // as the load comes on) over a mains-motor buzz and fluid hiss, then spins down as it cuts out
+  hydraulic(dur) {
+    if (!this.on || !this.ctx) return;
+    const c = this.ctx, t0 = c.currentTime, up = 0.35, down = 0.4, end = t0 + dur;
+    const out = c.createGain();
+    out.gain.setValueAtTime(0.0001, t0); out.gain.exponentialRampToValueAtTime(1, t0 + 0.08);
+    out.gain.setValueAtTime(1, end); out.gain.exponentialRampToValueAtTime(0.0001, end + down);
+    out.connect(this.sfx());
+    const motor = (o, k) => {                         // spin-up, load, spin-down
+      o.frequency.setValueAtTime(180 * k, t0);
+      o.frequency.exponentialRampToValueAtTime(1350 * k, t0 + up);
+      o.frequency.linearRampToValueAtTime(1600 * k, end - 0.05);
+      o.frequency.exponentialRampToValueAtTime(260 * k, end + down);
+    };
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 28; lg.gain.value = 12;
+    lfo.connect(lg); lfo.start(t0); lfo.stop(end + down + 0.1);
+    for (const [type, k, vol] of [['triangle', 1, 0.075], ['sawtooth', 1.003, 0.02], ['sine', 2.002, 0.022], ['sine', 0.5, 0.03]]) {
+      const o = c.createOscillator(), g = c.createGain(); o.type = type; motor(o, k); lg.connect(o.frequency);
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.5; bp.frequency.value = 1500 * k;
+      g.gain.value = vol; o.connect(bp).connect(g).connect(out); o.start(t0); o.stop(end + down + 0.1);
+    }
+    // mains-motor buzz underneath, following the spin-up and spin-down
+    const bz = c.createOscillator(), bf = c.createBiquadFilter(), bg = c.createGain();
+    bz.type = 'sawtooth'; bz.frequency.setValueAtTime(40, t0); bz.frequency.exponentialRampToValueAtTime(120, t0 + up);
+    bz.frequency.setValueAtTime(120, end); bz.frequency.exponentialRampToValueAtTime(35, end + down);
+    bf.type = 'lowpass'; bf.frequency.value = 900; bf.Q.value = 1.5; bg.gain.value = 0.07;
+    bz.connect(bf).connect(bg).connect(out); bz.start(t0); bz.stop(end + down + 0.1);
+    this.roar(dur, { type: 'bandpass', from: 2600, to: 3600, vol: 0.045, attack: 0.25, release: 0.3, q: 1.5 }); // fluid hiss
+    this.noise(0.25, { vol: 0.1, from: 4000, to: 1500, q: 1, when: 0 });                                   // valve opening
+  },
+  // ---- recorded voice-overs, played through a big concert-hall reverb so they BOOM
+  voices: {},
+  hallIR() {
+    if (this._hall && this._hall.ctx === this.ctx) return this._hall.buf;
+    // synthetic impulse response: 4.2 s of stereo noise with a slow exponential decay, darker as it fades
+    const sr = this.ctx.sampleRate, len = Math.floor(sr * 4.2), buf = this.ctx.createBuffer(2, len, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch); let lp = 0;
+      for (let i = 0; i < len; i++) {
+        const t = i / sr, k = Math.min(0.92, 0.25 + t * 0.2);   // low-pass gets heavier over time
+        lp = lp * k + (Math.random() * 2 - 1) * (1 - k);
+        d[i] = lp * Math.pow(1 - i / len, 2.2) * (t < 0.03 ? t / 0.03 : 1) * 2.2;
+      }
+    }
+    this._hall = { ctx: this.ctx, buf };
+    return buf;
+  },
+  // fetch + decode a voice file once (needs the game served over http; file:// falls back below)
+  loadVoice(name) {
+    if (this.voices[name] !== undefined || !this.ctx || location.protocol === 'file:') return;
+    this.voices[name] = null;
+    fetch(`media/soundfx/${name}.mp3`).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(ab => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej)))
+      .then(buf => {
+        // level-match every voice-over: scale each recording to the same loudness (RMS over its
+        // voiced parts), so one announcer is never noticeably louder than another
+        let sum = 0, n = 0;
+        for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+          const d = buf.getChannelData(ch);
+          for (let i = 0; i < d.length; i += 4) { const v = d[i]; if (Math.abs(v) > 0.02) { sum += v * v; n++; } }
+        }
+        const rms = n ? Math.sqrt(sum / n) : 0;
+        this.voiceNorm = this.voiceNorm || {};
+        this.voiceNorm[name] = rms > 0.005 ? Math.max(0.25, Math.min(3, 0.12 / rms)) : 1;
+        this.voices[name] = buf;
+      })
+      .catch(() => { this.voices[name] = false; });
+  },
+  voice(name, { when = 0, style = 'hall' } = {}) {
+    if (!this.on) return;
+    this.ensure();
+    const buf = this.ctx && this.voices[name];
+    if (buf && style === 'pa') { this.paVoice(buf, when); return; }
+    if (buf) {
+      const c = this.ctx, t0 = c.currentTime + when, src = c.createBufferSource(); src.buffer = buf;
+      // deepen and fatten the voice, then send it into the hall
+      const low = c.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 160; low.gain.value = 7;
+      const comp = c.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 5; comp.attack.value = 0.005; comp.release.value = 0.2;
+      const dry = c.createGain(); dry.gain.value = 0.95;
+      const pre = c.createDelay(0.2); pre.delayTime.value = 0.045;
+      const conv = c.createConvolver(); conv.buffer = this.hallIR();
+      const wet = c.createGain(); wet.gain.value = 0.85;
+      // slap-back echoes off the far walls of the hall
+      const slap = c.createDelay(1); slap.delayTime.value = 0.32; const sg = c.createGain(); sg.gain.value = 0.32;
+      const slp = c.createBiquadFilter(); slp.type = 'lowpass'; slp.frequency.value = 1800;
+      const norm = c.createGain(); norm.gain.value = (this.voiceNorm && this.voiceNorm[name]) || 1;
+      src.connect(norm).connect(low).connect(comp);
+      comp.connect(dry).connect(this.vox());
+      comp.connect(pre).connect(conv).connect(wet).connect(this.vox());
+      comp.connect(slap); slap.connect(slp).connect(sg); sg.connect(slap); sg.connect(conv); sg.connect(this.vox());
+      src.start(t0);
+      return;
+    }
+    // no Web Audio copy (e.g. opened straight from disk): play the file as-is, preferring a pre-made hall version
+    const play = (files) => {
+      if (!files.length) return;
+      const a = new Audio(`media/soundfx/${files[0]}.mp3`); a.volume = this.voiceVol;
+      a.onerror = () => play(files.slice(1));
+      setTimeout(() => { const p = a.play(); if (p && p.catch) p.catch(() => {}); }, when * 1000);
+    };
+    play([`${name}-${style}`, name]);
+  },
+  // a booming announcer over a stadium PA: horn-speaker band-limiting, a little amp grit, and
+  // discrete echoes bouncing back off the far stands, all feeding a big hall
+  paVoice(buf, when = 0) {
+    const c = this.ctx, t0 = c.currentTime + when, src = c.createBufferSource(); src.buffer = buf;
+    const out = c.createGain(); out.gain.value = 0.5; out.connect(this.vox());   // headroom: echoes stack up
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; hp.Q.value = 0.8;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200; lp.Q.value = 0.9;
+    const horn = c.createBiquadFilter(); horn.type = 'peaking'; horn.frequency.value = 1700; horn.Q.value = 1.2; horn.gain.value = 6;
+    const body = c.createBiquadFilter(); body.type = 'lowshelf'; body.frequency.value = 260; body.gain.value = 5;
+    const drive = c.createWaveShaper(), n = 1024, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; curve[i] = Math.tanh(x * 2.2) / Math.tanh(2.2); }
+    drive.curve = curve; drive.oversample = '2x';
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -22; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.18;
+    src.connect(hp).connect(body).connect(horn).connect(drive).connect(lp).connect(comp);
+    const dry = c.createGain(); dry.gain.value = 0.9; comp.connect(dry).connect(out);
+    // stadium echoes: each bounce later, quieter and duller, alternating left and right
+    const conv = c.createConvolver(); conv.buffer = this.hallIR();
+    const wet = c.createGain(); wet.gain.value = 0.55; conv.connect(wet).connect(out);
+    comp.connect(conv);
+    [[0.21, 0.5, -0.6, 2600], [0.43, 0.36, 0.6, 2000], [0.66, 0.25, -0.4, 1500], [0.9, 0.16, 0.4, 1100], [1.15, 0.1, 0, 900]].forEach(([d, g, pan, f]) => {
+      const dl = c.createDelay(2); dl.delayTime.value = d;
+      const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = f;
+      const gg = c.createGain(); gg.gain.value = g;
+      const pn = c.createStereoPanner ? c.createStereoPanner() : null;
+      comp.connect(dl); dl.connect(fl).connect(gg);
+      if (pn) { pn.pan.value = pan; gg.connect(pn).connect(out); } else gg.connect(out);
+      gg.connect(conv);
+    });
+    src.start(t0);
+  },
+  // rule announcements (voice-overs in media/soundfx), all through the same big hall as INSTANT WIN
+  RULE_VOICES: { gravity: 'gravity', vanish: 'vanishing-marks', misere: 'misere' },
+  hasRuleVoice(rule) { return !!this.RULE_VOICES[rule]; },
+  ruleVoice(rule, when = 0.35) {
+    const name = this.RULE_VOICES[rule];
+    if (!name) return;
+    // announced once per game: the wheel calls this before lift-off, so the rule card that follows stays quiet
+    const now = performance.now(), at = (this._ruleVoiceAt || (this._ruleVoiceAt = {}));
+    if (at[rule] && now - at[rule] < 9000) return;
+    at[rule] = now;
+    this.voice(name, { when });
+  },
+  gravityVoice(when) { this.ruleVoice('gravity', when); },   // same big-hall treatment as INSTANT WIN
+  instantWin() { this.voice('instant-win', { when: 0.15 }); },
+
+  // the board locking upright: a heavy metal CLUNK, a latch click and a ringing echo
+  clunk() {
+    if (!this.on || !this.ctx) return;
+    const echo = this.echoBus(), t0 = this.ctx.currentTime;
+    const hit = (freq, dur, vol, type = 'square') => {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(this.sfx()); g.connect(echo);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    };
+    hit(70, 0.35, 0.35, 'sine'); hit(140, 0.12, 0.12);                           // body of the clunk
+    [523, 787, 1240, 1810].forEach((f, i) => hit(f, 0.6 - i * 0.1, 0.05, 'triangle')); // metal ring
+    this.noise(0.12, { vol: 0.35, from: 1800, to: 400, q: 0.8 });
+    this.noise(0.04, { vol: 0.25, from: 5000, to: 3000, q: 2, when: 0.09 }); // latch
+    this.tone(1900, 0.05, { type: 'square', vol: 0.05, when: 0.09 });
+    // the low-frequency BOOM of the lock seating home, with a sub drop that echoes away
+    this.bigBoom(0.6, 0);
+    const sub = this.ctx.createOscillator(), sg = this.ctx.createGain();
+    sub.type = 'sine'; sub.frequency.setValueAtTime(48, t0); sub.frequency.exponentialRampToValueAtTime(24, t0 + 1.4);
+    sg.gain.setValueAtTime(0.0001, t0); sg.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02); sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
+    sub.connect(sg); sg.connect(this.sfx()); sg.connect(echo); sub.start(t0); sub.stop(t0 + 1.7);
   },
   rocket() { this.liftoff(); },
   whoosh() { this.noise(0.6, { vol: 0.25, from: 300, to: 3500, q: 0.7 }); },
@@ -373,3 +584,15 @@ const Sound = {
     this.tone(196, 0.4, { type: 'square', vol: 0.05, when: 0.18 });
   },
 };
+
+// After a refresh the browser starts audio suspended until the player interacts with the page.
+// Unlock (or re-wake) the audio context on every kind of gesture anywhere on the page, not just the
+// board, and again whenever the page comes back into view, so sound that is toggled on stays on.
+(() => {
+  const wake = () => { if (Sound.on) Sound.ensure(); };
+  for (const ev of ['pointerdown', 'touchend', 'mousedown', 'keydown', 'click']) window.addEventListener(ev, wake, { capture: true, passive: true });
+  const rewake = () => { if (Sound.ctx && Sound.ctx.state !== 'running' && Sound.ctx.state !== 'closed') { const p = Sound.ctx.resume(); if (p && p.catch) p.catch(() => {}); } };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) rewake(); });
+  window.addEventListener('pageshow', rewake);
+  window.addEventListener('focus', rewake);
+})();

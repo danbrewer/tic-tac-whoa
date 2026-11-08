@@ -557,9 +557,12 @@ const Wheel = {
           Renderer.flash(0.35, '255,230,120');
           res.className = 'wh-result is-win';
           res.innerHTML = `<div class="prize-name">${R.icon} ${R.name.toUpperCase()}!</div>`;
-          el.addEventListener('click', finish);
+          // rules with a voice-over (Gravity, Vanishing Marks) announce now; the wheel waits for it before blasting off
+          const voiced = Sound.hasRuleVoice(k);
+          if (voiced) Sound.ruleVoice(k, 0.15);
+          setTimeout(() => el.addEventListener('click', finish), voiced ? 2600 : 0);
         }, 1400);
-        setTimeout(finish, 3300);
+        setTimeout(finish, Sound.hasRuleVoice(k) ? 5000 : 3300);
       };
       btn.onclick = go;
       el.querySelector('.wh-stage').onclick = (e) => { if (!auto && e.target !== btn) go(); };

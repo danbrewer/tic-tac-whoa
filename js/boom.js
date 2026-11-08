@@ -130,6 +130,7 @@ const Fx = {
         const r = p.r0 + (p.r1 - p.r0) * Math.pow(k, 0.6);
         ctx.globalCompositeOperation = p.add ? 'lighter' : 'source-over';
         const a = p.a * (1 - k) * Math.min(1, k * 8 + 0.3);
+        if (!Number.isFinite(p.x + p.y + r) || r <= 0) { p.life = 0; continue; }   // e.g. spawned from a hidden element
         const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
         g.addColorStop(0, `rgba(${p.c},${a})`); g.addColorStop(0.6, `rgba(${p.c},${a * 0.5})`); g.addColorStop(1, `rgba(${p.c},0)`);
         ctx.fillStyle = g;
