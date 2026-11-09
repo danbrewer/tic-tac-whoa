@@ -344,10 +344,10 @@ After each move, `postMove()` in `js/game.js` runs the active game type's automa
 |---|---|---|---|---|
 | `TIMING.board.cpuMoveDelay` | 750 | computer's turn: "thinking" time before it plays | [`js/timing.js:265`](js/timing.js#L265) | [`js/game.js:1238`](js/game.js#L1238) |
 | `TIMING.board.markDrop` | 750 | a mark falling onto a space and bouncing (the impact is markImpact) | [`js/timing.js:266`](js/timing.js#L266) | [`js/game.js:685`](js/game.js#L685)<br>[`js/render.js:1064`](js/render.js#L1064) |
-| `TIMING.board.markImpact` | markDrop × 0.364 (= 273) | when a falling mark first hits (273 ms): sparks, ripple, sound | [`js/timing.js:267`](js/timing.js#L267) | [`js/game.js:462`](js/game.js#L462)<br>[`js/game.js:885`](js/game.js#L885)<br>[`js/game.js:1120`](js/game.js#L1120)<br>[`js/game.js:1335`](js/game.js#L1335)<br>[`js/minimap.js:120`](js/minimap.js#L120)<br>[`js/render.js:734`](js/render.js#L734)<br>[`js/render.js:1058`](js/render.js#L1058) |
+| `TIMING.board.markImpact` | markDrop × 0.364 (= 273) | when a falling mark first hits (273 ms): sparks, ripple, sound | [`js/timing.js:267`](js/timing.js#L267) | [`js/game.js:462`](js/game.js#L462)<br>[`js/game.js:885`](js/game.js#L885)<br>[`js/game.js:1120`](js/game.js#L1120)<br>[`js/game.js:1338`](js/game.js#L1338)<br>[`js/minimap.js:120`](js/minimap.js#L120)<br>[`js/render.js:734`](js/render.js#L734)<br>[`js/render.js:1058`](js/render.js#L1058) |
 | `TIMING.board.vanishPoof` | 240 | Vanishing Marks: the oldest mark's "POOF!" after a fourth mark is placed | [`js/timing.js:268`](js/timing.js#L268) | [`js/game.js:977`](js/game.js#L977)<br>[`js/game.js:986`](js/game.js#L986) |
 | `TIMING.board.ghostFade` | 450 | a removed mark fading out | [`js/timing.js:269`](js/timing.js#L269) | [`js/render.js:1126`](js/render.js#L1126) |
-| `TIMING.board.toast` | 3200 | how long a message at the bottom stays up | [`js/timing.js:270`](js/timing.js#L270) | [`js/game.js:1581`](js/game.js#L1581) |
+| `TIMING.board.toast` | 3200 | how long a message at the bottom stays up | [`js/timing.js:270`](js/timing.js#L270) | [`js/game.js:1598`](js/game.js#L1598) |
 
 `markImpact` is not a plain number. It is calculated from `markDrop`: it is the moment the bouncing mark first touches the board (36.4% of the way through the drop). Sparks, ripples and the landing sound happen then. Change `markDrop` and the impact effects stay in sync. Only edit the `0.364` if you change the bounce easing (`Ease.outBounce` in `js/render.js`).
 
@@ -356,8 +356,8 @@ After each move, `postMove()` in `js/game.js` runs the active game type's automa
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
 | `TIMING.board.gravitySettle` | 450 | Gravity: after the marks finish falling, before the next turn | [`js/timing.js:272`](js/timing.js#L272) | [`js/game.js:762`](js/game.js#L762)<br>[`js/game.js:1069`](js/game.js#L1069) |
-| `TIMING.board.gravityRaise` | 1700 | Gravity: the board tilting upright (hydraulic push) | [`js/timing.js:273`](js/timing.js#L273) | [`js/render.js:923`](js/render.js#L923) |
-| `TIMING.board.gravityRaiseDelay` | 350 | ... starting this long after the Gravity game begins | [`js/timing.js:274`](js/timing.js#L274) | [`js/render.js:925`](js/render.js#L925) |
+| `TIMING.board.gravityRaise` | 1700 | Gravity: the board tilting upright (hydraulic push) | [`js/timing.js:273`](js/timing.js#L273) | [`js/game.js:1356`](js/game.js#L1356)<br>[`js/render.js:923`](js/render.js#L923) |
+| `TIMING.board.gravityRaiseDelay` | 350 | ... starting this long after the Gravity game begins | [`js/timing.js:274`](js/timing.js#L274) | [`js/game.js:1356`](js/game.js#L1356)<br>[`js/render.js:925`](js/render.js#L925) |
 | `TIMING.board.gravityLower` | 700 | ... and tilting back down once the game is over | [`js/timing.js:275`](js/timing.js#L275) | [`js/render.js:939`](js/render.js#L939) |
 | `TIMING.board.shiftBefore` | 420 | Shifting Squares: pause before a row or column shifts | [`js/timing.js:276`](js/timing.js#L276) | [`js/game.js:765`](js/game.js#L765) |
 | `TIMING.board.shiftAfter` | 650 | ... and after it, before the next turn | [`js/timing.js:277`](js/timing.js#L277) | [`js/game.js:767`](js/game.js#L767) |
@@ -398,15 +398,18 @@ The gap after light *n* is `wildStepMin + wildStepGrow × q³`, where *q* goes f
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.replay.firstStep` | 1400 | after the replay starts, before the first move plays | [`js/timing.js:313`](js/timing.js#L313) | [`js/game.js:1320`](js/game.js#L1320) |
-| `TIMING.replay.stepSameBoard` | 950 | gap between moves on the same board | [`js/timing.js:314`](js/timing.js#L314) | [`js/game.js:1357`](js/game.js#L1357) |
-| `TIMING.replay.stepNewBoard` | 1500 | gap after the replay moves to a different board (longer for the camera) | [`js/timing.js:315`](js/timing.js#L315) | [`js/game.js:1357`](js/game.js#L1357) |
-| `TIMING.replay.resume` | 400 | after un-pausing, before the next move | [`js/timing.js:316`](js/timing.js#L316) | [`js/game.js:1375`](js/game.js#L1375) |
-| `TIMING.replay.cameraFirst` | 900 | the camera's move to the starting board | [`js/timing.js:317`](js/timing.js#L317) | [`js/game.js:1341`](js/game.js#L1341) |
-| `TIMING.replay.cameraMove` | 800 | the camera following the replay to a different board | [`js/timing.js:318`](js/timing.js#L318) | [`js/game.js:1341`](js/game.js#L1341) |
-| `TIMING.replay.cameraBack` | 900 | the camera's move back to the live game when the replay ends | [`js/timing.js:319`](js/timing.js#L319) | [`js/game.js:1368`](js/game.js#L1368) |
+| `TIMING.replay.firstStep` | 1400 | after the replay starts, before the first move plays | [`js/timing.js:315`](js/timing.js#L315) | [`js/game.js:1320`](js/game.js#L1320) |
+| `TIMING.replay.stepSameBoard` | 950 | gap between moves on the same board | [`js/timing.js:316`](js/timing.js#L316) | [`js/game.js:1374`](js/game.js#L1374) |
+| `TIMING.replay.stepNewBoard` | 1500 | gap after the replay moves to a different board (longer for the camera) | [`js/timing.js:317`](js/timing.js#L317) | [`js/game.js:1374`](js/game.js#L1374) |
+| `TIMING.replay.resume` | 400 | after un-pausing, before the next move | [`js/timing.js:318`](js/timing.js#L318) | [`js/game.js:1392`](js/game.js#L1392) |
+| `TIMING.replay.cameraFirst` | 900 | the camera's move to the starting board | [`js/timing.js:319`](js/timing.js#L319) | [`js/game.js:1344`](js/game.js#L1344) |
+| `TIMING.replay.cameraMove` | 800 | the camera following the replay to a different board | [`js/timing.js:320`](js/timing.js#L320) | [`js/game.js:1344`](js/game.js#L1344) |
+| `TIMING.replay.cameraBack` | 900 | the camera's move back to the live game when the replay ends | [`js/timing.js:321`](js/timing.js#L321) | [`js/game.js:1385`](js/game.js#L1385) |
+| `TIMING.replay.afterGravityRaise` | 300 | Gravity: after the board locks upright, before the first replayed move drops | [`js/timing.js:322`](js/timing.js#L322) | [`js/game.js:1356`](js/game.js#L1356) |
 
 Replay speed (the 1×, 2×, 4× button) divides the step gaps. The camera durations are not divided.
+
+When the replay reaches a Gravity Turf Battle, the board stands up exactly as it does in a live game (`TIMING.board.gravityRaiseDelay` + `gravityRaise`, at normal speed whatever the replay speed). `Game.replayTiltWait()` holds the first replayed move until it has locked upright, plus `afterGravityRaise`. Each saved moment is a fresh copy of the board, so `applySnap()` carries the tilt over from one moment to the next; otherwise the board would start standing up again from flat on every move.
 
 ---
 
@@ -414,7 +417,7 @@ Replay speed (the 1×, 2×, 4× button) divides the step gaps. The camera durati
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.css.overlayFade` | 250 | the fade-in / fade-out of the full-screen overlays | [`js/timing.js:329`](js/timing.js#L329) | [`style.css:333`](style.css#L333)<br>[`style.css:659`](style.css#L659)<br>[`style.css:717`](style.css#L717)<br>[`js/timing.js:338`](js/timing.js#L338) |
+| `TIMING.css.overlayFade` | 250 | the fade-in / fade-out of the full-screen overlays | [`js/timing.js:333`](js/timing.js#L333) | [`style.css:333`](style.css#L333)<br>[`style.css:659`](style.css#L659)<br>[`style.css:717`](style.css#L717)<br>[`js/timing.js:342`](js/timing.js#L342) |
 
 `js/timing.js` sets this value as the CSS custom property `--t-overlay-fade` when the page loads. `style.css` uses it for the fade of the wheel, slot machine and RULE PICK overlays, with `0.25s` as a fallback. The JavaScript `hide` settings in those groups wait for this fade before hiding the overlay. Keep them equal to it or slightly longer.
 

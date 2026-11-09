@@ -1317,7 +1317,7 @@ const Game = {
     $('replaybar').hidden = false;
     Sound.cardFlip(0);
     this.applySnap(this.replay.i, true);
-    this.queueReplay(TIMING.replay.firstStep);
+    this.queueReplayAfter(TIMING.replay.firstStep);
   },
   applySnap(i, first = false) {
     const R = this.replay, snap = this.log[i], prevRoot = this.root;
@@ -1330,12 +1330,15 @@ const Game = {
     if (!first && !moved) {
       // same board as last step: drop in the new marks and fade out the ones that left
       const old = this.boardAt(prevRoot, this.pathOf(cur));
+      // each snapshot is a fresh copy of the board, so carry over how far a Gravity board has tilted up;
+      // otherwise it would start standing up again from flat on every move
+      if (old) for (const key of ['tilt', 'tiltLast', 'tiltStarted', 'tiltLanded', 'tiltFrom', 'tiltT']) cur[key] = old[key];
       if (old) cur.cells.forEach((c, k) => {
         const o = old.cells[k].owner;
         if (c.owner && c.owner !== o) { c.t = now; if (c.owner === 'X' || c.owner === 'O') { Sound.place(c.owner); setTimeout(() => Sound.land(cur.level), TIMING.board.markImpact); } }
         if (o && o !== c.owner && !c.owner) cur.ghosts.push({ k, owner: o, t: now });
       });
-      if (old && !old.winner && cur.winner) { const [x, y] = Renderer.boardScreenCenter(cur); Renderer.floatText(x, y - 40, STRINGS.pop.replayWins(cur.winner), cur.winner, 44); Sound.win(); }
+      if (old && !old.winner && cur.winner) { cur.winTime = now; const [x, y] = Renderer.boardScreenCenter(cur); Renderer.floatText(x, y - 40, STRINGS.pop.replayWins(cur.winner), cur.winner, 44); Sound.win(); }
     }
     // keep the camera on the board being played
     if (first || moved) Renderer.flyTo(viewOf(cur), first ? TIMING.replay.cameraFirst : TIMING.replay.cameraMove);
@@ -1343,6 +1346,20 @@ const Game = {
     this.updateHUD();
     this.updateReplayBar();
     return moved;
+  },
+  // Replay: if the board now on screen is a Gravity board that still has to stand up, how long (real ms)
+  // until it has locked upright and paused, so the next move waits for it as it does in a live game
+  replayTiltWait() {
+    const cur = this.current();
+    if (!wantsUpright(cur) || cur.tilt >= 1) return 0;
+    const T = TIMING.board;
+    return T.gravityRaiseDelay + T.gravityRaise * (1 - (cur.tilt || 0)) + TIMING.replay.afterGravityRaise;
+  },
+  // queue the next replay move after base ms (scaled by the replay speed), but never before a Gravity
+  // board has finished standing up (that animation always runs at normal speed)
+  queueReplayAfter(base) {
+    const R = this.replay; if (!R) return;
+    this.queueReplay(Math.max(base, this.replayTiltWait() * R.speed));
   },
   queueReplay(ms) {
     const R = this.replay; if (!R) return;
@@ -1354,7 +1371,7 @@ const Game = {
     const R = this.replay; if (!R) return;
     if (R.i >= this.log.length - 1) { this.stopReplay(true); return; }
     const moved = this.applySnap(R.i + 1);
-    this.queueReplay(moved ? TIMING.replay.stepNewBoard : TIMING.replay.stepSameBoard);
+    this.queueReplayAfter(moved ? TIMING.replay.stepNewBoard : TIMING.replay.stepSameBoard);
   },
   stopReplay(caughtUp = false) {
     const R = this.replay; if (!R) return;

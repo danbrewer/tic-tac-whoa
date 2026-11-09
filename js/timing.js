@@ -307,7 +307,9 @@ const TIMING = {
   //    Game.applySnap()      swaps in a saved moment and moves the camera if the board changed
   //    Game.toggleReplayPause() pauses or resumes; resuming waits `resume` before the next step
   //    Game.stopReplay()     returns to the live game and flies the camera back
-  //    The step gaps are divided by the replay speed (1x, 2x, 4x); the camera times are not.
+  //    Game.replayTiltWait() holds the next step until a Gravity board has stood up (afterGravityRaise)
+  //    The step gaps are divided by the replay speed (1x, 2x, 4x); the camera times and the Gravity
+  //    stand-up are not.
   // ---------------------------------------------------------------------------------------------
   replay: {
     firstStep: 1400,           // after the replay starts, before the first move plays
@@ -317,6 +319,8 @@ const TIMING = {
     cameraFirst: 900,          // the camera's move to the starting board
     cameraMove: 800,           // the camera following the replay to a different board
     cameraBack: 900,           // the camera's move back to the live game when the replay ends
+    afterGravityRaise: 300,    // Gravity: after the board locks upright, before the first replayed move drops
+                               // (the stand-up itself is TIMING.board.gravityRaiseDelay + gravityRaise)
   },
 
   // ---------------------------------------------------------------------------------------------
