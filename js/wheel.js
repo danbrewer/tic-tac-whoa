@@ -33,6 +33,18 @@ const Wheel = {
   under: -1,      // segment under the pointer while spinning
   sparks: [],     // little sparks thrown off the pointer, in wheel pixels
   lift: null,     // {t0, dur} while the winning wedge lifts out of the wheel
+  flap: null,     // the flapper's physics state (see flapperStep)
+
+  // Sizes of the pegs and the flapper, in units of R (the wheel's radius). One peg stands on every spoke.
+  // Changing these changes how far the flapper bends and where it lets go of a peg, so spin() works out
+  // the landing spot from them (see releaseFrac) rather than from fixed numbers.
+  PEG: { r: 0.8, size: 0.016, h: 0.042 },        // distance from the hub, radius, height
+  FLAP: { pivot: 0.975, len: 0.215, width: 0.05, stop: 0.72, z: 0.006, thick: 0.026 },
+  // ^ pivot distance from the hub, length, half-width at the pivot, furthest swing (radians), height of its
+  //   underside above the wheel's face, thickness. Its top sits just under the pegs' tops, so the pegs
+  //   really can catch it.
+  NEAR_MISS: 0.12,  // share of spins that stop with the flapper still bent against a peg, a hair short of
+                    // flipping over to the next wedge (the result stays on the wedge it hasn't left)
 
   canvas() { return document.querySelector('#wheel .wh-canvas'); },
 
@@ -279,6 +291,7 @@ const Wheel = {
     // hub cap under the SPIN button
     ctx.fillStyle = '#7a3d00';
     ctx.beginPath(); ctx.ellipse(cx, cy + R * 0.03, R * 0.25, R * 0.25 * K, 0, 0, Math.PI * 2); ctx.fill();
+    this.drawPegs(ctx, g);
 
     // the winning wedge lifts out of the wheel, flips up to face the player and hovers above it
     if (lifted >= 0) {
@@ -329,9 +342,117 @@ const Wheel = {
     ctx.globalAlpha = 1;
   },
 
-  // The pointer: a red flipper on a gold mounting block at the front of the rim, lying in the wheel's
-  // plane and drawn in the same squashed isometric projection, with real thickness. It flicks
-  // sideways on its pivot each time a peg passes.
+  // The gold pegs, one on every spoke: little cylinders standing on the wheel's face, drawn back to front.
+  // They are drawn before the flapper; drawPointer() then redraws the one or two pegs right beside the
+  // flapper on top of it, so they stand next to it rather than vanishing under it.
+  drawPegs(ctx, g) {
+    const { R, K, cx, cy } = g, P = this.PEG, n = WHEEL_SEGS.length, seg = (Math.PI * 2) / n;
+    const pr = P.size * R, ph = P.h * R, pts = [];
+    for (let i = 0; i < n; i++) {
+      const d = this.angle + i * seg, f = Math.PI / 2 + d;
+      pts.push([cx + Math.cos(f) * P.r * R, cy + Math.sin(f) * P.r * R * K]);
+    }
+    pts.sort((p, q) => p[1] - q[1]);
+    for (const [x, y] of pts) this.drawPeg(ctx, x, y, pr, ph, K);
+  },
+  // one peg standing on the face at screen point (x, y): shadow (optional), gold side, light top
+  drawPeg(ctx, x, y, pr, ph, K, shadow = true) {
+    if (shadow) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(x + pr * 0.5, y + pr * 0.2, pr * 1.3, pr * 1.3 * K, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    const gr = ctx.createLinearGradient(x - pr, 0, x + pr, 0);
+    gr.addColorStop(0, '#8a5200'); gr.addColorStop(0.35, '#ffe680'); gr.addColorStop(1, '#a86400');
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    ctx.ellipse(x, y, pr, pr * K, 0, 0, Math.PI);
+    ctx.lineTo(x - pr, y - ph);
+    ctx.ellipse(x, y - ph, pr, pr * K, 0, Math.PI, 0, true);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff1a8';
+    ctx.beginPath(); ctx.ellipse(x, y - ph, pr, pr * K, 0, 0, Math.PI * 2); ctx.fill();
+  },
+
+  // ---- the flapper's physics ----
+  // The flapper is a springy paddle on a pivot at the front of the rim. Each peg that sweeps past bends it
+  // aside until the peg slips off its tip; then it snaps back, overshoots and, when the next peg is close,
+  // slaps into it. It is a damped spring (TIMING.wheel.flapperFreq, TIMING.wheel.flapperDamping) that cannot pass
+  // through a peg: a peg it runs into stops it and bounces it back (TIMING.wheel.flapperBounce).
+  // All lengths are in units of R. th is the flapper's angle (radians; positive swings the tip to the
+  // right on screen), om its angular speed.
+
+  // half the flapper's width at distance d from the pivot (it tapers to a point at the tip)
+  flapHalfWidth(d) {
+    const F = this.FLAP, L = F.len, w = F.width;
+    if (d >= L) return 0;
+    return d > 0.55 * L ? w * 0.55 * (L - d) / (0.45 * L) : w * (1 - 0.45 * d / (0.55 * L));
+  },
+  // where a peg d radians past the pointer stands, as seen from the pivot; null when it is out of the
+  // flapper's reach. a = its direction from the pivot, pad = the extra angle its radius and the flapper's
+  // width keep the two apart.
+  pegContact(d) {
+    const F = this.FLAP, P = this.PEG;
+    const x = -P.r * Math.sin(d), hh = F.pivot - P.r * Math.cos(d), dist = Math.hypot(x, hh);
+    if (hh <= 0 || dist > F.len + P.size * 0.6) return null;
+    return { a: Math.atan2(x, hh), pad: (P.size + this.flapHalfWidth(dist)) / dist };
+  },
+  // how far past the pointer (as a fraction of one wedge) a peg lets go of the flapper's tip
+  releaseFrac() {
+    if (this._rel) return this._rel;
+    const seg = (Math.PI * 2) / WHEEL_SEGS.length;
+    let d = 0;
+    while (d < seg && this.pegContact(d + seg * 0.005)) d += seg * 0.005;
+    return (this._rel = d / seg);
+  },
+  // advance the flapper to time now, following the wheel from where it was last frame; returns th
+  flapperStep(now) {
+    const T = TIMING.wheel, n27 = WHEEL_SEGS.length, seg = (Math.PI * 2) / n27;
+    let s = this.flap;
+    if (!s) s = this.flap = { th: 0, om: 0, a: this.angle, t: now, time: 0, pegs: new Map(), clack: 0 };
+    const dt = Math.min(0.05, Math.max(0, now - s.t) / 1000), dA = this.angle - s.a;
+    s.t = now;
+    if (!dt && !dA) return s.th;
+    // small sub-steps, so no peg can jump past the flapper in one go even at full speed
+    const n = Math.min(1000, Math.max(1, Math.ceil(dt / 0.002), Math.ceil(Math.abs(dA) / (seg * 0.04))));
+    const h = Math.max(dt / n, 1e-5), w0 = 2 * Math.PI * T.flapperFreq, z = T.flapperDamping, e = T.flapperBounce;
+    let struck = false;
+    for (let k = 1; k <= n; k++) {
+      const A = s.a + (dA * k) / n;
+      s.time += h;
+      s.om += (-w0 * w0 * s.th - 2 * z * w0 * s.om) * h;
+      s.th += s.om * h;
+      // the mounting block's stops: it can't swing further than this either way
+      if (Math.abs(s.th) > this.FLAP.stop) { const sg = Math.sign(s.th); s.th = sg * this.FLAP.stop; if (s.om * sg > 0) s.om *= -e; }
+      const i0 = Math.round(-A / seg);
+      for (let j = i0 - 1; j <= i0 + 1; j++) {
+        const id = ((j % n27) + n27) % n27, c = this.pegContact(A + j * seg);
+        let p = s.pegs.get(id);
+        if (!c) {
+          if (p) s.pegs.delete(id);
+          continue;
+        }
+        // a peg coming into reach: remember which side of it the flapper is on, it can't cross over
+        if (!p) { p = { side: s.th >= c.a ? 1 : -1, a: c.a, touched: -1 }; s.pegs.set(id, p); }
+        const lim = c.a + p.side * c.pad, bv = (c.a - p.a) / h;
+        p.a = c.a;
+        if (p.side * (s.th - lim) < 0) {
+          if (p.touched < 0) struck = true;   // this peg's first strike on the flapper
+          s.th = lim; p.touched = s.time;
+          const rel = s.om - bv;
+          if (p.side * rel < 0) s.om = bv - e * rel;
+        }
+      }
+    }
+    s.a = this.angle;
+    // the clack: once per peg, the moment that peg first strikes the flapper (either the peg sweeping into
+    // it, or the flapper snapping back into the next peg), so the sound lands on the slap you see
+    if (struck && now - s.clack > 25) { s.clack = now; Sound.wheelClack(); }
+    return s.th;
+  },
+
+  // The pointer: a red flapper on a gold mounting block at the front of the rim, lying in the wheel's
+  // plane and drawn in the same squashed isometric projection, with real thickness. It swings on its
+  // pivot as the pegs push it aside (see flapperStep).
   drawPointer(ctx, g, now) {
     const { R, K, cx, cy } = g;
     const P = (u, v, z) => [cx + u, cy + v * K - z];
@@ -356,29 +477,65 @@ const Wheel = {
       ctx.closePath(); ctx.fillStyle = top; ctx.fill();
       if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = Math.max(1, R * 0.004); ctx.lineJoin = 'round'; ctx.stroke(); }
     };
-    const pv = R * 0.975;                                       // pivot, on the rim at the front
-    // flick: a quick swing to one side and back, set off by each peg
-    const fq = Math.min(1, (now - (this.flapT || -1e9)) / TIMING.wheel.pointerFlick);
-    const th = -0.32 * Math.sin(fq * Math.PI) * (1 - fq * 0.3);
+    const pv = R * this.FLAP.pivot;                             // pivot, on the rim at the front
+    const th = this.flapperStep(now);                           // the flapper's swing, from the peg physics
     ctx.save();
     // contact shadow under the block
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath(); ctx.ellipse(cx, cy + pv * K + R * 0.004, R * 0.075, R * 0.075 * K, 0, 0, Math.PI * 2); ctx.fill();
     // gold mounting block
-    const bw = R * 0.055, bz = R * 0.045;
+    const bw = R * 0.055, bz = R * this.FLAP.z, ft = R * this.FLAP.thick;
     prism([[-bw, pv - bw], [bw, pv - bw], [bw, pv + bw], [-bw, pv + bw]], 0, bz,
       '#ffd23f', (sh) => (sh > 0.3 ? '#b86e00' : sh < -0.3 ? '#8a4f00' : '#d98a10'), 'rgba(255,246,200,0.8)');
     // red flipper, pointing in toward the hub, turned by th around the pivot
     const rot = ([u, v]) => { const du = u, dv = v - pv; return [du * Math.cos(th) - dv * Math.sin(th), pv + du * Math.sin(th) + dv * Math.cos(th)]; };
-    const L = R * 0.2, hw = R * 0.05;
+    const L = R * this.FLAP.len, hw = R * this.FLAP.width;
     const fl = [[0, pv - L], [hw * 0.55, pv - L * 0.45], [hw, pv + hw * 0.2], [hw * 0.6, pv + hw * 0.9], [-hw * 0.6, pv + hw * 0.9], [-hw, pv + hw * 0.2], [-hw * 0.55, pv - L * 0.45]].map(rot);
     ctx.shadowColor = 'rgba(255,80,100,0.8)'; ctx.shadowBlur = R * 0.04;
     const tg = ctx.createLinearGradient(cx, cy + (pv - L) * K, cx, cy + (pv + hw) * K);
     tg.addColorStop(0, '#ff5a6e'); tg.addColorStop(1, '#e0102f');
-    prism(fl, bz, bz + R * 0.032, tg, (sh) => (sh > 0.3 ? '#a3001c' : sh < -0.3 ? '#6e0012' : '#8a0018'), 'rgba(255,220,225,0.85)');
+    prism(fl, bz, bz + ft, tg, (sh) => (sh > 0.3 ? '#a3001c' : sh < -0.3 ? '#6e0012' : '#8a0018'), 'rgba(255,220,225,0.85)');
     ctx.shadowBlur = 0;
+    // The pegs beside the flapper: redraw them over it, except where the part of the flapper nearer the
+    // viewer than the peg (footprint further forward than the peg's centre) should still hide them.
+    {
+      const PG = this.PEG, n = WHEEL_SEGS.length, seg = (Math.PI * 2) / n, pr = PG.size * R, ph = PG.h * R;
+      // the flapper's footprint cut to the part with v >= vc (one clipping line)
+      const cut = (poly, vc) => {
+        const out = [];
+        poly.forEach((a, i) => {
+          const b = poly[(i + 1) % poly.length], ina = a[1] >= vc, inb = b[1] >= vc;
+          if (ina) out.push(a);
+          if (ina !== inb) { const t = (vc - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * t, vc]); }
+        });
+        return out;
+      };
+      // convex hull of screen points (monotone chain)
+      const hull = (pts) => {
+        pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        const lo = [], up = [];
+        for (const p of pts) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+        for (const p of pts.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+        return lo.slice(0, -1).concat(up.slice(0, -1));
+      };
+      for (let i = 0; i < n; i++) {
+        const f = Math.PI / 2 + this.angle + i * seg, pu = Math.cos(f) * PG.r * R, pw = Math.sin(f) * PG.r * R;
+        if (pw < 0 || Math.hypot(pu, pw - pv) > L + pr * 4) continue;
+        const front = cut(fl, pw);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        if (front.length >= 3) {
+          const hs = hull(front.flatMap(([u, v]) => [P(u, v, bz), P(u, v, bz + ft)]));
+          hs.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+        }
+        ctx.clip('evenodd');
+        this.drawPeg(ctx, cx + pu, cy + pw * K, pr, ph, K, false);
+        ctx.restore();
+      }
+    }
     // brass pivot pin
-    const [px, py] = P(0, pv, bz + R * 0.032);
+    const [px, py] = P(0, pv, bz + ft);
     const pg = ctx.createRadialGradient(px - R * 0.006, py - R * 0.004, 0, px, py, R * 0.02);
     pg.addColorStop(0, '#fffbe0'); pg.addColorStop(1, '#c98a00');
     ctx.fillStyle = pg;
@@ -489,6 +646,7 @@ const Wheel = {
       res.textContent = auto ? STRINGS.wheel.computerSpins : '';
       this.hit = -1; this.speed = 0; this.sus = 0; this.under = -1; this.sparks = []; this.lift = null;
       this.angle = ((this.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      if (this.flap) this.flap.a = this.angle;   // same position, so the flapper must not see a jump
       el.classList.remove('landed', 'spinning', 'lifting');
       el.style.setProperty('--sus', 0); el.style.setProperty('--jit', 0);
       btn.textContent = STRINGS.wheel.spin;
@@ -510,12 +668,23 @@ const Wheel = {
         el.classList.add('spinning');
         res.textContent = '';
         const n = WHEEL_SEGS.length, seg = (Math.PI * 2) / n;
-        const segAt = (ang) => (((Math.floor((-ang) / seg)) % n) + n) % n;
+        // the wedge the flapper is in: it only counts as the next wedge once the peg has let go of the flapper
+        // and it has flipped over, a little after the spoke passes the pivot (releaseFrac of a wedge)
+        const rel = this.releaseFrac();
+        const segAt = (ang) => (((Math.floor((-ang) / seg + rel)) % n) + n) % n;
         const matches = WHEEL_SEGS.map((x, i) => (Game.dev.on && x.k === Game.dev.wheel ? i : -1)).filter((i) => i >= 0);
         const forced = matches.length ? matches[(Math.random() * matches.length) | 0] : -1;
         const target = forced >= 0 ? forced : (Math.random() * n) | 0;
-        // land inside the target segment; half the time it only just creeps over the line
-        const within = (Math.random() < 0.5 ? 0.08 + Math.random() * 0.12 : 0.2 + Math.random() * 0.65) * seg;
+        // Where in the target wedge it stops (within = how far short of the target's leading spoke, so a
+        // negative value means that spoke has already passed the pivot):
+        //  - near miss (NEAR_MISS of spins): the next spoke's peg has the flapper bent over but stops just
+        //    before it lets go, so the flapper never flips and the result stays on the target
+        //  - creep (40%): only just past the point where the last peg let go of the flapper
+        //  - otherwise anywhere after that, short of the next peg touching the resting flapper
+        // (Developer Mode's "Near miss" box makes every spin a near miss)
+        const r = Math.random(), nearOdds = Game.dev.on && Game.dev.nearMiss ? 1 : this.NEAR_MISS;
+        const within = r < nearOdds ? -(rel - 0.03 - Math.random() * 0.09) * seg
+          : (1 - (r < this.NEAR_MISS + 0.4 ? rel + 0.03 + Math.random() * 0.06 : rel + 0.09 + Math.random() * (0.85 - rel - 0.09))) * seg;
         const base = -(target * seg + within);
         // 1) wind-back: drag the wheel backwards a little before letting go
         const pullT = TIMING.wheel.windBack, pull = seg * 1.4, a0 = this.angle;
@@ -562,16 +731,18 @@ const Wheel = {
           el.style.setProperty('--hubrate', `${(0.5 - this.sus * 0.38).toFixed(2)}s`);
           if (this.sus > 0 && !rolled) { rolled = true; Sound.drumroll(((1 - q) * T) / 1000); }
           // heartbeat: a slow resting pulse while the wheel slows, racing hardest as the last few spokes pass the
-          // pointer (45 -> ~165 bpm); it stops the moment the wheel stops
+          // pointer (the gaps are TIMING.wheel.heartbeats, then heartbeatFast); it stops the moment the wheel stops
           if (q < 1) {
             if (!nextBeat) nextBeat = launched;
             if (now >= nextBeat) {
               // stepped pairs (TIMING.wheel.heartbeats), then TIMING.wheel.heartbeatFast until the wheel stops
               const gap = BEATS[beatN] || TIMING.wheel.heartbeatFast; beatN++;
-              const bpm = 60000 / gap;
               nextBeat += gap;
               if (nextBeat > launched + T - TIMING.wheel.heartbeatStopGuard) nextBeat = Infinity; // no beat right on (or after) the stop
-              const hk = Math.max(0, Math.min(1, (bpm - 45) / 120)); Sound.heartPulse(0.3 + hk * 0.7, 0.24 - hk * 0.13);
+              // hk: 0 at the slowest gap in the list .. 1 at heartbeatFast; louder and a tighter lub-dub as it races
+              const slow = Math.max(...BEATS), hk = Math.max(0, Math.min(1, (slow - gap) / Math.max(1, slow - TIMING.wheel.heartbeatFast)));
+              const lubSlow = TIMING.wheel.heartbeatLubDubSlow, lubFast = TIMING.wheel.heartbeatLubDubFast;
+              Sound.heartPulse(hk, (lubSlow + (lubFast - lubSlow) * hk) / 1000);
               const stage = el.querySelector('.wh-stage');
               if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: TIMING.wheel.heartbeatPulse, easing: 'ease-out', composite: 'add' });
             }
@@ -580,8 +751,6 @@ const Wheel = {
           this.under = cur;
           if (cur !== lastSeg) {
             lastSeg = cur;
-            Sound.wheelClack(this.sus);
-            this.flapT = performance.now();
             if (this.speed < 0.35) { this.spark(this.sus > 0.5 ? 10 : 4, this.sus > 0.5); live(cur); }
             if (this.sus > 0.7) el.style.setProperty('--jit', ((Math.random() - 0.5) * 0.8).toFixed(2));
           }

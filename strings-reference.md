@@ -113,63 +113,63 @@ The line numbers were correct when this was written. They drift as code changes.
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `general.cellNames` | *list*: `` ["top","upper-right","right","upper-left","center","lower-right","left","lower-l `` | [`js/strings.js:36`](js/strings.js#L36) | [`js/game.js:6`](js/game.js#L6)<br>[`js/game.js:394`](js/game.js#L394)<br>[`js/game.js:485`](js/game.js#L485)<br>[`js/game.js:593`](js/game.js#L593)<br>[`js/game.js:1081`](js/game.js#L1081)<br>[`js/game.js:1246`](js/game.js#L1246)<br>…and 4 more (search the name)<br>*also read everywhere as `CELL_NAMES[k]`* |
-| `general.levelName` | *function (level, the = false)*: `` (level === 0 ? `${the ? 'the ' : ''}Turf Battle` : `Level ${level}`) `` | [`js/strings.js:38`](js/strings.js#L38) | [`js/game.js:8`](js/game.js#L8)<br>[`js/game.js:369`](js/game.js#L369)<br>[`js/game.js:578`](js/game.js#L578)<br>[`js/game.js:1111`](js/game.js#L1111)<br>[`js/game.js:1247`](js/game.js#L1247)<br>[`js/game.js:1258`](js/game.js#L1258)<br>…and 6 more (search the name)<br>*also read everywhere as `lvName(level)`* |
-| `general.levelShort` | *function (level)*: `` (level === 0 ? 'Turf' : `L${level}`) `` | [`js/strings.js:39`](js/strings.js#L39) | [`js/game.js:1430`](js/game.js#L1430) |
-| `general.you` | "You" | [`js/strings.js:40`](js/strings.js#L40) | [`js/game.js:1439`](js/game.js#L1439) |
-| `general.computer` | "Computer" | [`js/strings.js:41`](js/strings.js#L41) | [`js/game.js:1439`](js/game.js#L1439) |
+| `general.cellNames` | *list*: `` ["top","upper-right","right","upper-left","center","lower-right","left","lower-l `` | [`js/strings.js:36`](js/strings.js#L36) | [`js/game.js:6`](js/game.js#L6)<br>[`js/game.js:405`](js/game.js#L405)<br>[`js/game.js:496`](js/game.js#L496)<br>[`js/game.js:604`](js/game.js#L604)<br>[`js/game.js:1099`](js/game.js#L1099)<br>[`js/game.js:1264`](js/game.js#L1264)<br>…and 4 more (search the name)<br>*also read everywhere as `CELL_NAMES[k]`* |
+| `general.levelName` | *function (level, the = false)*: `` (level === 0 ? `${the ? 'the ' : ''}Turf Battle` : `Level ${level}`) `` | [`js/strings.js:38`](js/strings.js#L38) | [`js/game.js:8`](js/game.js#L8)<br>[`js/game.js:380`](js/game.js#L380)<br>[`js/game.js:589`](js/game.js#L589)<br>[`js/game.js:1129`](js/game.js#L1129)<br>[`js/game.js:1265`](js/game.js#L1265)<br>[`js/game.js:1276`](js/game.js#L1276)<br>…and 6 more (search the name)<br>*also read everywhere as `lvName(level)`* |
+| `general.levelShort` | *function (level)*: `` (level === 0 ? 'Turf' : `L${level}`) `` | [`js/strings.js:39`](js/strings.js#L39) | [`js/game.js:1448`](js/game.js#L1448) |
+| `general.you` | "You" | [`js/strings.js:40`](js/strings.js#L40) | [`js/game.js:1457`](js/game.js#L1457) |
+| `general.computer` | "Computer" | [`js/strings.js:41`](js/strings.js#L41) | [`js/game.js:1457`](js/game.js#L1457) |
 
 ### 2. Game types (`STRINGS.rules`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `rules.classic.name` | "Classic Tic-Tac-Toe" | [`js/strings.js:53`](js/strings.js#L53) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.classic.name` | "Classic Tic-Tac-Toe" | [`js/strings.js:53`](js/strings.js#L53) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.classic.wheel` | "CLASSIC" | [`js/strings.js:53`](js/strings.js#L53) | [`js/wheel.js:5`](js/wheel.js#L5) |
-| `rules.classic.short` | "Plain tic-tac-toe. A full board with no line is a stalemate." | [`js/strings.js:54`](js/strings.js#L54) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.classic.help` | "plain rules." | [`js/strings.js:55`](js/strings.js#L55) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.vanish.name` | "Vanishing Marks" | [`js/strings.js:58`](js/strings.js#L58) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.classic.short` | "Plain tic-tac-toe. A full board with no line is a stalemate." | [`js/strings.js:54`](js/strings.js#L54) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.classic.help` | "plain rules." | [`js/strings.js:55`](js/strings.js#L55) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.vanish.name` | "Vanishing Marks" | [`js/strings.js:58`](js/strings.js#L58) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.vanish.wheel` | "VANISH" | [`js/strings.js:58`](js/strings.js#L58) | [`js/wheel.js:6`](js/wheel.js#L6) |
-| `rules.vanish.short` | "Keep only your 3 newest marks. Your 4th makes your oldest vanish." | [`js/strings.js:59`](js/strings.js#L59) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.vanish.help` | "you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; th…" | [`js/strings.js:60`](js/strings.js#L60) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.gravity.name` | "Gravity" | [`js/strings.js:63`](js/strings.js#L63) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.vanish.short` | "Keep only your 3 newest marks. Your 4th makes your oldest vanish." | [`js/strings.js:59`](js/strings.js#L59) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.vanish.help` | "you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; th…" | [`js/strings.js:60`](js/strings.js#L60) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.gravity.name` | "Gravity" | [`js/strings.js:63`](js/strings.js#L63) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.gravity.wheel` | "GRAVITY" | [`js/strings.js:63`](js/strings.js#L63) | [`js/wheel.js:7`](js/wheel.js#L7) |
-| `rules.gravity.short` | "The board stands up: marks drop to the bottom of their column, like Connect Four." | [`js/strings.js:64`](js/strings.js#L64) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.gravity.help` | "the board stands up like Connect Four, and marks drop to the bottom of their column." | [`js/strings.js:65`](js/strings.js#L65) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.shift.name` | "Shifting Squares" | [`js/strings.js:68`](js/strings.js#L68) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.gravity.short` | "The board stands up: marks drop to the bottom of their column, like Connect Four." | [`js/strings.js:64`](js/strings.js#L64) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.gravity.help` | "the board stands up like Connect Four, and marks drop to the bottom of their column." | [`js/strings.js:65`](js/strings.js#L65) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.shift.name` | "Shifting Squares" | [`js/strings.js:68`](js/strings.js#L68) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.shift.wheel` | "SHIFT" | [`js/strings.js:68`](js/strings.js#L68) | [`js/wheel.js:8`](js/wheel.js#L8) |
-| `rules.shift.short` | "Every 3 moves a row or column slides one space and wraps around." | [`js/strings.js:69`](js/strings.js#L69) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.shift.help` | "every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around." | [`js/strings.js:70`](js/strings.js#L70) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.wild.name` | "Wild Square" | [`js/strings.js:73`](js/strings.js#L73) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.shift.short` | "Every 3 moves a row or column slides one space and wraps around." | [`js/strings.js:69`](js/strings.js#L69) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.shift.help` | "every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around." | [`js/strings.js:70`](js/strings.js#L70) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.wild.name` | "Wild Square" | [`js/strings.js:73`](js/strings.js#L73) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.wild.wheel` | "WILD" | [`js/strings.js:73`](js/strings.js#L73) | [`js/wheel.js:9`](js/wheel.js#L9) |
-| `rules.wild.short` | "The shape-shifting mark counts for both players and jumps to a new space after every turn." | [`js/strings.js:74`](js/strings.js#L74) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.wild.help` | "the shape-shifting mark counts for both players and jumps to a new space after every turn." | [`js/strings.js:75`](js/strings.js#L75) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.misere.name` | "Misère" | [`js/strings.js:78`](js/strings.js#L78) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.wild.short` | "The shape-shifting mark counts for both players and jumps to a new space after every turn." | [`js/strings.js:74`](js/strings.js#L74) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.wild.help` | "the shape-shifting mark counts for both players and jumps to a new space after every turn." | [`js/strings.js:75`](js/strings.js#L75) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.misere.name` | "Misère" | [`js/strings.js:78`](js/strings.js#L78) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.misere.wheel` | "MISÈRE" | [`js/strings.js:78`](js/strings.js#L78) | [`js/wheel.js:10`](js/wheel.js#L10) |
-| `rules.misere.short` | "Upside down: whoever makes three in a row LOSES." | [`js/strings.js:79`](js/strings.js#L79) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.misere.help` | "whoever makes three in a row <b>loses</b>." | [`js/strings.js:80`](js/strings.js#L80) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.fog.name` | "Fog of War" | [`js/strings.js:83`](js/strings.js#L83) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.misere.short` | "Upside down: whoever makes three in a row LOSES." | [`js/strings.js:79`](js/strings.js#L79) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.misere.help` | "whoever makes three in a row <b>loses</b>." | [`js/strings.js:80`](js/strings.js#L80) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.fog.name` | "Fog of War" | [`js/strings.js:83`](js/strings.js#L83) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.fog.wheel` | "FOG" | [`js/strings.js:83`](js/strings.js#L83) | [`js/wheel.js:11`](js/wheel.js#L11) |
-| `rules.fog.short` | "Fog rolls over each mark after the next move. Fogged spaces are taken, so remember who is where!" | [`js/strings.js:84`](js/strings.js#L84) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.fog.help` | "once the next move lands, fog rolls over each mark and hides whether it's an X or an O. Fogged spaces are s…" | [`js/strings.js:85`](js/strings.js#L85) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.ring.name` | "Ring Spin" | [`js/strings.js:88`](js/strings.js#L88) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.fog.short` | "Fog rolls over each mark after the next move. Fogged spaces are taken, so remember who is where!" | [`js/strings.js:84`](js/strings.js#L84) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.fog.help` | "once the next move lands, fog rolls over each mark and hides whether it's an X or an O. Fogged spaces are s…" | [`js/strings.js:85`](js/strings.js#L85) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.ring.name` | "Ring Spin" | [`js/strings.js:88`](js/strings.js#L88) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.ring.wheel` | "RING" | [`js/strings.js:88`](js/strings.js#L88) | [`js/wheel.js:12`](js/wheel.js#L12) |
-| `rules.ring.short` | "Every 3 moves the 8 outer spaces turn one step clockwise around the center." | [`js/strings.js:89`](js/strings.js#L89) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.ring.help` | "every 3 moves the 8 outer spaces turn one step clockwise around the center." | [`js/strings.js:90`](js/strings.js#L90) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
-| `rules.cross.name` | "Crossfire" | [`js/strings.js:93`](js/strings.js#L93) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:912`](js/game.js#L912)<br>[`js/game.js:938`](js/game.js#L938)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
+| `rules.ring.short` | "Every 3 moves the 8 outer spaces turn one step clockwise around the center." | [`js/strings.js:89`](js/strings.js#L89) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.ring.help` | "every 3 moves the 8 outer spaces turn one step clockwise around the center." | [`js/strings.js:90`](js/strings.js#L90) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
+| `rules.cross.name` | "Crossfire" | [`js/strings.js:93`](js/strings.js#L93) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:923`](js/game.js#L923)<br>[`js/game.js:950`](js/game.js#L950)<br>…and 6 more (search the name)<br>*read as `RULES[key].name`* |
 | `rules.cross.wheel` | "CROSS" | [`js/strings.js:93`](js/strings.js#L93) | [`js/wheel.js:13`](js/wheel.js#L13) |
-| `rules.cross.short` | "Every 3 moves the marks on both diagonals slide along them, corner to corner. The center stays put." | [`js/strings.js:94`](js/strings.js#L94) | [`js/game.js:689`](js/game.js#L689)<br>[`js/game.js:736`](js/game.js#L736)<br>[`js/game.js:741`](js/game.js#L741)<br>[`js/game.js:742`](js/game.js#L742)<br>[`js/game.js:1490`](js/game.js#L1490)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
-| `rules.cross.help` | "every 3 moves the marks at the ends of each diagonal slide through the center and trade corners. The center…" | [`js/strings.js:95`](js/strings.js#L95) | [`js/game.js:1723`](js/game.js#L1723)<br>*read as `RULES[key].help`* |
+| `rules.cross.short` | "Every 3 moves the marks on both diagonals slide along them, corner to corner. The center stays put." | [`js/strings.js:94`](js/strings.js#L94) | [`js/game.js:700`](js/game.js#L700)<br>[`js/game.js:747`](js/game.js#L747)<br>[`js/game.js:752`](js/game.js#L752)<br>[`js/game.js:753`](js/game.js#L753)<br>[`js/game.js:1508`](js/game.js#L1508)<br>[`js/slots.js:534`](js/slots.js#L534)<br>*read as `RULES[key].short`* |
+| `rules.cross.help` | "every 3 moves the marks at the ends of each diagonal slide through the center and trade corners. The center…" | [`js/strings.js:95`](js/strings.js#L95) | [`js/game.js:1741`](js/game.js#L1741)<br>*read as `RULES[key].help`* |
 
 ### 3. Page text (`STRINGS.page`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `page.title` | "Infinite Tic-Tac-Toe" | [`js/strings.js:103`](js/strings.js#L103) | [`js/strings.js:424`](js/strings.js#L424) |
+| `page.title` | "Infinite Tic-Tac-Toe" | [`js/strings.js:103`](js/strings.js#L103) | [`js/strings.js:425`](js/strings.js#L425) |
 | `page.brand` | "Infinite<br>Tic-Tac-Toe" | [`js/strings.js:104`](js/strings.js#L104) | [`index.html:20`](index.html#L20) |
 | `page.sceneLabel` | "Isometric tic-tac-toe board" | [`js/strings.js:105`](js/strings.js#L105) | [`index.html:15`](index.html#L15) |
 | `page.levelBoxTitle` | "The highest level reached in this game" | [`js/strings.js:106`](js/strings.js#L106) | [`index.html:22`](index.html#L22) |
 | `page.topLevel` | "Top level" | [`js/strings.js:107`](js/strings.js#L107) | [`index.html:23`](index.html#L23) |
-| `page.best` | *function (n)*: `` `Best: ${n}` `` | [`js/strings.js:108`](js/strings.js#L108) | [`js/game.js:1412`](js/game.js#L1412) |
+| `page.best` | *function (n)*: `` `Best: ${n}` `` | [`js/strings.js:108`](js/strings.js#L108) | [`js/game.js:1430`](js/game.js#L1430) |
 | `page.pathLabel` | "Where you are" | [`js/strings.js:109`](js/strings.js#L109) | [`index.html:30`](index.html#L30) |
 | `page.minimapLabel` | "Mini-map of the live boards and earlier levels" | [`js/strings.js:110`](js/strings.js#L110) | [`index.html:32`](index.html#L32) |
 | `page.zoomBarLabel` | "Level zoom" | [`js/strings.js:112`](js/strings.js#L112) | [`index.html:36`](index.html#L36) |
@@ -178,11 +178,11 @@ The line numbers were correct when this was written. They drift as code changes.
 | `page.zoomInTitle` | "Zoom in a level (+ key or scroll up)" | [`js/strings.js:115`](js/strings.js#L115) | [`index.html:40`](index.html#L40) |
 | `page.zoomLiveTitle` | "Back to the live game (Esc)" | [`js/strings.js:116`](js/strings.js#L116) | [`index.html:41`](index.html#L41) |
 | `page.zoomLive` | "Back to game" | [`js/strings.js:117`](js/strings.js#L117) | [`index.html:41`](index.html#L41) |
-| `page.zoomTo` | *function (name)*: `` `Zoom to ${name}` `` | [`js/strings.js:118`](js/strings.js#L118) | [`js/game.js:1430`](js/game.js#L1430) |
-| `page.newGame` | "New game" | [`js/strings.js:120`](js/strings.js#L120) | [`js/game.js:1619`](js/game.js#L1619)<br>[`js/game.js:1624`](js/game.js#L1624)<br>[`index.html:48`](index.html#L48) |
-| `page.newGameConfirm` | "Click again to restart" | [`js/strings.js:121`](js/strings.js#L121) | [`js/game.js:1617`](js/game.js#L1617) |
-| `page.vsComputer` | *function (on)*: `` `vs Computer: ${on ? 'On' : 'Off'}` `` | [`js/strings.js:122`](js/strings.js#L122) | [`js/game.js:1462`](js/game.js#L1462) |
-| `page.sound` | *function (on)*: `` `Sound: ${on ? 'On' : 'Off'}` `` | [`js/strings.js:123`](js/strings.js#L123) | [`js/game.js:1464`](js/game.js#L1464) |
+| `page.zoomTo` | *function (name)*: `` `Zoom to ${name}` `` | [`js/strings.js:118`](js/strings.js#L118) | [`js/game.js:1448`](js/game.js#L1448) |
+| `page.newGame` | "New game" | [`js/strings.js:120`](js/strings.js#L120) | [`js/game.js:1637`](js/game.js#L1637)<br>[`js/game.js:1642`](js/game.js#L1642)<br>[`index.html:48`](index.html#L48) |
+| `page.newGameConfirm` | "Click again to restart" | [`js/strings.js:121`](js/strings.js#L121) | [`js/game.js:1635`](js/game.js#L1635) |
+| `page.vsComputer` | *function (on)*: `` `vs Computer: ${on ? 'On' : 'Off'}` `` | [`js/strings.js:122`](js/strings.js#L122) | [`js/game.js:1480`](js/game.js#L1480) |
+| `page.sound` | *function (on)*: `` `Sound: ${on ? 'On' : 'Off'}` `` | [`js/strings.js:123`](js/strings.js#L123) | [`js/game.js:1482`](js/game.js#L1482) |
 | `page.mix` | "🎚️ Mix" | [`js/strings.js:124`](js/strings.js#L124) | [`index.html:51`](index.html#L51) |
 | `page.mixTitle` | "Volume mix" | [`js/strings.js:125`](js/strings.js#L125) | [`index.html:51`](index.html#L51) |
 | `page.review` | "🎬 Review" | [`js/strings.js:126`](js/strings.js#L126) | [`index.html:52`](index.html#L52) |
@@ -192,131 +192,131 @@ The line numbers were correct when this was written. They drift as code changes.
 | `page.mixerSfx` | "Sound effects" | [`js/strings.js:131`](js/strings.js#L131) | [`index.html:78`](index.html#L78) |
 | `page.mixerVoices` | "Voices" | [`js/strings.js:132`](js/strings.js#L132) | [`index.html:79`](index.html#L79) |
 | `page.mixerTest` | "▶ Test voice" | [`js/strings.js:133`](js/strings.js#L133) | [`index.html:80`](index.html#L80) |
-| `page.percent` | *function (n)*: `` `${n}%` `` | [`js/strings.js:134`](js/strings.js#L134) | [`js/game.js:1638`](js/game.js#L1638) |
+| `page.percent` | *function (n)*: `` `${n}%` `` | [`js/strings.js:134`](js/strings.js#L134) | [`js/game.js:1656`](js/game.js#L1656) |
 
 ### 4. How to play (`STRINGS.help`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `help.title` | "How to play" | [`js/strings.js:103`](js/strings.js#L103) | [`index.html:150`](index.html#L150) |
-| `help.steps` | *list*: `` ["Every game starts with a <b>Turf Battle</b>: a quick game of tic-tac-toe on th `` | [`js/strings.js:143`](js/strings.js#L143) | [`js/game.js:1720`](js/game.js#L1720)<br>[`js/game.js:1724`](js/game.js#L1724) |
-| `help.rule` | *function (icon, name, help)*: `` `${icon} <b>${name}:</b> ${help}` `` | [`js/strings.js:155`](js/strings.js#L155) | [`js/game.js:1723`](js/game.js#L1723) |
-| `help.hint` | "Play hot-seat with a friend, or turn on <b>vs Computer</b> to play <span class="x">X</span> against a compu…" | [`js/strings.js:156`](js/strings.js#L156) | [`index.html:152`](index.html#L152) |
-| `help.close` | "Let's play" | [`js/strings.js:157`](js/strings.js#L157) | [`index.html:153`](index.html#L153) |
+| `help.title` | "How to play" | [`js/strings.js:103`](js/strings.js#L103) | [`index.html:151`](index.html#L151) |
+| `help.steps` | *list*: `` ["Every game starts with a <b>Turf Battle</b>: a quick game of tic-tac-toe on th `` | [`js/strings.js:143`](js/strings.js#L143) | [`js/game.js:1738`](js/game.js#L1738)<br>[`js/game.js:1742`](js/game.js#L1742) |
+| `help.rule` | *function (icon, name, help)*: `` `${icon} <b>${name}:</b> ${help}` `` | [`js/strings.js:155`](js/strings.js#L155) | [`js/game.js:1741`](js/game.js#L1741) |
+| `help.hint` | "Play hot-seat with a friend, or turn on <b>vs Computer</b> to play <span class="x">X</span> against a compu…" | [`js/strings.js:156`](js/strings.js#L156) | [`index.html:153`](index.html#L153) |
+| `help.close` | "Let's play" | [`js/strings.js:157`](js/strings.js#L157) | [`index.html:154`](index.html#L154) |
 
 ### 5. HUD: turn line, rule badge, rule plate, stakes bar (`STRINGS.hud`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `hud.toMove` | *function (p, who)*: `` `${mark(p)} ${who ? `(${who}) ` : ''}to move` `` | [`js/strings.js:165`](js/strings.js#L165) | [`js/game.js:1449`](js/game.js#L1449) |
-| `hud.picksSpace` | *function (p, who)*: `` `${mark(p)} ${who ? `(${who}) ` : ''}picks a space to fight for` `` | [`js/strings.js:166`](js/strings.js#L166) | [`js/game.js:1450`](js/game.js#L1450) |
-| `hud.wins` | *function (p)*: `` `${mark(p)} wins!` `` | [`js/strings.js:167`](js/strings.js#L167) | [`js/game.js:1448`](js/game.js#L1448) |
-| `hud.reviewTurf` | *function (level, cell, parentLevel, winner)*: `` `Replay: ${level === 0 ? 'the Turf Battle' : `the Level ${level} game`} for the ${cell} space of Level ${pa… `` | [`js/strings.js:168`](js/strings.js#L168) | [`js/game.js:1443`](js/game.js#L1443) |
-| `hud.reviewLevel` | *function (name, winner)*: `` `Replay: ${name}, won by ${mark(winner)}` `` | [`js/strings.js:169`](js/strings.js#L169) | [`js/game.js:1445`](js/game.js#L1445) |
-| `hud.viewing` | *function (name, curLevel)*: `` `Viewing ${name}. The live game is ${curLevel === 0 ? 'the Turf Battle' : `on Level ${curLevel}`}.` `` | [`js/strings.js:170`](js/strings.js#L170) | [`js/game.js:1447`](js/game.js#L1447) |
-| `hud.selecting` | *function (verb, cpu)*: `` `🎰 ${verb} <span class="hint-dim">(${cpu ? 'computer choosing' : 'click a glowing ring'})</span>` `` | [`js/strings.js:172`](js/strings.js#L172) | [`js/game.js:1454`](js/game.js#L1454) |
-| `hud.movesIn.shift` | "shifts" | [`js/strings.js:174`](js/strings.js#L174) | [`js/game.js:1481`](js/game.js#L1481)<br>*looked up by game type* |
-| `hud.movesIn.ring` | "spins" | [`js/strings.js:174`](js/strings.js#L174) | [`js/game.js:1481`](js/game.js#L1481)<br>*looked up by game type* |
-| `hud.movesIn.cross` | "crosses" | [`js/strings.js:174`](js/strings.js#L174) | [`js/game.js:1481`](js/game.js#L1481)<br>*looked up by game type* |
-| `hud.moverSoon` | *function (verb)*: `` `${verb} after this move!` `` | [`js/strings.js:175`](js/strings.js#L175) | [`js/game.js:1482`](js/game.js#L1482) |
-| `hud.moverIn` | *function (verb, n)*: `` `${verb} in ${n} moves` `` | [`js/strings.js:176`](js/strings.js#L176) | [`js/game.js:1482`](js/game.js#L1482) |
-| `hud.fogBadge` | "fog covers each mark after the next move" | [`js/strings.js:177`](js/strings.js#L177) | [`js/game.js:1484`](js/game.js#L1484) |
-| `hud.pinNext` | "Next" | [`js/strings.js:179`](js/strings.js#L179) | [`js/game.js:741`](js/game.js#L741) |
-| `hud.pinNextTurf` | "Next Turf Battle" | [`js/strings.js:180`](js/strings.js#L180) | [`js/game.js:742`](js/game.js#L742) |
-| `hud.pickedBy` | *function (p)*: `` `picked by ${mark(p)}` `` | [`js/strings.js:181`](js/strings.js#L181) | [`js/game.js:742`](js/game.js#L742) |
-| `hud.stakesFirst` | *function (nextLevel)*: `` `Stakes: the winner takes the center of Level ${nextLevel}` `` | [`js/strings.js:183`](js/strings.js#L183) | [`js/game.js:1518`](js/game.js#L1518) |
-| `hud.stakes` | "Stakes: " | [`js/strings.js:184`](js/strings.js#L184) | [`js/game.js:1523`](js/game.js#L1523) |
-| `hud.matchPoint` | "🔥 MATCH POINT: " | [`js/strings.js:185`](js/strings.js#L185) | [`js/game.js:1523`](js/game.js#L1523) |
-| `hud.stakesDefault` | *function (cell, level)*: `` `whoever wins takes the ${cell} space of Level ${level}` `` | [`js/strings.js:186`](js/strings.js#L186) | [`js/game.js:1524`](js/game.js#L1524) |
-| `hud.stakesWins` | *function (p, level)*: `` `${mark(p)} wins Level ${level}` `` | [`js/strings.js:187`](js/strings.js#L187) | [`js/game.js:1501`](js/game.js#L1501) |
-| `hud.stakesBlocks` | *function (opp)*: `` `blocks ${mark(opp)}` `` | [`js/strings.js:188`](js/strings.js#L188) | [`js/game.js:1503`](js/game.js#L1503) |
-| `hud.stakesDouble` | "sets up a double threat" | [`js/strings.js:189`](js/strings.js#L189) | [`js/game.js:1506`](js/game.js#L1506) |
-| `hud.stakesThreat` | *function (level)*: `` `threatens Level ${level}` `` | [`js/strings.js:190`](js/strings.js#L190) | [`js/game.js:1507`](js/game.js#L1507) |
-| `hud.stakesPlayer` | *function (p, bits)*: `` `${mark(p)} ${bits}` `` | [`js/strings.js:191`](js/strings.js#L191) | [`js/game.js:1508`](js/game.js#L1508) |
-| `hud.bigCanWin` | *function (p, cells)*: `` `${mark(p)} can win at ${cells}` `` | [`js/strings.js:192`](js/strings.js#L192) | [`js/game.js:1528`](js/game.js#L1528) |
-| `hud.bigThreats` | *function (bits)*: `` `Glowing spaces win the level: ${bits}` `` | [`js/strings.js:193`](js/strings.js#L193) | [`js/game.js:1529`](js/game.js#L1529) |
-| `hud.bigNoThreats` | "Pick a space. Glowing spaces mark winning spots." | [`js/strings.js:194`](js/strings.js#L194) | [`js/game.js:1529`](js/game.js#L1529) |
-| `hud.jackpotHere` | "<span class="jp">🎰 jackpot hidden here</span>" | [`js/strings.js:195`](js/strings.js#L195) | [`js/game.js:1532`](js/game.js#L1532) |
-| `hud.untilStalemate` | *function (n)*: `` `<span class="warn">${n} ${plural(n, 'move', 'moves')} until stalemate</span>` `` | [`js/strings.js:196`](js/strings.js#L196) | [`js/game.js:1535`](js/game.js#L1535) |
+| `hud.toMove` | *function (p, who)*: `` `${mark(p)} ${who ? `(${who}) ` : ''}to move` `` | [`js/strings.js:165`](js/strings.js#L165) | [`js/game.js:1467`](js/game.js#L1467) |
+| `hud.picksSpace` | *function (p, who)*: `` `${mark(p)} ${who ? `(${who}) ` : ''}picks a space to fight for` `` | [`js/strings.js:166`](js/strings.js#L166) | [`js/game.js:1468`](js/game.js#L1468) |
+| `hud.wins` | *function (p)*: `` `${mark(p)} wins!` `` | [`js/strings.js:167`](js/strings.js#L167) | [`js/game.js:1466`](js/game.js#L1466) |
+| `hud.reviewTurf` | *function (level, cell, parentLevel, winner)*: `` `Replay: ${level === 0 ? 'the Turf Battle' : `the Level ${level} game`} for the ${cell} space of Level ${pa… `` | [`js/strings.js:168`](js/strings.js#L168) | [`js/game.js:1461`](js/game.js#L1461) |
+| `hud.reviewLevel` | *function (name, winner)*: `` `Replay: ${name}, won by ${mark(winner)}` `` | [`js/strings.js:169`](js/strings.js#L169) | [`js/game.js:1463`](js/game.js#L1463) |
+| `hud.viewing` | *function (name, curLevel)*: `` `Viewing ${name}. The live game is ${curLevel === 0 ? 'the Turf Battle' : `on Level ${curLevel}`}.` `` | [`js/strings.js:170`](js/strings.js#L170) | [`js/game.js:1465`](js/game.js#L1465) |
+| `hud.selecting` | *function (verb, cpu)*: `` `🎰 ${verb} <span class="hint-dim">(${cpu ? 'computer choosing' : 'click a glowing ring'})</span>` `` | [`js/strings.js:172`](js/strings.js#L172) | [`js/game.js:1472`](js/game.js#L1472) |
+| `hud.movesIn.shift` | "shifts" | [`js/strings.js:174`](js/strings.js#L174) | [`js/game.js:1499`](js/game.js#L1499)<br>*looked up by game type* |
+| `hud.movesIn.ring` | "spins" | [`js/strings.js:174`](js/strings.js#L174) | [`js/game.js:1499`](js/game.js#L1499)<br>*looked up by game type* |
+| `hud.movesIn.cross` | "crosses" | [`js/strings.js:174`](js/strings.js#L174) | [`js/game.js:1499`](js/game.js#L1499)<br>*looked up by game type* |
+| `hud.moverSoon` | *function (verb)*: `` `${verb} after this move!` `` | [`js/strings.js:175`](js/strings.js#L175) | [`js/game.js:1500`](js/game.js#L1500) |
+| `hud.moverIn` | *function (verb, n)*: `` `${verb} in ${n} moves` `` | [`js/strings.js:176`](js/strings.js#L176) | [`js/game.js:1500`](js/game.js#L1500) |
+| `hud.fogBadge` | "fog covers each mark after the next move" | [`js/strings.js:177`](js/strings.js#L177) | [`js/game.js:1502`](js/game.js#L1502) |
+| `hud.pinNext` | "Next" | [`js/strings.js:179`](js/strings.js#L179) | [`js/game.js:752`](js/game.js#L752) |
+| `hud.pinNextTurf` | "Next Turf Battle" | [`js/strings.js:180`](js/strings.js#L180) | [`js/game.js:753`](js/game.js#L753) |
+| `hud.pickedBy` | *function (p)*: `` `picked by ${mark(p)}` `` | [`js/strings.js:181`](js/strings.js#L181) | [`js/game.js:753`](js/game.js#L753) |
+| `hud.stakesFirst` | *function (nextLevel)*: `` `Stakes: the winner takes the center of Level ${nextLevel}` `` | [`js/strings.js:183`](js/strings.js#L183) | [`js/game.js:1536`](js/game.js#L1536) |
+| `hud.stakes` | "Stakes: " | [`js/strings.js:184`](js/strings.js#L184) | [`js/game.js:1541`](js/game.js#L1541) |
+| `hud.matchPoint` | "🔥 MATCH POINT: " | [`js/strings.js:185`](js/strings.js#L185) | [`js/game.js:1541`](js/game.js#L1541) |
+| `hud.stakesDefault` | *function (cell, level)*: `` `whoever wins takes the ${cell} space of Level ${level}` `` | [`js/strings.js:186`](js/strings.js#L186) | [`js/game.js:1542`](js/game.js#L1542) |
+| `hud.stakesWins` | *function (p, level)*: `` `${mark(p)} wins Level ${level}` `` | [`js/strings.js:187`](js/strings.js#L187) | [`js/game.js:1519`](js/game.js#L1519) |
+| `hud.stakesBlocks` | *function (opp)*: `` `blocks ${mark(opp)}` `` | [`js/strings.js:188`](js/strings.js#L188) | [`js/game.js:1521`](js/game.js#L1521) |
+| `hud.stakesDouble` | "sets up a double threat" | [`js/strings.js:189`](js/strings.js#L189) | [`js/game.js:1524`](js/game.js#L1524) |
+| `hud.stakesThreat` | *function (level)*: `` `threatens Level ${level}` `` | [`js/strings.js:190`](js/strings.js#L190) | [`js/game.js:1525`](js/game.js#L1525) |
+| `hud.stakesPlayer` | *function (p, bits)*: `` `${mark(p)} ${bits}` `` | [`js/strings.js:191`](js/strings.js#L191) | [`js/game.js:1526`](js/game.js#L1526) |
+| `hud.bigCanWin` | *function (p, cells)*: `` `${mark(p)} can win at ${cells}` `` | [`js/strings.js:192`](js/strings.js#L192) | [`js/game.js:1546`](js/game.js#L1546) |
+| `hud.bigThreats` | *function (bits)*: `` `Glowing spaces win the level: ${bits}` `` | [`js/strings.js:193`](js/strings.js#L193) | [`js/game.js:1547`](js/game.js#L1547) |
+| `hud.bigNoThreats` | "Pick a space. Glowing spaces mark winning spots." | [`js/strings.js:194`](js/strings.js#L194) | [`js/game.js:1547`](js/game.js#L1547) |
+| `hud.jackpotHere` | "<span class="jp">🎰 jackpot hidden here</span>" | [`js/strings.js:195`](js/strings.js#L195) | [`js/game.js:1550`](js/game.js#L1550) |
+| `hud.untilStalemate` | *function (n)*: `` `<span class="warn">${n} ${plural(n, 'move', 'moves')} until stalemate</span>` `` | [`js/strings.js:196`](js/strings.js#L196) | [`js/game.js:1553`](js/game.js#L1553) |
 
 ### 6. Messages (toasts) (`STRINGS.msg`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `msg.welcomeBack` | *function (name)*: `` `Welcome back! Picking up at ${name}.` `` | [`js/strings.js:203`](js/strings.js#L203) | [`js/game.js:369`](js/game.js#L369) |
-| `msg.newGame` | "New game! X spins the wheel to pick the first game type." | [`js/strings.js:204`](js/strings.js#L204) | [`js/game.js:429`](js/game.js#L429) |
-| `msg.goesFor` | *function (p, cell, childName)*: `` `${mark(p)} goes for the ${cell} space. Win this ${childName} to claim it!` `` | [`js/strings.js:205`](js/strings.js#L205) | [`js/game.js:485`](js/game.js#L485) |
-| `msg.childGame` | *function (level)*: `` (level === 0 ? 'Turf Battle' : `Level ${level} game`) `` | [`js/strings.js:206`](js/strings.js#L206) | [`js/game.js:485`](js/game.js#L485) |
-| `msg.jackpotUnderStone` | "The mystery jackpot was buried under stone!" | [`js/strings.js:207`](js/strings.js#L207) | [`js/game.js:532`](js/game.js#L532) |
-| `msg.goesAgain` | *function (p)*: `` `${mark(p)} goes again!` `` | [`js/strings.js:208`](js/strings.js#L208) | [`js/game.js:544`](js/game.js#L544) |
-| `msg.wins` | *function (p, name)*: `` `${mark(p)} wins ${name}!` `` | [`js/strings.js:209`](js/strings.js#L209) | [`js/game.js:578`](js/game.js#L578) |
-| `msg.claims` | *function (p, cell, level)*: `` `${mark(p)} claims the ${cell} space of Level ${level}.` `` | [`js/strings.js:210`](js/strings.js#L210) | [`js/game.js:593`](js/game.js#L593) |
-| `msg.levelBegins` | *function (level, holder, first)*: `` `Level ${level} begins! ${mark(holder)} holds the center. ${mark(first)} picks first.` `` | [`js/strings.js:211`](js/strings.js#L211) | [`js/game.js:631`](js/game.js#L631) |
-| `msg.stalemate` | *function (vanish, moves, cell, level)*: `` `${vanish ? `No winner after ${moves} moves` : 'The board filled up with no winner'}. The ${cell} space of … `` | [`js/strings.js:213`](js/strings.js#L213) | [`js/game.js:1081`](js/game.js#L1081) |
-| `msg.bigDraw` | *function (name, first)*: `` `${name} is a draw! Corners and center stay as a head start, edges and stone spaces clear. ${mark(first)} p… `` | [`js/strings.js:214`](js/strings.js#L214) | [`js/game.js:1111`](js/game.js#L1111) |
-| `msg.turfDraw` | *function (name, first)*: `` `Draw! Replaying ${name} with ${mark(first)} going first.` `` | [`js/strings.js:215`](js/strings.js#L215) | [`js/game.js:1111`](js/game.js#L1111) |
-| `msg.bust` | "Bust! Better luck on the next board." | [`js/strings.js:217`](js/strings.js#L217) | [`js/game.js:997`](js/game.js#L997) |
-| `msg.shield` | *function (p)*: `` `${mark(p)} can now keep 4 marks in this game.` `` | [`js/strings.js:218`](js/strings.js#L218) | [`js/game.js:1001`](js/game.js#L1001) |
-| `msg.noTarget` | "Nothing to target, so it becomes an extra move!" | [`js/strings.js:219`](js/strings.js#L219) | [`js/game.js:1020`](js/game.js#L1020) |
-| `msg.pickClaim` | "Pick any empty space to claim" | [`js/strings.js:220`](js/strings.js#L220) | [`js/game.js:1017`](js/game.js#L1017) |
-| `msg.pickSteal` | *function (opp)*: `` `Pick an ${mark(opp)} mark to steal` `` | [`js/strings.js:221`](js/strings.js#L221) | [`js/game.js:1018`](js/game.js#L1018) |
-| `msg.pickBomb` | *function (opp, stone)*: `` `Pick an ${mark(opp)} mark${stone ? ' or stone' : ''} to blow up` `` | [`js/strings.js:222`](js/strings.js#L222) | [`js/game.js:1019`](js/game.js#L1019) |
-| `msg.pick` | *function (verb)*: `` `${verb}!` `` | [`js/strings.js:223`](js/strings.js#L223) | [`js/game.js:1060`](js/game.js#L1060) |
-| `msg.vsComputerOn` | "You are <b class="X">X</b>, the computer plays <b class="O">O</b>." | [`js/strings.js:225`](js/strings.js#L225) | [`js/game.js:1631`](js/game.js#L1631) |
-| `msg.vsComputerOff` | "Hot-seat mode: two players, one screen." | [`js/strings.js:226`](js/strings.js#L226) | [`js/game.js:1631`](js/game.js#L1631) |
-| `msg.replayBusy` | "Wait for the current move to finish, then start the replay." | [`js/strings.js:228`](js/strings.js#L228) | [`js/game.js:1290`](js/game.js#L1290) |
-| `msg.replayEmpty` | "Nothing to replay yet." | [`js/strings.js:229`](js/strings.js#L229) | [`js/game.js:1291`](js/game.js#L1291) |
-| `msg.replayCaughtUp` | "Instant Replay caught up. Back to the live game!" | [`js/strings.js:230`](js/strings.js#L230) | [`js/game.js:1350`](js/game.js#L1350) |
-| `msg.replayStopped` | "Instant Replay stopped. Back to the live game." | [`js/strings.js:231`](js/strings.js#L231) | [`js/game.js:1350`](js/game.js#L1350) |
+| `msg.welcomeBack` | *function (name)*: `` `Welcome back! Picking up at ${name}.` `` | [`js/strings.js:203`](js/strings.js#L203) | [`js/game.js:380`](js/game.js#L380) |
+| `msg.newGame` | "New game! X spins the wheel to pick the first game type." | [`js/strings.js:204`](js/strings.js#L204) | [`js/game.js:440`](js/game.js#L440) |
+| `msg.goesFor` | *function (p, cell, childName)*: `` `${mark(p)} goes for the ${cell} space. Win this ${childName} to claim it!` `` | [`js/strings.js:205`](js/strings.js#L205) | [`js/game.js:496`](js/game.js#L496) |
+| `msg.childGame` | *function (level)*: `` (level === 0 ? 'Turf Battle' : `Level ${level} game`) `` | [`js/strings.js:206`](js/strings.js#L206) | [`js/game.js:496`](js/game.js#L496) |
+| `msg.jackpotUnderStone` | "The mystery jackpot was buried under stone!" | [`js/strings.js:207`](js/strings.js#L207) | [`js/game.js:543`](js/game.js#L543) |
+| `msg.goesAgain` | *function (p)*: `` `${mark(p)} goes again!` `` | [`js/strings.js:208`](js/strings.js#L208) | [`js/game.js:555`](js/game.js#L555) |
+| `msg.wins` | *function (p, name)*: `` `${mark(p)} wins ${name}!` `` | [`js/strings.js:209`](js/strings.js#L209) | [`js/game.js:589`](js/game.js#L589) |
+| `msg.claims` | *function (p, cell, level)*: `` `${mark(p)} claims the ${cell} space of Level ${level}.` `` | [`js/strings.js:210`](js/strings.js#L210) | [`js/game.js:604`](js/game.js#L604) |
+| `msg.levelBegins` | *function (level, holder, first)*: `` `Level ${level} begins! ${mark(holder)} holds the center. ${mark(first)} picks first.` `` | [`js/strings.js:211`](js/strings.js#L211) | [`js/game.js:642`](js/game.js#L642) |
+| `msg.stalemate` | *function (vanish, moves, cell, level)*: `` `${vanish ? `No winner after ${moves} moves` : 'The board filled up with no winner'}. The ${cell} space of … `` | [`js/strings.js:213`](js/strings.js#L213) | [`js/game.js:1099`](js/game.js#L1099) |
+| `msg.bigDraw` | *function (name, first)*: `` `${name} is a draw! Corners and center stay as a head start, edges and stone spaces clear. ${mark(first)} p… `` | [`js/strings.js:214`](js/strings.js#L214) | [`js/game.js:1129`](js/game.js#L1129) |
+| `msg.turfDraw` | *function (name, first)*: `` `Draw! Replaying ${name} with ${mark(first)} going first.` `` | [`js/strings.js:215`](js/strings.js#L215) | [`js/game.js:1129`](js/game.js#L1129) |
+| `msg.bust` | "Bust! Better luck on the next board." | [`js/strings.js:217`](js/strings.js#L217) | [`js/game.js:1009`](js/game.js#L1009) |
+| `msg.shield` | *function (p)*: `` `${mark(p)} can now keep 4 marks in this game.` `` | [`js/strings.js:218`](js/strings.js#L218) | [`js/game.js:1013`](js/game.js#L1013) |
+| `msg.noTarget` | "Nothing to target, so it becomes an extra move!" | [`js/strings.js:219`](js/strings.js#L219) | [`js/game.js:1032`](js/game.js#L1032) |
+| `msg.pickClaim` | "Pick any empty space to claim" | [`js/strings.js:220`](js/strings.js#L220) | [`js/game.js:1029`](js/game.js#L1029) |
+| `msg.pickSteal` | *function (opp)*: `` `Pick an ${mark(opp)} mark to steal` `` | [`js/strings.js:221`](js/strings.js#L221) | [`js/game.js:1030`](js/game.js#L1030) |
+| `msg.pickBomb` | *function (opp, stone)*: `` `Pick an ${mark(opp)} mark${stone ? ' or stone' : ''} to blow up` `` | [`js/strings.js:222`](js/strings.js#L222) | [`js/game.js:1031`](js/game.js#L1031) |
+| `msg.pick` | *function (verb)*: `` `${verb}!` `` | [`js/strings.js:223`](js/strings.js#L223) | [`js/game.js:1078`](js/game.js#L1078) |
+| `msg.vsComputerOn` | "You are <b class="X">X</b>, the computer plays <b class="O">O</b>." | [`js/strings.js:225`](js/strings.js#L225) | [`js/game.js:1649`](js/game.js#L1649) |
+| `msg.vsComputerOff` | "Hot-seat mode: two players, one screen." | [`js/strings.js:226`](js/strings.js#L226) | [`js/game.js:1649`](js/game.js#L1649) |
+| `msg.replayBusy` | "Wait for the current move to finish, then start the replay." | [`js/strings.js:228`](js/strings.js#L228) | [`js/game.js:1308`](js/game.js#L1308) |
+| `msg.replayEmpty` | "Nothing to replay yet." | [`js/strings.js:229`](js/strings.js#L229) | [`js/game.js:1309`](js/game.js#L1309) |
+| `msg.replayCaughtUp` | "Instant Replay caught up. Back to the live game!" | [`js/strings.js:230`](js/strings.js#L230) | [`js/game.js:1368`](js/game.js#L1368) |
+| `msg.replayStopped` | "Instant Replay stopped. Back to the live game." | [`js/strings.js:231`](js/strings.js#L231) | [`js/game.js:1368`](js/game.js#L1368) |
 
 ### 7. Big words over the board (`STRINGS.pop`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `pop.claimed` | "CLAIMED!" | [`js/strings.js:238`](js/strings.js#L238) | [`js/game.js:448`](js/game.js#L448) |
-| `pop.goAgain` | "GO AGAIN!" | [`js/strings.js:239`](js/strings.js#L239) | [`js/game.js:543`](js/game.js#L543) |
-| `pop.misereLoses` | *function (p)*: `` `${p} MADE THREE... AND LOSES!` `` | [`js/strings.js:240`](js/strings.js#L240) | [`js/game.js:562`](js/game.js#L562) |
-| `pop.won` | *function (level)*: `` (level === 0 ? 'TURF WON!' : `LEVEL ${level} WON!`) `` | [`js/strings.js:241`](js/strings.js#L241) | [`js/game.js:577`](js/game.js#L577) |
-| `pop.levelBanner` | *function (level)*: `` `LEVEL ${level}` `` | [`js/strings.js:242`](js/strings.js#L242) | [`js/game.js:614`](js/game.js#L614) |
-| `pop.shift` | "SHIFT!" | [`js/strings.js:243`](js/strings.js#L243) | [`js/game.js:802`](js/game.js#L802) |
-| `pop.movers.shift` | "SHIFT!" | [`js/strings.js:244`](js/strings.js#L244) | [`js/game.js:21`](js/game.js#L21)<br>[`js/game.js:836`](js/game.js#L836)<br>[`js/game.js:1479`](js/game.js#L1479)<br>*read through `MOVERS` in game.js* |
-| `pop.movers.ring` | "RING SPIN!" | [`js/strings.js:244`](js/strings.js#L244) | [`js/game.js:21`](js/game.js#L21)<br>[`js/game.js:836`](js/game.js#L836)<br>[`js/game.js:1479`](js/game.js#L1479)<br>*read through `MOVERS` in game.js* |
-| `pop.movers.cross` | "CROSSFIRE!" | [`js/strings.js:244`](js/strings.js#L244) | [`js/game.js:21`](js/game.js#L21)<br>[`js/game.js:836`](js/game.js#L836)<br>[`js/game.js:1479`](js/game.js#L1479)<br>*read through `MOVERS` in game.js* |
-| `pop.fogLifts` | "THE FOG LIFTS!" | [`js/strings.js:245`](js/strings.js#L245) | [`js/game.js:815`](js/game.js#L815) |
-| `pop.poof` | "POOF!" | [`js/strings.js:246`](js/strings.js#L246) | [`js/game.js:971`](js/game.js#L971) |
-| `pop.jackpot` | "JACKPOT!" | [`js/strings.js:247`](js/strings.js#L247) | [`js/game.js:986`](js/game.js#L986) |
-| `pop.stolen` | "STOLEN!" | [`js/strings.js:248`](js/strings.js#L248) | [`js/game.js:1036`](js/game.js#L1036) |
-| `pop.boom` | "BOOM!" | [`js/strings.js:249`](js/strings.js#L249) | [`js/game.js:1050`](js/game.js#L1050) |
-| `pop.stalemate` | "STALEMATE!" | [`js/strings.js:250`](js/strings.js#L250) | [`js/game.js:1079`](js/game.js#L1079) |
-| `pop.blocked` | "BLOCKED!" | [`js/strings.js:251`](js/strings.js#L251) | [`js/game.js:1100`](js/game.js#L1100) |
-| `pop.draw` | "DRAW!" | [`js/strings.js:252`](js/strings.js#L252) | [`js/game.js:1109`](js/game.js#L1109) |
-| `pop.matchPoint` | "MATCH POINT!" | [`js/strings.js:253`](js/strings.js#L253) | [`js/game.js:1547`](js/game.js#L1547) |
-| `pop.replayWins` | *function (p)*: `` `${p} WINS!` `` | [`js/strings.js:254`](js/strings.js#L254) | [`js/game.js:1319`](js/game.js#L1319) |
+| `pop.claimed` | "CLAIMED!" | [`js/strings.js:238`](js/strings.js#L238) | [`js/game.js:459`](js/game.js#L459) |
+| `pop.goAgain` | "GO AGAIN!" | [`js/strings.js:239`](js/strings.js#L239) | [`js/game.js:554`](js/game.js#L554) |
+| `pop.misereLoses` | *function (p)*: `` `${p} MADE THREE... AND LOSES!` `` | [`js/strings.js:240`](js/strings.js#L240) | [`js/game.js:573`](js/game.js#L573) |
+| `pop.won` | *function (level)*: `` (level === 0 ? 'TURF WON!' : `LEVEL ${level} WON!`) `` | [`js/strings.js:241`](js/strings.js#L241) | [`js/game.js:588`](js/game.js#L588) |
+| `pop.levelBanner` | *function (level)*: `` `LEVEL ${level}` `` | [`js/strings.js:242`](js/strings.js#L242) | [`js/game.js:625`](js/game.js#L625) |
+| `pop.shift` | "SHIFT!" | [`js/strings.js:243`](js/strings.js#L243) | [`js/game.js:813`](js/game.js#L813) |
+| `pop.movers.shift` | "SHIFT!" | [`js/strings.js:244`](js/strings.js#L244) | [`js/game.js:21`](js/game.js#L21)<br>[`js/game.js:847`](js/game.js#L847)<br>[`js/game.js:1497`](js/game.js#L1497)<br>*read through `MOVERS` in game.js* |
+| `pop.movers.ring` | "RING SPIN!" | [`js/strings.js:244`](js/strings.js#L244) | [`js/game.js:21`](js/game.js#L21)<br>[`js/game.js:847`](js/game.js#L847)<br>[`js/game.js:1497`](js/game.js#L1497)<br>*read through `MOVERS` in game.js* |
+| `pop.movers.cross` | "CROSSFIRE!" | [`js/strings.js:244`](js/strings.js#L244) | [`js/game.js:21`](js/game.js#L21)<br>[`js/game.js:847`](js/game.js#L847)<br>[`js/game.js:1497`](js/game.js#L1497)<br>*read through `MOVERS` in game.js* |
+| `pop.fogLifts` | "THE FOG LIFTS!" | [`js/strings.js:245`](js/strings.js#L245) | [`js/game.js:826`](js/game.js#L826) |
+| `pop.poof` | "POOF!" | [`js/strings.js:246`](js/strings.js#L246) | [`js/game.js:983`](js/game.js#L983) |
+| `pop.jackpot` | "JACKPOT!" | [`js/strings.js:247`](js/strings.js#L247) | [`js/game.js:998`](js/game.js#L998) |
+| `pop.stolen` | "STOLEN!" | [`js/strings.js:248`](js/strings.js#L248) | [`js/game.js:1048`](js/game.js#L1048) |
+| `pop.boom` | "BOOM!" | [`js/strings.js:249`](js/strings.js#L249) | [`js/game.js:1062`](js/game.js#L1062) |
+| `pop.stalemate` | "STALEMATE!" | [`js/strings.js:250`](js/strings.js#L250) | [`js/game.js:1097`](js/game.js#L1097) |
+| `pop.blocked` | "BLOCKED!" | [`js/strings.js:251`](js/strings.js#L251) | [`js/game.js:1118`](js/game.js#L1118) |
+| `pop.draw` | "DRAW!" | [`js/strings.js:252`](js/strings.js#L252) | [`js/game.js:1127`](js/game.js#L1127) |
+| `pop.matchPoint` | "MATCH POINT!" | [`js/strings.js:253`](js/strings.js#L253) | [`js/game.js:1565`](js/game.js#L1565) |
+| `pop.replayWins` | *function (p)*: `` `${p} WINS!` `` | [`js/strings.js:254`](js/strings.js#L254) | [`js/game.js:1337`](js/game.js#L1337) |
 
 ### 8. Rule title card (`STRINGS.ruleCard`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `ruleCard.kicker` | "Turf Battle rule" | [`js/strings.js:261`](js/strings.js#L261) | [`js/game.js:689`](js/game.js#L689) |
-| `ruleCard.kickerNext` | "Next Turf Battle" | [`js/strings.js:262`](js/strings.js#L262) | [`js/game.js:689`](js/game.js#L689) |
-| `ruleCard.spunBy` | *function (p)*: `` `Spun by ${mark(p)}` `` | [`js/strings.js:263`](js/strings.js#L263) | [`js/game.js:395`](js/game.js#L395) |
-| `ruleCard.pickedBy` | *function (p)*: `` `Picked by ${mark(p)}` `` | [`js/strings.js:264`](js/strings.js#L264) | [`js/game.js:390`](js/game.js#L390)<br>[`js/game.js:1012`](js/game.js#L1012) |
-| `ruleCard.rulePick` | "Rule pick" | [`js/strings.js:265`](js/strings.js#L265) | [`js/game.js:390`](js/game.js#L390) |
+| `ruleCard.kicker` | "Turf Battle rule" | [`js/strings.js:261`](js/strings.js#L261) | [`js/game.js:700`](js/game.js#L700) |
+| `ruleCard.kickerNext` | "Next Turf Battle" | [`js/strings.js:262`](js/strings.js#L262) | [`js/game.js:700`](js/game.js#L700) |
+| `ruleCard.spunBy` | *function (p)*: `` `Spun by ${mark(p)}` `` | [`js/strings.js:263`](js/strings.js#L263) | [`js/game.js:406`](js/game.js#L406) |
+| `ruleCard.pickedBy` | *function (p)*: `` `Picked by ${mark(p)}` `` | [`js/strings.js:264`](js/strings.js#L264) | [`js/game.js:401`](js/game.js#L401)<br>[`js/game.js:1024`](js/game.js#L1024) |
+| `ruleCard.rulePick` | "Rule pick" | [`js/strings.js:265`](js/strings.js#L265) | [`js/game.js:401`](js/game.js#L401) |
 
 ### 9. Fortune Wheel (`STRINGS.wheel`)
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `wheel.titleLabel` | "Wheel of Games!" | [`js/strings.js:272`](js/strings.js#L272) | [`index.html:128`](index.html#L128) |
-| `wheel.titleSmall` | "Wheel of" | [`js/strings.js:273`](js/strings.js#L273) | [`index.html:128`](index.html#L128) |
-| `wheel.titleBig` | "GAMES!" | [`js/strings.js:274`](js/strings.js#L274) | [`index.html:128`](index.html#L128) |
-| `wheel.canvasLabel` | "Wheel of game types" | [`js/strings.js:275`](js/strings.js#L275) | [`index.html:131`](index.html#L131) |
-| `wheel.spin` | "SPIN!" | [`js/strings.js:276`](js/strings.js#L276) | [`js/wheel.js:494`](js/wheel.js#L494)<br>[`index.html:133`](index.html#L133) |
-| `wheel.spinning` | "?" | [`js/strings.js:277`](js/strings.js#L277) | [`js/wheel.js:509`](js/wheel.js#L509) |
-| `wheel.who` | *function (p, cpu, sub)*: `` `${mark(p)} ${cpu ? '(computer) ' : ''}spins to pick the game type${sub ? ` ${sub}` : ''}` `` | [`js/strings.js:278`](js/strings.js#L278) | [`js/wheel.js:487`](js/wheel.js#L487) |
-| `wheel.forSpace` | *function (cell, level)*: `` `for the ${cell} space of Level ${level}` `` | [`js/strings.js:279`](js/strings.js#L279) | [`js/game.js:394`](js/game.js#L394) |
-| `wheel.computerSpins` | "The computer spins..." | [`js/strings.js:280`](js/strings.js#L280) | [`js/wheel.js:489`](js/wheel.js#L489) |
-| `wheel.result` | *function (icon, name)*: `` `${icon} ${name.toUpperCase()}!` `` | [`js/strings.js:281`](js/strings.js#L281) | [`js/wheel.js:628`](js/wheel.js#L628) |
+| `wheel.titleLabel` | "Wheel of Games!" | [`js/strings.js:272`](js/strings.js#L272) | [`index.html:129`](index.html#L129) |
+| `wheel.titleSmall` | "Wheel of" | [`js/strings.js:273`](js/strings.js#L273) | [`index.html:129`](index.html#L129) |
+| `wheel.titleBig` | "GAMES!" | [`js/strings.js:274`](js/strings.js#L274) | [`index.html:129`](index.html#L129) |
+| `wheel.canvasLabel` | "Wheel of game types" | [`js/strings.js:275`](js/strings.js#L275) | [`index.html:132`](index.html#L132) |
+| `wheel.spin` | "SPIN!" | [`js/strings.js:276`](js/strings.js#L276) | [`js/wheel.js:652`](js/wheel.js#L652)<br>[`index.html:134`](index.html#L134) |
+| `wheel.spinning` | "?" | [`js/strings.js:277`](js/strings.js#L277) | [`js/wheel.js:667`](js/wheel.js#L667) |
+| `wheel.who` | *function (p, cpu, sub)*: `` `${mark(p)} ${cpu ? '(computer) ' : ''}spins to pick the game type${sub ? ` ${sub}` : ''}` `` | [`js/strings.js:278`](js/strings.js#L278) | [`js/wheel.js:644`](js/wheel.js#L644) |
+| `wheel.forSpace` | *function (cell, level)*: `` `for the ${cell} space of Level ${level}` `` | [`js/strings.js:279`](js/strings.js#L279) | [`js/game.js:405`](js/game.js#L405) |
+| `wheel.computerSpins` | "The computer spins..." | [`js/strings.js:280`](js/strings.js#L280) | [`js/wheel.js:646`](js/wheel.js#L646) |
+| `wheel.result` | *function (icon, name)*: `` `${icon} ${name.toUpperCase()}!` `` | [`js/strings.js:281`](js/strings.js#L281) | [`js/wheel.js:797`](js/wheel.js#L797) |
 
 ### 10. Slot machine / Mystery Jackpot (`STRINGS.slots`)
 
@@ -378,7 +378,7 @@ The line numbers were correct when this was written. They drift as code changes.
 
 | String | Text | Defined at | Used at |
 |---|---|---|---|
-| `rulePick.title` | "🎲 RULE PICK 🎲" | [`js/strings.js:335`](js/strings.js#L335) | [`index.html:141`](index.html#L141) |
+| `rulePick.title` | "🎲 RULE PICK 🎲" | [`js/strings.js:335`](js/strings.js#L335) | [`index.html:142`](index.html#L142) |
 | `rulePick.who` | *function (p, cpu)*: `` `${mark(p)} ${cpu ? '(computer) ' : ''}chooses the rule for the next Turf Battle` `` | [`js/strings.js:278`](js/strings.js#L278) | [`js/slots.js:529`](js/slots.js#L529) |
 | `rulePick.playingNow` | "playing now" | [`js/strings.js:337`](js/strings.js#L337) | [`js/slots.js:534`](js/slots.js#L534) |
 | `rulePick.clickHint` | "Click a card to choose" | [`js/strings.js:338`](js/strings.js#L338) | [`js/slots.js:613`](js/slots.js#L613) |
@@ -392,17 +392,17 @@ The line numbers were correct when this was written. They drift as code changes.
 | `review.title` | "🎬 Game review" | [`js/strings.js:142`](js/strings.js#L142) | [`index.html:69`](index.html#L69) |
 | `review.hint` | "Pick any earlier Level or Turf Battle. Instant Replay plays the game from that moment and keeps going until…" | [`js/strings.js:156`](js/strings.js#L156) | [`index.html:70`](index.html#L70) |
 | `review.close` | "Close" | [`js/strings.js:157`](js/strings.js#L157) | [`index.html:72`](index.html#L72) |
-| `review.empty` | "No games yet. Play a Turf Battle first!" | [`js/strings.js:350`](js/strings.js#L350) | [`js/game.js:1389`](js/game.js#L1389) |
-| `review.replayButton` | "▶ Instant Replay" | [`js/strings.js:351`](js/strings.js#L351) | [`js/game.js:1387`](js/game.js#L1387) |
-| `review.wonBy` | *function (p)*: `` `won by ${mark(p)}` `` | [`js/strings.js:352`](js/strings.js#L352) | [`js/game.js:1385`](js/game.js#L1385) |
-| `review.inProgress` | "<i>in progress</i>" | [`js/strings.js:353`](js/strings.js#L353) | [`js/game.js:1385`](js/game.js#L1385) |
-| `review.openingTurf` | "Opening Turf Battle" | [`js/strings.js:354`](js/strings.js#L354) | [`js/game.js:1246`](js/game.js#L1246) |
-| `review.turfFor` | *function (cell, level)*: `` `Turf Battle for the ${cell} space of Level ${level}` `` | [`js/strings.js:355`](js/strings.js#L355) | [`js/game.js:1246`](js/game.js#L1246) |
+| `review.empty` | "No games yet. Play a Turf Battle first!" | [`js/strings.js:350`](js/strings.js#L350) | [`js/game.js:1407`](js/game.js#L1407) |
+| `review.replayButton` | "▶ Instant Replay" | [`js/strings.js:351`](js/strings.js#L351) | [`js/game.js:1405`](js/game.js#L1405) |
+| `review.wonBy` | *function (p)*: `` `won by ${mark(p)}` `` | [`js/strings.js:352`](js/strings.js#L352) | [`js/game.js:1403`](js/game.js#L1403) |
+| `review.inProgress` | "<i>in progress</i>" | [`js/strings.js:353`](js/strings.js#L353) | [`js/game.js:1403`](js/game.js#L1403) |
+| `review.openingTurf` | "Opening Turf Battle" | [`js/strings.js:354`](js/strings.js#L354) | [`js/game.js:1264`](js/game.js#L1264) |
+| `review.turfFor` | *function (cell, level)*: `` `Turf Battle for the ${cell} space of Level ${level}` `` | [`js/strings.js:355`](js/strings.js#L355) | [`js/game.js:1264`](js/game.js#L1264) |
 | `review.live` | "● INSTANT REPLAY" | [`js/strings.js:357`](js/strings.js#L357) | [`index.html:58`](index.html#L58) |
-| `review.pause` | "⏸ Pause" | [`js/strings.js:358`](js/strings.js#L358) | [`js/game.js:1374`](js/game.js#L1374)<br>[`index.html:61`](index.html#L61) |
-| `review.play` | "▶ Play" | [`js/strings.js:359`](js/strings.js#L359) | [`js/game.js:1374`](js/game.js#L1374) |
+| `review.pause` | "⏸ Pause" | [`js/strings.js:358`](js/strings.js#L358) | [`js/game.js:1392`](js/game.js#L1392)<br>[`index.html:61`](index.html#L61) |
+| `review.play` | "▶ Play" | [`js/strings.js:359`](js/strings.js#L359) | [`js/game.js:1392`](js/game.js#L1392) |
 | `review.speedTitle` | "Replay speed" | [`js/strings.js:360`](js/strings.js#L360) | [`index.html:62`](index.html#L62) |
-| `review.speed` | *function (n)*: `` `${n}×` `` | [`js/strings.js:361`](js/strings.js#L361) | [`js/game.js:1375`](js/game.js#L1375) |
+| `review.speed` | *function (n)*: `` `${n}×` `` | [`js/strings.js:361`](js/strings.js#L361) | [`js/game.js:1393`](js/game.js#L1393) |
 | `review.stop` | "⏹ Stop" | [`js/strings.js:362`](js/strings.js#L362) | [`index.html:63`](index.html#L63) |
 
 ### 13. Icon labels (`STRINGS.icons`)
@@ -432,13 +432,14 @@ The line numbers were correct when this was written. They drift as code changes.
 | `dev.everywhere` | "Jackpot under every square" | [`js/strings.js:391`](js/strings.js#L391) | [`index.html:117`](index.html#L117) |
 | `dev.reveal` | "Show the jackpot square" | [`js/strings.js:392`](js/strings.js#L392) | [`index.html:118`](index.html#L118) |
 | `dev.wheelResult` | "Wheel result" | [`js/strings.js:393`](js/strings.js#L393) | [`index.html:119`](index.html#L119) |
-| `dev.spinWheel` | "🎡 Spin the wheel now" | [`js/strings.js:394`](js/strings.js#L394) | [`index.html:120`](index.html#L120) |
-| `dev.hint` | "Shift+D or ?dev in the address turns it on. Tap the title to fold it." | [`js/strings.js:395`](js/strings.js#L395) | [`index.html:121`](index.html#L121) |
-| `dev.forceOptions` | *list*: `` [["","🎲 Random (normal odds)"],["extra","⚡ Extra turn"],["bomb","💣 Bomb"],["st `` | [`js/strings.js:396`](js/strings.js#L396) | [`js/game.js:937`](js/game.js#L937) |
-| `dev.wheelRandom` | "🎡 Random" | [`js/strings.js:398`](js/strings.js#L398) | [`js/game.js:938`](js/game.js#L938) |
-| `dev.on` | "🛠 Developer Mode on (Shift+D to hide)" | [`js/strings.js:399`](js/strings.js#L399) | [`js/game.js:925`](js/game.js#L925) |
-| `dev.off` | "Developer Mode off" | [`js/strings.js:400`](js/strings.js#L400) | [`js/game.js:925`](js/game.js#L925) |
-| `dev.wait` | "Wait for the current animation to finish, then spin." | [`js/strings.js:401`](js/strings.js#L401) | [`js/game.js:879`](js/game.js#L879)<br>[`js/game.js:898`](js/game.js#L898) |
-| `dev.noLiveGame` | "No live game to spin on right now." | [`js/strings.js:402`](js/strings.js#L402) | [`js/game.js:880`](js/game.js#L880) |
-| `dev.previewSub` | "(Developer Mode preview)" | [`js/strings.js:403`](js/strings.js#L403) | [`js/game.js:911`](js/game.js#L911) |
-| `dev.wheelPreview` | *function (icon, name)*: `` `🛠 The wheel landed on ${icon} <b>${name}</b> (preview only: no Turf Battle is running).` `` | [`js/strings.js:404`](js/strings.js#L404) | [`js/game.js:912`](js/game.js#L912) |
+| `dev.spinWheel` | "🎡 Spin the wheel now" | [`js/strings.js:394`](js/strings.js#L394) | [`index.html:121`](index.html#L121) |
+| `dev.nearMiss` | "Near miss: the flapper stops bent on a peg" | [`js/strings.js:395`](js/strings.js#L395) | [`index.html:120`](index.html#L120) |
+| `dev.hint` | "Shift+D or ?dev in the address turns it on. Tap the title to fold it." | [`js/strings.js:396`](js/strings.js#L396) | [`index.html:122`](index.html#L122) |
+| `dev.forceOptions` | *list*: `` [["","🎲 Random (normal odds)"],["extra","⚡ Extra turn"],["bomb","💣 Bomb"],["st `` | [`js/strings.js:397`](js/strings.js#L397) | [`js/game.js:949`](js/game.js#L949) |
+| `dev.wheelRandom` | "🎡 Random" | [`js/strings.js:399`](js/strings.js#L399) | [`js/game.js:950`](js/game.js#L950) |
+| `dev.on` | "🛠 Developer Mode on (Shift+D to hide)" | [`js/strings.js:400`](js/strings.js#L400) | [`js/game.js:936`](js/game.js#L936) |
+| `dev.off` | "Developer Mode off" | [`js/strings.js:401`](js/strings.js#L401) | [`js/game.js:936`](js/game.js#L936) |
+| `dev.wait` | "Wait for the current animation to finish, then spin." | [`js/strings.js:402`](js/strings.js#L402) | [`js/game.js:890`](js/game.js#L890)<br>[`js/game.js:909`](js/game.js#L909) |
+| `dev.noLiveGame` | "No live game to spin on right now." | [`js/strings.js:403`](js/strings.js#L403) | [`js/game.js:891`](js/game.js#L891) |
+| `dev.previewSub` | "(Developer Mode preview)" | [`js/strings.js:404`](js/strings.js#L404) | [`js/game.js:922`](js/game.js#L922) |
+| `dev.wheelPreview` | *function (icon, name)*: `` `🛠 The wheel landed on ${icon} <b>${name}</b> (preview only: no Turf Battle is running).` `` | [`js/strings.js:405`](js/strings.js#L405) | [`js/game.js:923`](js/game.js#L923) |

@@ -17,7 +17,8 @@ Related documents:
 
 - **Player-facing text goes in [`js/strings.js`](js/strings.js).** This means every word the player sees: names, descriptions, buttons, messages, tooltips and screen-reader labels. Never type it into another script or into `index.html`. See [`strings-reference.md`](strings-reference.md).
 - **Timings of automatic sequences go in [`js/timing.js`](js/timing.js).** See [`transitions-technical-overview.md`](transitions-technical-overview.md).
-- When you add a string or a timing, add its row to the matching reference document.
+- **Sound volumes go in [`js/sound-config.js`](js/sound-config.js).** A new sound effect is a new method on `Sound` in `sound.js`, and it gets a line in `SOUND.effects` so its loudness can be tuned. Any other volume a feature needs (like the flapper clack or the heartbeat) goes there too. When a sound plays and how fast it repeats are timings, so they go in `timing.js`.
+- When you add a string or a timing, add its row to the matching reference document. Sound settings are documented by the comments in `sound-config.js` itself.
 
 ## 1. Running the game
 
@@ -36,7 +37,8 @@ The only external resource is the fonts, loaded from Google Fonts in [`index.htm
 | [`style.css`](style.css) | ~1100 | All styling: HUD, overlays, the slot machine, cards, animations, phone layout |
 | [`js/timing.js`](js/timing.js) | ~330 | `TIMING`: every duration and pause of the automatic sequences (see the transitions doc) |
 | [`js/strings.js`](js/strings.js) | ~440 | `STRINGS`: every piece of player-facing text, plus `applyPageStrings()`, which fills the page's text on load (see the strings reference) |
-| [`js/sound.js`](js/sound.js) | ~610 | `Sound`: synthesised sound effects, music, voice-over playback with reverb, the volume mixer |
+| [`js/sound-config.js`](js/sound-config.js) | ~130 | `SOUND`: every volume worth tuning: the mixer's starting levels, the announcer, one multiplier per sound effect, the flapper clack and the heartbeat |
+| [`js/sound.js`](js/sound.js) | ~630 | `Sound`: synthesised sound effects, music, voice-over playback with reverb, the volume mixer |
 | [`js/render.js`](js/render.js) | ~1430 | The isometric renderer (`Renderer`), animation helpers (`Ease`, `Tweens`, `wait`), board layout, the game-type icons |
 | [`js/minimap.js`](js/minimap.js) | ~150 | `MiniMap`: the small overview of the live boards in the corner |
 | [`js/crew.js`](js/crew.js) | ~230 | `Crew`: the animated SVG characters around the slot machine |
@@ -53,10 +55,10 @@ The only external resource is the fonts, loaded from Google Fonts in [`index.htm
 There are no modules or imports. Each script is a classic `<script>` tag. Each one defines one or more global objects with `const`, such as `const Wheel = { ... }`. The order in [`index.html`](index.html) matters, because a script can only use things defined by scripts above it *at load time*:
 
 ```
-timing.js → strings.js → sound.js → render.js → minimap.js → crew.js → boom.js → slots.js → wheel.js → game.js
+timing.js → strings.js → sound-config.js → sound.js → render.js → minimap.js → crew.js → boom.js → slots.js → wheel.js → game.js
 ```
 
-`timing.js` and `strings.js` load first because they only define data, and everything else reads them. Most cross-references happen later, when functions run, so by then every global exists. For example, `Wheel.spin()` reads `RULES` (defined in `game.js`) while the game is running. The exceptions are values computed at load time. For example, `RULES` in `game.js` uses `WILD_ICON` from `render.js`, so `render.js` must load first.
+`timing.js`, `strings.js` and `sound-config.js` load first because they only define data, and everything else reads them. Most cross-references happen later, when functions run, so by then every global exists. For example, `Wheel.spin()` reads `RULES` (defined in `game.js`) while the game is running. The exceptions are values computed at load time. For example, `RULES` in `game.js` uses `WILD_ICON` from `render.js`, so `render.js` must load first.
 
 `game.js` loads last. At the bottom it runs `main()`, which wires up all input and starts the main loop (section 6).
 
@@ -200,7 +202,8 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 - **Effects are synthesised live** with Web Audio (`tone()`, `noise()`, `roar()`, `engine()` and others), so there are no effect files to load.
 - **Voice-overs** are MP3s in `media/soundfx/`. `RULE_VOICES` maps each game type to its file. `Sound.voice()` plays a voice through a "concert hall" chain: compressor, convolution reverb (`hallIR()`) and slap-back echo. Instant Win uses a bigger hall (`style: 'big'`). Each recording is level-matched by loudness when it loads.
 - **Opened from disk (file://)**, Web Audio can't decode the files. `voice()` then plays the ready-made `NAME-hall.mp3` with a plain `Audio` element.
-- **Two volume buses**, sound effects and voice, are set from the mixer (`Sound.setMix`).
+- **Two volume buses**, sound effects and voice, are set from the mixer (`Sound.setMix`). Their first-visit levels are `SOUND.mix` in `sound-config.js`; after that, the player's own levels are saved.
+- **Every effect has its own volume** in `SOUND.effects` (`sound-config.js`). At load, `sound.js` wraps each named `Sound` method so everything it plays goes through a gain set to that number (`Sound.withGain`), read each time it plays. Nested effects multiply (the Gravity `clunk` includes a `bigBoom`). The music loop runs on a timer, so `startMusic` applies `SOUND.effects.music` itself.
 - **Browsers block audio until the player interacts.** `Sound.ensure()` creates or resumes the audio context on the first click. On Safari it also plays a silent sample to unlock audio.
 
 ## 8. Saving, review and replay
@@ -224,10 +227,11 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 | Change the computer's play | `AI` in `game.js`: `chooseL0` (Turf Battles), `choose` (big boards), `chooseRule` (RULE PICK), `pickTarget` (steal/bomb) |
 | Change slot prizes or odds | `SLOT_SYMS`, `PRIZES`, `SLOT_ODDS`, `PAYLINES` at the top of `slots.js`; prize effects in `Game.applyPrize()` |
 | Change colours of X, O, stone, wild | `PIECE_COL` and `LEVEL_HUES` at the top of `render.js` |
-| Change a sound | The matching method on `Sound` (for example `Sound.place`) in `sound.js` |
+| Make a sound louder or quieter | Its line in `SOUND.effects` in `js/sound-config.js` |
+| Change how a sound sounds | The matching method on `Sound` (for example `Sound.place`) in `sound.js` |
 | Change any text the player sees | `js/strings.js` (see the strings reference) |
 | Change how the HUD is laid out | `index.html`, `style.css`, and `Game.updateHUD()` and its helpers in `game.js` |
-| Test a specific game type or prize | Developer Mode: press **Shift+D**. It can force the wheel's result, force a slot prize, put a jackpot under every space, or reveal the jackpot |
+| Test a specific game type or prize | Developer Mode: press **Shift+D**. It can force the wheel's result, force a slot prize, put a jackpot under every space, reveal the jackpot, or make every wheel spin a near miss |
 
 ### Adding a new game type: checklist
 

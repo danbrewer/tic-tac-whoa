@@ -392,6 +392,7 @@ const STRINGS = (() => {
       reveal: 'Show the jackpot square',
       wheelResult: 'Wheel result',
       spinWheel: '🎡 Spin the wheel now',
+      nearMiss: 'Near miss: the flapper stops bent on a peg',   // checkbox: every wheel spin ends in a near miss
       hint: 'Shift+D or ?dev in the address turns it on. Tap the title to fold it.',
       forceOptions: [['', '🎲 Random (normal odds)'], ['extra', '⚡ Extra turn'], ['bomb', '💣 Bomb'], ['steal', '🎭 Steal'],
         ['shield', '🛡️ +1 mark'], ['rule', '🎲 Rule pick'], ['jackpot', '🎆 Instant win'], ['bust', '❌ No win']],

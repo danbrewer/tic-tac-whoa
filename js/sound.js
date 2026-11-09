@@ -1,12 +1,22 @@
 'use strict';
 // Tiny synthesized sound effects (Web Audio, no files needed).
+// Every volume worth tuning is in js/sound-config.js (SOUND); this file is how the sounds are made.
 const Sound = {
   ctx: null,
   on: true,
   // mix levels (0..1): sound effects and recorded voice-overs each get their own bus
-  sfxVol: 1,
-  voiceVol: 0.5,
-  sfx() { return this.bus('_sfxBus', this.sfxVol); },
+  sfxVol: SOUND.mix.sfx,
+  voiceVol: SOUND.mix.voice,
+  // where an effect's layers connect: the effect's own gain while one is playing (see withGain), else the bus
+  sfx() { return this._fxNode || this.bus('_sfxBus', this.sfxVol); },
+  // run fn with everything it plays turned up or down by g (SOUND.effects); nested effects multiply
+  withGain(g, fn) {
+    if (!this.ctx || !this.on || g === 1) return fn();
+    const prev = this._fxNode, node = this.ctx.createGain();
+    node.gain.value = Math.max(0, g); node.connect(this.sfx());
+    this._fxNode = node;
+    try { return fn(); } finally { this._fxNode = prev; }
+  },
   vox() { return this.bus('_voxBus', this.voiceVol); },
   bus(key, v) {
     const b = this[key];
@@ -226,7 +236,7 @@ const Sound = {
     m.timer = setInterval(() => {
       if (this.music !== m) return;
       const step = 60 / (m.intense ? 168 : 148) / 4;
-      while (m.next < ctx.currentTime + 0.15) { sched(m.n, m.next); m.next += step; m.n++; }
+      while (m.next < ctx.currentTime + 0.15) { this.withGain(SOUND.effects.music, () => sched(m.n, m.next)); m.next += step; m.n++; }
     }, 25);
   },
   musicIntensity(v) { if (this.music) this.music.intense = v; },
@@ -283,8 +293,8 @@ const Sound = {
     this.tone(55, dur, { type: 'sine', vol: 0.18, slideTo: 82 });
     this.tone(220, dur, { type: 'sawtooth', vol: 0.025, slideTo: 440 });
   },
-  // Wheel of Games: a creaky pull-back, the launch whoosh, and a clack per peg that gets
-  // louder and lower as the wheel slows (q = 0 fast .. 1 nearly stopped)
+  // Wheel of Games: a creaky pull-back, the launch whoosh, and a clack per peg (all at the same
+  // loudness, set in SOUND.wheelClack)
   wheelPull(dur) {
     this.tone(260, dur, { type: 'triangle', vol: 0.08, slideTo: 140 });
     this.noise(dur, { vol: 0.07, from: 600, to: 250, q: 3 });
@@ -293,9 +303,10 @@ const Sound = {
     this.noise(0.45, { vol: 0.25, from: 300, to: 5000, q: 0.9 });
     this.tone(90, 0.35, { type: 'sine', vol: 0.3, slideTo: 220 });
   },
-  wheelClack(q) {
-    this.tone(2200 - q * 1100, 0.03 + q * 0.03, { type: 'square', vol: 0.025 + q * 0.05 });
-    if (q > 0.5) this.tone(180 - q * 60, 0.06, { type: 'sine', vol: 0.12 * q });
+  wheelClack() {
+    const c = SOUND.wheelClack;
+    this.tone(c.pitch, c.length, { type: 'square', vol: c.vol });
+    this.tone(c.thumpPitch, c.length * 1.5, { type: 'sine', vol: c.thumpVol });
   },
   // Deep, layered explosion: sub-bass drop, low rumble and a crack. i staggers the pitch lower each time.
   bigBoom(size = 1, i = 0) {
@@ -307,9 +318,10 @@ const Sound = {
     this.noise(0.35, { vol: 0.28 * size, from: 3200, to: 300, q: 0.6 });
     if (i === 0) this.tone(34, 2.4, { type: 'sine', vol: 0.5, when: 0.05, slideTo: 16 });
   },
-  // one "lub-dub" heartbeat; v is loudness 0..1, gap shortens as the heart races
+  // one "lub-dub" heartbeat; v = 0 (slowest, SOUND.heartbeat.quiet) .. 1 (fastest, .loud);
+  // gap = seconds between "lub" and "dub" (from TIMING.wheel, it shortens as the heart races)
   heartPulse(v = 0.5, gap = 0.16) {
-    const vol = 0.25 + v * 0.4;
+    const H = SOUND.heartbeat, vol = H.quiet + (H.loud - H.quiet) * Math.max(0, Math.min(1, v));
     this.tone(62, 0.16, { type: 'sine', vol, slideTo: 38 });
     this.tone(124, 0.06, { type: 'triangle', vol: vol * 0.25, slideTo: 60 });
     this.tone(52, 0.14, { type: 'sine', vol: vol * 0.75, when: gap, slideTo: 34 });
@@ -384,7 +396,7 @@ const Sound = {
     if (this._echo) return this._echo;
     const ctx = this.ctx, inp = ctx.createGain(), d = ctx.createDelay(1), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
     d.delayTime.value = 0.23; fb.gain.value = 0.42; lp.type = 'lowpass'; lp.frequency.value = 2200;
-    inp.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(this.sfx());
+    inp.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(this.bus('_sfxBus', this.sfxVol));
     return (this._echo = inp);
   },
   // hydraulic ram: motor whine climbing in pitch, hissing fluid, and a pump thudding away
@@ -477,7 +489,7 @@ const Sound = {
       // slap-back echoes off the far walls of the hall
       const slap = c.createDelay(1); slap.delayTime.value = big ? 0.32 : 0.28; const sg = c.createGain(); sg.gain.value = big ? 0.32 : 0.16;
       const slp = c.createBiquadFilter(); slp.type = 'lowpass'; slp.frequency.value = 1800;
-      const norm = c.createGain(); norm.gain.value = (this.voiceNorm && this.voiceNorm[name]) || 1;
+      const norm = c.createGain(); norm.gain.value = ((this.voiceNorm && this.voiceNorm[name]) || 1) * this.voiceGain(name);
       src.connect(norm).connect(low).connect(comp);
       comp.connect(dry).connect(this.vox());
       comp.connect(pre).connect(conv).connect(wet).connect(this.vox());
@@ -488,17 +500,19 @@ const Sound = {
     // no Web Audio copy (e.g. opened straight from disk): play the file as-is, preferring a pre-made hall version
     const play = (files) => {
       if (!files.length) return;
-      const a = new Audio(`media/soundfx/${files[0]}.mp3`); a.volume = this.voiceVol;
+      const a = new Audio(`media/soundfx/${files[0]}.mp3`); a.volume = Math.min(1, this.voiceVol * this.voiceGain(name));
       a.onerror = () => play(files.slice(1));
       setTimeout(() => { const p = a.play(); if (p && p.catch) p.catch(() => {}); }, when * 1000);
     };
     play([`${name}-${style === 'big' ? 'hall' : style}`, name]);
   },
+  // SOUND.voices: how loud this recording plays, on top of the voice slider
+  voiceGain(name) { return name === 'instant-win' ? SOUND.voices.instantWin : SOUND.voices.rules; },
   // a booming announcer over a stadium PA: horn-speaker band-limiting, a little amp grit, and
   // discrete echoes bouncing back off the far stands, all feeding a big hall
   paVoice(buf, when = 0) {
     const c = this.ctx, t0 = c.currentTime + when, src = c.createBufferSource(); src.buffer = buf;
-    const out = c.createGain(); out.gain.value = 0.5; out.connect(this.vox());   // headroom: echoes stack up
+    const out = c.createGain(); out.gain.value = 0.5 * SOUND.voices.rules; out.connect(this.vox());   // headroom: echoes stack up
     const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; hp.Q.value = 0.8;
     const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200; lp.Q.value = 0.9;
     const horn = c.createBiquadFilter(); horn.type = 'peaking'; horn.frequency.value = 1700; horn.Q.value = 1.2; horn.gain.value = 6;
@@ -597,6 +611,16 @@ const Sound = {
     this.tone(196, 0.4, { type: 'square', vol: 0.05, when: 0.18 });
   },
 };
+
+// SOUND.effects: wrap each named effect so everything it plays goes through a gain set to its number
+// (looked up each time it plays). The music loop is scheduled on a timer, so startMusic applies
+// SOUND.effects.music itself.
+for (const name of Object.keys(SOUND.effects)) {
+  if (name === 'music') continue;
+  const fn = Sound[name];
+  if (typeof fn !== 'function') { console.warn(`SOUND.effects.${name}: Sound has no such effect`); continue; }
+  Sound[name] = function (...args) { return Sound.withGain(SOUND.effects[name], () => fn.apply(Sound, args)); };
+}
 
 // After a refresh the browser starts audio suspended until the player interacts with the page.
 // Unlock (or re-wake) the audio context on every kind of gesture anywhere on the page, not just the

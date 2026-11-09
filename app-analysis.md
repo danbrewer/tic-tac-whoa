@@ -35,7 +35,7 @@ The top recommendations are:
 
 - **No build, no dependencies.** You can open the game straight from disk, it will keep working for years, and there is nothing to update.
 - **One clear controller.** `Game` owns the state and runs every sequence. The renderer and minimap only draw. The overlays return Promises that `Game` awaits. This makes the flow of a move easy to follow (architecture overview, section 5).
-- **Safe interruption.** The `busy` flag, the `gen` counter and `step()` make it safe to start a new game halfway through a long animated sequence ([`js/game.js:337`](js/game.js#L337)).
+- **Safe interruption.** The `busy` flag, the `gen` counter and `step()` make it safe to start a new game halfway through a long animated sequence ([`js/game.js:348`](js/game.js#L348)).
 - **The rendering is mostly stateless.** Animations are calculated from timestamps inside the draw call, so there are few animation objects to create, track or clean up.
 - **Centralised timing.** All sequence timings are in [`js/timing.js`](js/timing.js) and documented.
 - **Centralised text.** All player-facing text is in [`js/strings.js`](js/strings.js) and documented in [`strings-reference.md`](strings-reference.md). This also makes a translation possible later.
@@ -48,7 +48,7 @@ Ranked from most to least important. Severity reflects the impact on players or 
 
 ### Finding 1. The replay log is rewritten in full on every move (medium)
 
-**Where:** `snapshot()` and `saveLog()`, [`js/game.js:1249`](js/game.js#L1249) and [`js/game.js:1276`](js/game.js#L1276). The cap `LOG_CAP = 600` is at [`js/game.js:13`](js/game.js#L13).
+**Where:** `snapshot()` and `saveLog()`, [`js/game.js:1267`](js/game.js#L1267) and [`js/game.js:1294`](js/game.js#L1294). The cap `LOG_CAP = 600` is at [`js/game.js:13`](js/game.js#L13).
 
 Every settled move adds a snapshot of the *entire* board tree to `Game.log`. Then the whole log, up to 600 snapshots, is turned into one JSON string and written to `localStorage`. Each snapshot is already a JSON string, so it is escaped a second time inside the log.
 
@@ -110,7 +110,7 @@ Keep the global-object style for now, so this is a move-only refactor. Moving to
 |---|---|---|
 | The eight winning lines | `LINES`, [`js/game.js:4`](js/game.js#L4) | `WIN_LINES`, [`js/render.js:143`](js/render.js#L143) |
 | Marks kept in Vanishing Marks | `KEEP_MARKS`, [`js/game.js:14`](js/game.js#L14) | `KEEP_MARKS_R`, [`js/render.js:140`](js/render.js#L140) ("must match") |
-| Threat counting | `threatsW()`, [`js/game.js:137`](js/game.js#L137) | `threatsOf()`, [`js/render.js:144`](js/render.js#L144) |
+| Threat counting | `threatsW()`, [`js/game.js:147`](js/game.js#L147) | `threatsOf()`, [`js/render.js:144`](js/render.js#L144) |
 | Gravity's landing space | `landingCell()` | `AI.ruleMoves()` repeats the column scan |
 | The game-type list | `RULES` | `WHEEL_TYPES` (wheel.js), `RULE_VOICES` (sound.js), `rule-*` styles. The names and help text now come from `STRINGS.rules`, and How to play is generated |
 
@@ -120,7 +120,7 @@ If one copy changes and the other doesn't, the game disagrees with itself. For e
 
 ### Finding 5. Overlay timers can't be cancelled (low, latent)
 
-**Where:** `Wheel.spin()` ([`js/wheel.js:481`](js/wheel.js#L481)), `Slots.spin()` and `reveal()`, and `RulePick.open()` schedule their steps with plain `setTimeout` and never check `Game.gen`.
+**Where:** `Wheel.spin()` ([`js/wheel.js:638`](js/wheel.js#L638)), `Slots.spin()` and `reveal()`, and `RulePick.open()` schedule their steps with plain `setTimeout` and never check `Game.gen`.
 
 This is safe today only because the overlays cover the whole screen, so the New Game button can't be clicked while they are open. If that ever changes, a new game started mid-sequence would leave old timers running. For example, the previous wheel's "blast off" timer could close the next wheel early. One way it could change is a keyboard shortcut for New Game. Another is moving the HUD or the developer panel above the overlays.
 
@@ -138,19 +138,19 @@ The board is drawn on a `<canvas>` with only an `aria-label` ([`index.html`](ind
 
 ### Finding 7. Work done every frame that could be done once (low)
 
-`Game.layoutAll()` re-lays-out the whole board tree every frame ([`js/game.js:1709`](js/game.js#L1709)), although layout only changes when the tree changes. `drawBoard()` also creates many gradients per frame. Neither is a problem on current hardware at current game sizes, but both grow with the size of the tree.
+`Game.layoutAll()` re-lays-out the whole board tree every frame ([`js/game.js:1727`](js/game.js#L1727)), although layout only changes when the tree changes. `drawBoard()` also creates many gradients per frame. Neither is a problem on current hardware at current game sizes, but both grow with the size of the tree.
 
 **Recommendation:** only call `layoutAll()` when a board is added, removed or zoomed (the code already calls it at those moments), and cache gradients that don't depend on time.
 
 ### Finding 8. Developer Mode is open to players and its settings persist (low)
 
-Shift+D opens the developer panel for anyone ([`js/game.js:1682`](js/game.js#L1682)). Its settings are saved with the preferences (`savePrefs`, [`js/game.js:1403`](js/game.js#L1403)). A player who discovers it can force jackpots. If "jackpot everywhere" or "force prize" is left on, it carries over into later sessions.
+Shift+D opens the developer panel for anyone ([`js/game.js:1700`](js/game.js#L1700)). Its settings are saved with the preferences (`savePrefs`, [`js/game.js:1421`](js/game.js#L1421)). A player who discovers it can force jackpots. If "jackpot everywhere" or "force prize" is left on, it carries over into later sessions.
 
 **Recommendation:** if that is intended, show a small "DEV" badge in the HUD whenever Developer Mode is on, so nobody is surprised. Otherwise, only enable it with a URL flag such as `?dev`.
 
 ### Finding 9. Save format has no migration path (low)
 
-The saves use `-v1` keys. `deserialize()` fills gaps with defaults. For example, a missing rule becomes `'vanish'` ([`js/game.js:299`](js/game.js#L299)). This works for adding fields. It won't cope with a field changing meaning, and a save that fails to load is silently replaced by a new game.
+The saves use `-v1` keys. `deserialize()` fills gaps with defaults. For example, a missing rule becomes `'vanish'` ([`js/game.js:310`](js/game.js#L310)). This works for adding fields. It won't cope with a field changing meaning, and a save that fails to load is silently replaced by a new game.
 
 **Recommendation:** store a format version number inside the save, and write a small `migrate(data)` step when the format next changes. Before replacing a save that failed to load, copy it to a `...-broken` key, so it can be recovered.
 

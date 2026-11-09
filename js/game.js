@@ -111,6 +111,16 @@ function landingCell(b, k) {
   return -1;
 }
 
+// Gravity: drop every mark straight down its column until nothing hangs over an empty square
+// (changes the owners array o in place and returns it; Game.settleGravity does the same on the board, animated)
+function fallen(o) {
+  for (let i = 0; i < 3; i++) {
+    const col = [6 + i, 3 + i, i], marks = col.map((k) => o[k]).filter((v) => v);
+    col.forEach((k, n) => { o[k] = marks[n] || null; });
+  }
+  return o;
+}
+
 // Lines of three (the wild square counts for either player). If several, the mover's line counts.
 // Misère flips the result: the player who made the line loses.
 function judge(owners, rule, mover) {
@@ -260,6 +270,7 @@ const AI = {
     for (const k of cands) {
       const o2 = o.slice();
       o2[k] = kind === 'bomb' ? null : me;
+      if (b.level === 0 && b.rule === 'gravity') fallen(o2);   // marks above a gap drop into it
       const r = lineResult(o2);
       const t = threatsOf(o2);
       const v = (r && r !== 'draw' && r.p === me ? 1000 : 0) + t[me].size * 3 - t[other(me)].size * 4 + Math.random();
@@ -327,7 +338,7 @@ const Game = {
   nextRule: null,   // rule won with RULE PICK for the next Level 0 game
   nextRuleBy: null,
   lastWinner: null, // winner of the latest Level 0 game: spins the rule wheel
-  dev: { on: false, force: '', tease: false, everywhere: false, reveal: false, wheel: '' },  // Developer Mode
+  dev: { on: false, force: '', tease: false, everywhere: false, reveal: false, wheel: '', nearMiss: false },  // Developer Mode
   view: null,   // board being reviewed (null = following the live game)
   trail: [],    // boards to return to when zooming back in
 
@@ -930,6 +941,7 @@ const Game = {
     $('devpanel').hidden = !d.on;
     $('dvForce').value = d.force; $('dvWheel').value = d.wheel;
     $('dvTease').checked = d.tease; $('dvEvery').checked = d.everywhere; $('dvReveal').checked = d.reveal;
+    $('dvNearMiss').checked = !!d.nearMiss;
   },
 
   initDevPanel() {
@@ -938,7 +950,7 @@ const Game = {
     $('dvWheel').innerHTML = opts([['', STRINGS.dev.wheelRandom], ...RULE_KEYS.map((k) => [k, `${RULES[k].iconText || RULES[k].icon} ${RULES[k].name}`])]);
     const bind = (id, key, prop = 'value') => $(id).addEventListener('change', (e) => { this.dev[key] = e.target[prop]; this.savePrefs(); });
     bind('dvForce', 'force'); bind('dvWheel', 'wheel');
-    bind('dvTease', 'tease', 'checked'); bind('dvEvery', 'everywhere', 'checked'); bind('dvReveal', 'reveal', 'checked');
+    bind('dvTease', 'tease', 'checked'); bind('dvEvery', 'everywhere', 'checked'); bind('dvReveal', 'reveal', 'checked'); bind('dvNearMiss', 'nearMiss', 'checked');
     $('dvSpin').addEventListener('click', () => { Sound.ensure(); this.devSpin(); });
     $('dvWheelSpin').addEventListener('click', () => { Sound.ensure(); this.devWheel(); });
     $('dvClose').addEventListener('click', () => this.setDev(false));
@@ -1048,6 +1060,12 @@ const Game = {
       Renderer.shake(20);
       Renderer.kick(0.08);
       Renderer.floatText(x, y - 30, STRINGS.pop.boom, null, 56);
+    }
+    // Gravity: a bombed mark leaves a gap, and a claimed square may be hanging in mid-air, so once the
+    // blast has cleared every mark above an empty square falls down into it
+    if (b.level === 0 && b.rule === 'gravity' && (prize === 'bomb' || prize === 'jackpot')) {
+      await this.step(wait(TIMING.slots.gravityDropDelay));
+      if (this.settleGravity(b)) await this.step(wait(TIMING.board.gravitySettle));
     }
     await this.step(wait(TIMING.slots.prizeSettle));
     return {};

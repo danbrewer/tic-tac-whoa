@@ -30,7 +30,8 @@ const TIMING = {
   //    Wheel.spin()       opens the wheel, waits for SPIN (or presses it for the computer), runs the spin,
   //                       then land(): lifts the winning wedge, announces it and calls blastOff()
   //    Wheel.dropIn()     the wheel falling onto the screen, the slam, dust, and the title popping in
-  //    Wheel.drawPointer() draws the 3D pointer every frame, including its flick when a spoke passes
+  //    Wheel.drawPointer() draws the 3D pointer every frame
+  //    Wheel.flapperStep() moves the springy flapper as the pegs push it aside and let it go (flapper*)
   //    Wheel.blastOff()   the rumble, fire and rocket flight that closes the wheel
   //    Called from Game.startRule() in js/game.js, which then shows the rule title card.
   // ---------------------------------------------------------------------------------------------
@@ -50,11 +51,18 @@ const TIMING = {
     spinFast: 6800,            // phase A: the long slow-down from full speed ...
     spinFastRandom: 400,       // ... plus up to this much extra, so no two spins last exactly the same
     spinCrawl: 3400,           // phase B: the final crawl over the last ~3 spokes to the stop
-    heartbeats: [1200, 1200, 1000, 1000, 800, 800, 600, 600],  // gap before each heartbeat during the spin
+    heartbeats: [1200, 1200, 1000, 1000, 800, 800, 600, 600],  // gap before each heartbeat during the spin:
+                               // this list is the speed-up curve (loudness follows it, see SOUND.heartbeat)
     heartbeatFast: 400,        // gap between heartbeats once the list above runs out
     heartbeatPulse: 420,       // how long each heartbeat's "throb" of the wheel lasts
     heartbeatStopGuard: 120,   // no heartbeat starts this close to the moment the wheel stops
-    pointerFlick: 140,         // the pointer's flick each time a spoke passes it
+    heartbeatLubDubSlow: 240,  // gap between the "lub" and the "dub" of the slowest heartbeat ...
+    heartbeatLubDubFast: 110,  // ... and of the fastest (in between, it tightens as the heart races)
+    // the flapper (the red pointer) is a little spring; these three are NOT milliseconds.
+    // Its clack plays once per peg, the moment that peg strikes it (Wheel.flapperStep).
+    flapperFreq: 9,            // Hz: how fast it springs back and forth (higher = stiffer, quicker slaps)
+    flapperDamping: 0.1,       // 0..1: how quickly its wobble dies away (0 = forever, 1 = no overshoot at all)
+    flapperBounce: 0.35,       // 0..1: how much of its speed it keeps when it slaps into a peg
 
     // -- landing and the announcement --
     wedgeLiftDelay: 450,       // after the wheel stops, before the winning wedge pops out
@@ -85,7 +93,8 @@ const TIMING = {
   //    Slots.streakStop()   the flash and "x2! / INSTANT WIN!" pop when an INSTANT WIN locks in on a reel
   //    Slots.instantBanner() the big INSTANT WIN! title and its explosions
   //    Slots.explodeBanner() blows the title apart letter by letter when the machine closes
-  //    Game.applyPrize()    (game.js) carries out the prize, then pauses before play continues
+  //    Game.applyPrize()    (game.js) carries out the prize (in Gravity, lets the marks above a gap fall),
+  //                         then pauses before play continues
   //    Game.chooseTarget()  (game.js) waits for a target to steal/bomb; the computer picks after a delay
   // ---------------------------------------------------------------------------------------------
   slots: {
@@ -128,6 +137,7 @@ const TIMING = {
 
     // -- prize follow-ups (game.js) --
     prizeSettle: 700,          // after a STEAL or a BOMB lands, before play continues
+    gravityDropDelay: 450,     // Gravity: after a BOMB or a claimed square, before the marks above a gap fall in
     cpuTargetDelay: 1000,      // computer's turn: how long before it picks which mark to steal or bomb
     rulePickSettle: 3000,      // after a RULE PICK, how long the "next game" card is on screen
   },
