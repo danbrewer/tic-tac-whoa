@@ -47,7 +47,27 @@
       <button id="btnCpu" type="button">vs Computer: Off</button>
       <button id="btnSound" type="button">Sound: On</button>
       <button id="btnMix" type="button" aria-expanded="false" aria-controls="mixer" title="Volume mix">🎚️ Mix</button>
+      <button id="btnReview" type="button" title="Game review: replay earlier games">🎬 Review</button>
       <button id="btnHelp" type="button">How to play</button>
+    </div>
+  </div>
+
+  <div id="replaybar" class="replaybar" hidden>
+    <div class="rp-row"><span class="rp-live">● INSTANT REPLAY</span><span id="rpTitle" class="rp-title"></span></div>
+    <div class="rp-track"><div id="rpFill" class="rp-fill"></div></div>
+    <div class="rp-row rp-btns">
+      <button id="rpPause" type="button">⏸ Pause</button>
+      <button id="rpSpeed" type="button" title="Replay speed">1×</button>
+      <button id="rpStop" type="button" class="rp-stop">⏹ Stop</button>
+    </div>
+  </div>
+
+  <div id="review" class="modal" hidden>
+    <div class="modal-card review-card">
+      <h2>🎬 Game review</h2>
+      <p class="hint">Pick any earlier Level or Turf Battle. Instant Replay plays the game from that moment and keeps going until you stop it or it catches up with the live game.</p>
+      <ol id="rvList" class="rv-list"></ol>
+      <button id="rvClose" type="button" class="primary">Close</button>
     </div>
   </div>
 
@@ -127,30 +147,35 @@
     <div class="modal-card">
       <h2>How to play</h2>
       <ol>
-        <li><b>Level 0</b> is plain tic-tac-toe. <span class="x">X</span> goes first.</li>
-        <li>Win Level 0 and your mark becomes the <b>center square of Level 1</b>, a brand-new, bigger board. The other player picks first there.</li>
-        <li>On Level 1 and above you don't just place a mark. You <b>pick an empty square</b>, the camera zooms in, and a fresh <b>Level 0 game</b> decides who owns it. Whoever picked moves first in that game.</li>
-        <li>Win three in a row on Level 1 and your mark becomes the center of Level 2, and so on, forever. Every square on every level is won with one Level 0 game.</li>
-        <li><b>Glowing squares</b> on the bigger boards would complete a line for that color. The <b>stakes bar</b> at the top tells you what the current game means, and the <b>mini-map</b> on the left shows the live boards and earlier levels. Click a mini board to zoom to it.</li>
-        <li><b>Level zoom:</b> use the zoom bar, the trail at the top, your scroll wheel, or the <b>+</b> / <b>−</b> keys to move between levels. Click any claimed square to zoom into the finished game that won it. Press <b>Esc</b> or <b>Back to game</b> to return.</li>
-        <li><b>Wheel of games:</b> before every Level 0 game, the winner of the last Level 0 game spins the wheel to pick the game type (X spins first). A title card names the rule, and the badge above the turn bar keeps it on screen.
+        <li>Every game starts with a <b>Turf Battle</b>: a quick game of tic-tac-toe on the smallest board. <span class="x">X</span> goes first.</li>
+        <li>Win the Turf Battle and your mark becomes the <b>center space of Level 1</b>, a brand-new, bigger board. The other player picks first there.</li>
+        <li>On Level 1 and above you don't just place a mark. You <b>pick an empty space</b>, the camera zooms in, and a fresh <b>Turf Battle</b> decides who owns it. Whoever picked moves first in that game.</li>
+        <li>Win three in a row on Level 1 and your mark becomes the center of Level 2, and so on, forever. Every space on every level is won with one Turf Battle.</li>
+        <li><b>Glowing spaces</b> on the bigger boards would complete a line for that color. The <b>stakes bar</b> at the top tells you what the current game means, and the <b>mini-map</b> on the left shows the live boards and earlier levels. Click a mini board to zoom to it.</li>
+        <li><b>Level zoom:</b> use the zoom bar, the trail at the top, your scroll wheel, or the <b>+</b> / <b>−</b> keys to move between levels. Click any claimed space to zoom into the finished game that won it. Press <b>Esc</b> or <b>Back to game</b> to return.</li>
+        <li><b>Wheel of games:</b> before every Turf Battle, the winner of the last Turf Battle spins the wheel to pick the game type (X spins first). A title card names the rule, and the badge above the turn bar keeps it on screen.
           <ul class="rules">
             <li>⭕ <b>Classic Tic-Tac-Toe:</b> plain rules.</li>
             <li>👻 <b>Vanishing Marks:</b> you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; the dots on the badge count your marks). No winner within 18 moves is a stalemate.</li>
             <li>⬇️ <b>Gravity:</b> the board stands up like Connect Four, and marks drop to the bottom of their column.</li>
             <li>🔀 <b>Shifting Squares:</b> every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around.</li>
-            <li>⭐ <b>Wild Square:</b> the shape-shifting mark counts for both players and jumps to a new square after every turn.</li>
+            <li><span class="wild-icon"></span> <b>Wild Square:</b> the shape-shifting mark counts for both players and jumps to a new space after every turn.</li>
             <li>🙃 <b>Misère:</b> whoever makes three in a row <b>loses</b>.</li>
+            <li><span class="fog-icon"></span> <b>Fog of War:</b> once the next move lands, fog rolls over each mark and hides whether it's an X or an O. Fogged spaces are still taken, so remember who is where. The fog lifts when the game ends.</li>
+            <li>🔄 <b>Ring Spin:</b> every 3 moves the 8 outer spaces turn one step clockwise around the center.</li>
+            <li><span class="cross-icon"></span> <b>Crossfire:</b> every 3 moves the marks at the ends of each diagonal slide through the center and trade corners. The center and edge spaces stay put.</li>
           </ul>
           Outside Vanishing Marks, a full board with no line is a stalemate. A 🎲 <b>rule pick</b> from the slot machine lets its winner choose the next game type instead of spinning.</li>
-        <li><b>Mystery jackpot:</b> every new board hides a jackpot under one square (watch for a little extra sparkle). Land a mark on it to spin the slot machine: ⚡ extra move, 🎭 steal a mark, 💣 bomb a mark or stone, 🛡️ keep 4 marks (Vanishing Marks only), 🎲 <b>rule pick</b> (choose the next game type), 🎆 <b>INSTANT WIN</b> on Level 0 or a free square on big boards... or bust.</li>
-        <li><b>Stone squares:</b> a stalemate turns the square it was deciding into stone, which blocks both players. If a whole big board fills with no line, the edges and stone squares clear, corners and center stay as a head start, and the other player picks first.</li>
+        <li><b>🎬 Game review:</b> open Review to see every Level and Turf Battle so far, and start an <b>Instant Replay</b> from any of them. It plays forward until you press Stop (or Esc) or it reaches the live game. Space pauses it.</li>
+        <li><b>Mystery jackpot:</b> every new board hides a jackpot under one space (watch for a little extra sparkle). Land a mark on it to spin the slot machine: ⚡ extra move, 🎭 steal a mark, 💣 bomb a mark or stone, 🛡️ keep 4 marks (Vanishing Marks only), 🎲 <b>rule pick</b> (choose the next game type), 🎆 <b>INSTANT WIN</b> in a Turf Battle or a free space on big boards... or bust.</li>
+        <li><b>Stone spaces:</b> a stalemate turns the space it was deciding into stone, which blocks both players. If a whole big board fills with no line, the edges and stone spaces clear, corners and center stay as a head start, and the other player picks first.</li>
       </ol>
       <p class="hint">Play hot-seat with a friend, or turn on <b>vs Computer</b> to play <span class="x">X</span> against a computer <span class="o">O</span>. Your game is saved in this browser automatically.</p>
       <button id="btnCloseHelp" type="button" class="primary">Let's play</button>
     </div>
   </div>
 
+  <script src="js/timing.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/render.js"></script>
   <script src="js/minimap.js"></script>

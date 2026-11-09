@@ -10,6 +10,94 @@ const PIECE_COL = { X: { h: 322, s: 100, l: 62 }, O: { h: 188, s: 100, l: 52 }, 
 const LEVEL_HUES = [212, 268, 158, 28, 296, 48, 128, 345, 190];
 const ORDER = [0, 1, 3, 2, 4, 6, 5, 7, 8]; // back-to-front painter order (by col+row)
 
+// ---------- the Wild Square mark: an X whose four arms curl into the quarters of an O and back ----------
+const WILD_CYCLE = 3600, WILD_SPIN = 1100;   // ms per X->O->X cycle; ms per radian of rotation
+function wildMorph(now) {
+  const ph = (now % WILD_CYCLE) / WILD_CYCLE;
+  const tri = ph < 0.15 ? 0 : ph < 0.5 ? (ph - 0.15) / 0.35 : ph < 0.65 ? 1 : 1 - (ph - 0.65) / 0.35;
+  return tri * tri * (3 - 2 * tri);
+}
+// flat 2D version for canvases (minimap, wheel): r is roughly the glyph's radius
+function drawWildMark(ctx, x, y, r, now = performance.now()) {
+  const m = wildMorph(now), rot = now / WILD_SPIN;
+  ctx.save();
+  ctx.strokeStyle = `hsl(${(322 - 134 * m + 360) % 360},100%,${64 - 8 * m}%)`;
+  ctx.lineWidth = Math.max(1.5, r * (0.42 - 0.1 * m)); ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let k = 0; k < 4; k++) {
+    const phi = rot + Math.PI / 4 + (k * Math.PI) / 2;
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10, xr = r * t, ps = phi + (t - 0.5) * (Math.PI / 2), ro = r * 0.72;
+      const px = x + xr * Math.cos(phi) + (ro * Math.cos(ps) - xr * Math.cos(phi)) * m;
+      const py = y + xr * Math.sin(phi) + (ro * Math.sin(ps) - xr * Math.sin(phi)) * m;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+// animated SVG version for HTML (rule cards, panels, slots): sized 1em so it follows font-size
+const WILD_ICON = (() => {
+  const f = (v) => v.toFixed(1), pt = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
+  const L = 42, R = 30, K = 0.5523 * R;
+  const paths = [];
+  for (let k = 0; k < 4; k++) {
+    const phi = Math.PI / 4 + (k * Math.PI) / 2;
+    const [ex, ey] = pt(L, phi);
+    const X = `M0 0C${f(ex / 3)} ${f(ey / 3)} ${f(ex * 2 / 3)} ${f(ey * 2 / 3)} ${f(ex)} ${f(ey)}`;
+    const a0 = phi - Math.PI / 4, a1 = phi + Math.PI / 4, [ax, ay] = pt(R, a0), [bx, by] = pt(R, a1);
+    const O = `M${f(ax)} ${f(ay)}C${f(ax - K * Math.sin(a0))} ${f(ay + K * Math.cos(a0))} ${f(bx + K * Math.sin(a1))} ${f(by - K * Math.cos(a1))} ${f(bx)} ${f(by)}`;
+    paths.push(`<path d="${X}"><animate attributeName="d" dur="${WILD_CYCLE}ms" repeatCount="indefinite" keyTimes="0;0.15;0.5;0.65;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1" values="${X};${X};${O};${O};${X}"/></path>`);
+  }
+  const anim = (attr, a, b) => `<animate attributeName="${attr}" dur="${WILD_CYCLE}ms" repeatCount="indefinite" keyTimes="0;0.15;0.5;0.65;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1" values="${a};${a};${b};${b};${a}"/>`;
+  return `<svg class="wild-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="shape-shifting mark" role="img" style="vertical-align:-0.15em;overflow:visible">`
+    + `<g fill="none" stroke="#ff3fb2" stroke-width="17" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(255,255,255,.35))">`
+    + anim('stroke', '#ff3fb2', '#0ad4ff') + anim('stroke-width', 17, 13)
+    + `<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="${Math.round(2 * Math.PI * WILD_SPIN)}ms" repeatCount="indefinite"/>`
+    + paths.join('') + '</g></svg>';
+})();
+
+// ---------- the Crossfire icon: a red X on a white disc with a dark rim, so it reads on any background ----------
+function drawCrossMark(ctx, x, y, r) {
+  ctx.save();
+  ctx.fillStyle = '#fff8ec'; ctx.strokeStyle = '#2a0a3d'; ctx.lineWidth = Math.max(1.5, r * 0.14);
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#e0102f'; ctx.lineWidth = r * 0.34; ctx.lineCap = 'round';
+  const a = r * 0.46;
+  ctx.beginPath(); ctx.moveTo(x - a, y - a); ctx.lineTo(x + a, y + a); ctx.moveTo(x + a, y - a); ctx.lineTo(x - a, y + a); ctx.stroke();
+  ctx.restore();
+}
+const CROSS_ICON = '<svg class="cross-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="crossfire" role="img" style="vertical-align:-0.15em;overflow:visible">'
+  + '<circle r="44" fill="#fff8ec" stroke="#2a0a3d" stroke-width="7"/>'
+  + '<path d="M-20 -20L20 20M20 -20L-20 20" stroke="#e0102f" stroke-width="15" stroke-linecap="round"/></svg>';
+
+// ---------- the Fog of War icon: a soft cloud that billows and drifts ----------
+const FOG_PUFFS = [[-24, 8, 17, 2900], [-6, -6, 22, 3400], [16, -1, 19, 3100], [30, 11, 13, 2600], [-10, 15, 16, 3700], [10, 16, 16, 3300], [-34, 15, 10, 2500]];
+// flat 2D version for canvases (the wheel): r is roughly the cloud's half-width
+function drawFogMark(ctx, x, y, r, now = performance.now()) {
+  const k = r / 44, dx = Math.sin(now / 1300) * 5 * k;
+  ctx.save();
+  for (const [u, v, pr, per] of FOG_PUFFS) {
+    const rr = pr * k * (1 + 0.12 * Math.sin((now / per) * Math.PI * 2 + u)), px = x + u * k + dx, py = y + v * k + Math.sin(now / per + v) * 1.5 * k;
+    const gr = ctx.createRadialGradient(px - rr * 0.3, py - rr * 0.4, 0, px, py, rr);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.6, '#e2e6f4'); gr.addColorStop(1, 'rgba(176,186,214,0.9)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+// animated SVG version for HTML (rule cards, badge, panels, slots): sized 1em so it follows font-size
+const FOG_ICON = (() => {
+  const puffs = FOG_PUFFS.map(([u, v, r, per], i) =>
+    `<circle cx="${u}" cy="${v}" r="${r}"><animate attributeName="r" dur="${per}ms" repeatCount="indefinite" values="${r};${(r * 1.14).toFixed(1)};${r}" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1" begin="-${(i * 430) % per}ms"/>`
+    + `<animate attributeName="cy" dur="${per + 600}ms" repeatCount="indefinite" values="${v};${v - 2.5};${v}" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></circle>`).join('');
+  const wisp = (y, d, b) => `<ellipse cx="0" cy="${y}" rx="14" ry="3.2" fill="#e8ebf7" opacity="0"><animate attributeName="cx" dur="${d}ms" begin="${b}ms" repeatCount="indefinite" values="-30;40"/><animate attributeName="opacity" dur="${d}ms" begin="${b}ms" repeatCount="indefinite" values="0;.8;0"/></ellipse>`;
+  return '<svg class="fog-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="fog" role="img" style="vertical-align:-0.15em;overflow:visible">'
+    + '<defs><radialGradient id="fogPuff" cx="40%" cy="32%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#e2e6f4"/><stop offset="1" stop-color="#b3bcd8"/></radialGradient></defs>'
+    + '<g fill="url(#fogPuff)" style="filter:drop-shadow(0 2px 3px rgba(40,30,90,.35))">'
+    + '<animateTransform attributeName="transform" type="translate" dur="5200ms" repeatCount="indefinite" values="-4 0;4 -1;-4 0" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/>'
+    + puffs + '</g>' + wisp(30, 3200, 0) + wisp(-24, 4100, -1800) + '</svg>';
+})();
+
 const levelHue = (lvl) => LEVEL_HUES[lvl % LEVEL_HUES.length];
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -561,6 +649,112 @@ const Renderer = {
     ctx.globalAlpha = 1;
   },
 
+  // Fog of War: 0 = mark in plain sight .. 1 = hidden under fog. Fog rolls in once the next move has
+  // landed and lifts when the game ends.
+  fogLevel(b, k, c, now) {
+    const at = b.fogAt ? b.fogAt[k] : null;
+    const fogged = at != null && b.moves - at >= 1 && c.owner !== 'W' && c.owner !== '#';
+    if (!fogged) { c.fogT = null; return 0; }
+    if (c.fogT == null) c.fogT = now;
+    const T = TIMING.board;
+    const inK = Ease.inOutCubic(clamp01((now - c.fogT) / T.fogCover));
+    if (b.fogLift) return inK * (1 - Ease.inOutCubic(clamp01((now - b.fogLift) / T.fogLift)));
+    if (b.winner) return inK * clamp01(1 - (now - b.winTime) / T.fogWinFade);
+    return inK;
+  },
+  // 0..1 progress of the fog evaporating at the end of a Fog of War game
+  fogRise(b, now) { return b.fogLift ? clamp01((now - b.fogLift) / TIMING.board.fogLift) : 0; },
+
+  // the end of a Fog of War game: wisps of fog curl up off every fogged square and thin away
+  fogEvaporate(b, cells) {
+    if (typeof Fx === 'undefined' || !b.geo) return;
+    const px = b.geo.s * this.zm;
+    for (const k of cells) {
+      const [x, y] = this.cellScreen(b, k);
+      for (let n = 0; n < 16; n++) {
+        const d = n * 45 + Math.random() * 60;
+        setTimeout(() => Fx.add({
+          x: x + (Math.random() - 0.5) * px * 0.6, y: y - px * 0.15 + (Math.random() - 0.5) * px * 0.25,
+          vx: (Math.random() - 0.5) * px * 0.5, vy: -px * (0.5 + Math.random() * 0.7),
+          r0: px * 0.12, r1: px * (0.35 + Math.random() * 0.25), c: '226,230,246', a: 0.55,
+          life: 1300 + Math.random() * 900, drag: 0.97, g: -px * 0.25,
+        }), d);
+      }
+    }
+  },
+
+  // a soft rolling cloud sitting on a square
+  fogCloud(cx, cy, z, s, alpha, seed, now) {
+    const ctx = this.ctx, px = s * this.zm;
+    ctx.save();
+    for (let n = 0; n < 9; n++) {
+      const th = (n / 9) * Math.PI * 2 + now / (2600 + seed * 90) * (n % 2 ? 1 : -1);
+      const rr = (n === 8 ? 0 : 0.2) * s;
+      const zz = z + (0.08 + 0.12 * ((n * 7 + seed) % 3) / 2) * s + Math.sin(now / 900 + n + seed) * 0.02 * s;
+      const [x, y] = this.project(cx + rr * Math.cos(th), cy + rr * Math.sin(th), zz);
+      const r = px * (n === 8 ? 0.34 : 0.24) * (1 + 0.08 * Math.sin(now / 700 + n * 2 + seed));
+      const gr = ctx.createRadialGradient(x, y - r * 0.2, 0, x, y, r);
+      gr.addColorStop(0, `rgba(236,238,248,${0.85 * alpha})`);
+      gr.addColorStop(0.55, `rgba(200,206,226,${0.6 * alpha})`);
+      gr.addColorStop(1, 'rgba(180,186,210,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  // which way square k's mark moves at the next Shifting Squares / Ring Spin / Crossfire move (or null)
+  moverDir(b, k) {
+    if (b.rule === 'shift') {
+      if (!b.shift || !lineCells(b.shift.axis, b.shift.idx).includes(k)) return null;
+      return b.shift.axis === 'row' ? [b.shift.dir, 0] : [0, b.shift.dir];
+    }
+    if (b.rule === 'ring') {
+      const n = RING.indexOf(k); if (n < 0) return null;
+      const to = RING[(n + 1) % 8];
+      return [(to % 3) - (k % 3), ((to / 3) | 0) - ((k / 3) | 0)];
+    }
+    if (b.rule === 'cross') {
+      if (![0, 2, 6, 8].includes(k)) return null;
+      const to = 8 - k, r = Math.SQRT1_2;
+      return [Math.sign((to % 3) - (k % 3)) * r, Math.sign(((to / 3) | 0) - ((k / 3) | 0)) * r];
+    }
+    return null;
+  },
+
+  // how brightly square k is lit by the Wild Square roulette right now (0..1)
+  wildLit(b, k, now) {
+    const st = b.wildIntro.steps, n = st.length;
+    if (now < st[0].t) return 0;
+    let i = n - 1;
+    while (i > 0 && st[i].t > now) i--;
+    if (i === n - 1) {
+      // the last square holds its light, pulsing, until the mark lands, then fades
+      if (st[i].k !== k) return 0;
+      const land = b.wildIntro.drop + TIMING.board.markImpact;
+      return now < land ? 0.75 + 0.25 * Math.sin((now - st[i].t) / 60) : clamp01(1 - (now - land) / TIMING.board.wildLightFade);
+    }
+    // the current square is full on; the previous one leaves a short trail
+    if (st[i].k === k) return 1;
+    if (i > 0 && st[i - 1].k === k) return 0.45 * clamp01(1 - (now - st[i].t) / TIMING.board.wildStepTrail);
+    return 0;
+  },
+
+  // the wild mark hitting its square: a ring of dust puffing out from under its edges
+  wildImpact(cx, cy, z, s) {
+    if (typeof Sound !== 'undefined') { Sound.land(0); Sound.poof(); }
+    this.shake(5);
+    if (typeof Fx === 'undefined') return;
+    const px = s * this.zm, [ox, oy] = this.project(cx, cy, z);
+    for (let n = 0; n < 48; n++) {
+      const th = (n / 48) * Math.PI * 2 + Math.random() * 0.2, r = 0.38 * s;
+      const [x, y] = this.project(cx + r * Math.cos(th), cy + r * Math.sin(th), z);
+      let vx = x - ox, vy = y - oy; const d = Math.hypot(vx, vy) || 1; vx /= d; vy /= d;
+      const sp = px * (0.7 + Math.random() * 1.0), sh = (175 + Math.random() * 45) | 0;
+      Fx.add({ x, y, vx: vx * sp, vy: vy * sp - px * 0.25, r0: px * 0.06, r1: px * (0.2 + Math.random() * 0.14), c: `${sh + 30},${sh + 18},${sh}`, a: 0.8, life: 900 + Math.random() * 700, drag: 0.9, g: 12 });
+    }
+  },
+
   // dust puffing out around the edges of the board as it locks upright
   lockPuff(b) {
     if (typeof Fx === 'undefined') return;
@@ -726,10 +920,10 @@ const Renderer = {
       const want = wantsUpright(b) ? 1 : 0;
       if (b.tilt === undefined) b.tilt = 0;
       const dtt = Math.min(100, now - (b.tiltLast || now)); b.tiltLast = now;
-      const RAISE = 1700;
+      const RAISE = TIMING.board.gravityRaise;
       if (want && !b.tiltStarted) {
-        b.tiltStarted = true; b.tiltFrom = b.tilt; b.tiltT = now + 350;
-        if (b === cur) this.flyTo(viewOf(b), 1300);
+        b.tiltStarted = true; b.tiltFrom = b.tilt; b.tiltT = now + TIMING.board.gravityRaiseDelay;
+        if (b === cur) this.flyTo(viewOf(b), TIMING.camera.gravityTilt);
         if (typeof Sound !== 'undefined' && Sound.hydraulic && b.tilt < 0.9) setTimeout(() => Sound.hydraulic(RAISE / 1000), 300);
       }
       if (want && b.tiltStarted) {
@@ -742,7 +936,7 @@ const Renderer = {
         }
       } else if (!want) {
         b.tiltStarted = false; b.tiltLanded = false;
-        b.tilt = Math.max(0, b.tilt - dtt / 700);
+        b.tilt = Math.max(0, b.tilt - dtt / TIMING.board.gravityLower);
       }
     }
     const prevXf = this.xf;
@@ -798,6 +992,12 @@ const Renderer = {
         if (hov) tc = { h: PIECE_COL[b.turn].h, s: 75, l: 34 };
         if (colHov) tc = { h: PIECE_COL[b.turn].h, s: 45, l: 28 };
         if (inspect) tc = { h: hue, s: 80, l: 42 };
+        // Wild Square intro: the roulette light running over the squares
+        const wl = b.wildIntro ? this.wildLit(b, k, now) : 0;
+        if (wl > 0) {
+          tc = { h: (322 - 134 * (k % 2) + 360) % 360, s: 85, l: 30 + 34 * wl };
+          ctx.shadowColor = `hsl(${tc.h},100%,70%)`; ctx.shadowBlur = 30 * wl;
+        }
         // threat highlight: this square would complete a line
         let tEdge = null;
         if (threats && !c.owner) {
@@ -814,7 +1014,7 @@ const Renderer = {
         }
         const pulseEdge = inspect ? `rgba(255,255,255,${0.7 + 0.3 * Math.sin(now / 150)})` : tEdge || edge;
         this.prism(rect(g.ox + i * s + gp, g.oy + j * s + gp, g.ox + (i + 1) * s - gp, g.oy + (j + 1) * s - gp),
-          zb + tz, zt + tz + lift, tc, { stroke: pulseEdge, lw: Math.max(1, px * (inspect || tEdge ? 0.045 : 0.022)) });
+          zb + tz, zt + tz + lift + (wl > 0 ? 0.05 * s * wl : 0), tc, { stroke: wl > 0 ? `rgba(255,255,255,${0.4 + 0.6 * wl})` : pulseEdge, lw: Math.max(1, px * (inspect || tEdge || wl > 0 ? 0.045 : 0.022)) });
         ctx.shadowBlur = 0;
       }
       if (upright) {
@@ -823,20 +1023,30 @@ const Renderer = {
       }
       const cx = g.ox + (i + 0.5) * s, cy = g.oy + (j + 0.5) * s;
       const pz = zt + tz;
-      // Shifting board: chevrons on the line that slides next, stronger as it nears
-      if (b.rule === 'shift' && b.shift && !b.winner && ta > 0.3 && lineCells(b.shift.axis, b.shift.idx).includes(k)) {
+      // Shifting Squares / Ring Spin / Crossfire: chevrons on the squares that move next, stronger as it nears
+      const mvDir = b.level === 0 && !b.winner && ta > 0.3 ? this.moverDir(b, k) : null;
+      if (mvDir) {
         const left = SHIFT_EVERY - (b.moves % SHIFT_EVERY);
         const urg = left === 1 ? 1 : left === 2 ? 0.55 : 0.3;
         const pul = 0.5 + 0.5 * Math.sin(now / (left === 1 ? 110 : 260));
-        const [dx, dy] = b.shift.axis === 'row' ? [b.shift.dir, 0] : [0, b.shift.dir];
-        const off = ((now / (left === 1 ? 260 : 600)) % 1) * 0.12;
-        for (const base of [-0.12, 0.1]) {
-          const u = base + off;
+        const [dx, dy] = mvDir;
+        // conveyor belt: the chevrons glide steadily along the direction of travel, fading in at the back
+        // edge and out at the front, so the loop has no visible jump. The belt's position is kept per board
+        // and advanced by elapsed time, so speeding up as the move nears never makes it skip.
+        const BELT_N = 3, BELT_START = -0.42, BELT_SPAN = 0.7, gap = BELT_SPAN / BELT_N;
+        if (b.beltLast !== now) {
+          const per = left === 1 ? 260 : 600;     // ms for a chevron to move up one place
+          b.beltPos = ((b.beltPos || 0) + Math.min(100, now - (b.beltLast || now)) / per) % 1;
+          b.beltLast = now;
+        }
+        for (let i = 0; i < BELT_N; i++) {
+          const u = BELT_START + (i + b.beltPos) * gap;
+          const fade = Math.sin(Math.PI * (u - BELT_START) / BELT_SPAN);
           const tip = [cx + dx * (u + 0.14) * s, cy + dy * (u + 0.14) * s];
           const w1 = [cx + (dx * u - dy * 0.2) * s, cy + (dy * u + dx * 0.2) * s];
           const w2 = [cx + (dx * u + dy * 0.2) * s, cy + (dy * u - dx * 0.2) * s];
           const pts = [w1, tip, w2].map(([x, y]) => this.project(x, y, pz + 0.004 * s));
-          ctx.globalAlpha = ta * (0.25 + 0.6 * urg) * (0.6 + 0.4 * pul);
+          ctx.globalAlpha = ta * (0.25 + 0.6 * urg) * (0.6 + 0.4 * pul) * fade;
           ctx.strokeStyle = left === 1 ? '#ffb347' : '#fff6c8';
           ctx.lineWidth = Math.max(1.5, px * 0.045);
           ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -844,8 +1054,14 @@ const Renderer = {
         }
         ctx.globalAlpha = 1;
       }
-      if (c.owner) {
-        const dp = clamp01((now - c.t) / 750);
+      const wildWait = c.owner === 'W' && b.wildIntro && now < c.t;
+      if (c.owner === 'W' && b.wildIntro && !b.wildIntro.puffed && now >= c.t + TIMING.board.markImpact) {
+        b.wildIntro.puffed = true;
+        if (b === cur) this.wildImpact(cx, cy, pz, s);
+      }
+      if (b.wildIntro && now > b.wildIntro.end + 400) b.wildIntro = null;
+      if (c.owner && !wildWait) {
+        const dp = clamp01((now - c.t) / TIMING.board.markDrop);
         const drop = (1 - Ease.outBounce(dp)) * 1.8 * s;
         // squash & stretch: tall and thin while falling, squashed flat on impact, then wobble
         const HIT = 1 / 2.75;
@@ -872,9 +1088,9 @@ const Renderer = {
         }
         let pcx = cx, pcy = cy, hop = 0;
         if (c.slide) {
-          const q = clamp01((now - c.slide.t) / 420);
+          const q = clamp01((now - c.slide.t) / (c.slide.dur || TIMING.board.slide));
           if (q >= 1) c.slide = null;
-          else { const e = 1 - Ease.outCubic(q); pcx += c.slide.dx * e * s; pcy += c.slide.dy * e * s; hop = Math.sin(q * Math.PI) * 0.25 * s; }
+          else { const e = 1 - Ease.outCubic(q); pcx += c.slide.dx * e * s; pcy += c.slide.dy * e * s; hop = Math.sin(q * Math.PI) * 0.25 * (c.slide.hop || 1) * s; }
         }
         if (upright) {
           // Connect Four: the disc drops in from above the frame, down its column, and bounces to rest
@@ -882,7 +1098,9 @@ const Renderer = {
           const al = a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5);
           late.push(() => this.piece(c.owner, pcx, pcy - fall, pz, s, al, hop, pulse, 1, 1));
         } else {
-          this.piece(c.owner, pcx, pcy, pz, s, a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5), drop + hop, pulse, 1 + sq * 0.55, 1 - sq);
+          const fg = b.rule === 'fog' ? this.fogLevel(b, k, c, now) : 0;
+          this.piece(c.owner, pcx, pcy, pz, s, a * hideK * fade * clamp01(dp * 5) * clamp01(p * 2.5) * (1 - fg), drop + hop, pulse, 1 + sq * 0.55, 1 - sq);
+          if (fg > 0.01) { const rise = this.fogRise(b, now); this.fogCloud(pcx, pcy, pz + hop + rise * rise * 0.9 * s, s * (1 + rise * 0.5), a * fg, k, now); }
         }
       } else if (hov && upright) {
         // hover: the disc waits above the slot at the top of the column
@@ -905,7 +1123,7 @@ const Renderer = {
       if (b.ghosts && b.ghosts.length) {
         for (const gh of b.ghosts) {
           if (gh.k !== k) continue;
-          const q = clamp01((now - gh.t) / 450);
+          const q = clamp01((now - gh.t) / TIMING.board.ghostFade);
           const gx = cx + (gh.dx || 0) * Ease.outCubic(q) * s, gy = cy + (gh.dy || 0) * Ease.outCubic(q) * s;
           this.piece(gh.owner, gx, gy, pz, s, a * (1 - q) * (q === 0 ? 0.6 : 1), q * 0.9 * s, q, 1 + q * 0.5, 1 - q * 0.7);
         }

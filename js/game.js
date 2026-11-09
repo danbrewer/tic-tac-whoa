@@ -4,14 +4,21 @@
 const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 // Names as the cells appear on screen in the isometric view (col i runs down-right, row j down-left).
 const CELL_NAMES = ['top', 'upper-right', 'right', 'upper-left', 'center', 'lower-right', 'left', 'lower-left', 'bottom'];
+// Player-facing name of a level: the smallest board's games are "Turf Battles".
+const lvName = (l, the = false) => (l === 0 ? `${the ? 'the ' : ''}Turf Battle` : `Level ${l}`);
 const other = (p) => (p === 'X' ? 'O' : 'X');
 const SAVE_KEY = 'infinite-ttt-save-v1';
 const PREFS_KEY = 'infinite-ttt-prefs-v1';
+const LOG_KEY = 'infinite-ttt-log-v1';   // Game review: snapshots of the whole game for Instant Replay
+const LOG_CAP = 600;
 const KEEP_MARKS = 3;   // Level 0: each player keeps only their 3 newest marks
 const MOVE_CAP = 18;    // Level 0: no winner after this many marks counts as a draw
 const DEAD = '#';       // neutral square that blocks both players
 const WILD = 'W';       // Wild square rule: counts for both players
-const SHIFT_EVERY = 3;  // Shifting board rule: a row or column slides every 3 moves
+const SHIFT_EVERY = 3;  // Shifting Squares / Ring Spin / Crossfire: the board moves every 3 moves
+const RING = [0, 1, 2, 5, 8, 7, 6, 3];   // outer squares in clockwise order on screen (top, upper-right, right, ...)
+const CROSS = [[0, 8], [2, 6]];          // Crossfire: the corners at either end of each diagonal trade places
+const MOVERS = { shift: 'SHIFT!', ring: 'RING SPIN!', cross: 'CROSSFIRE!' };  // rules whose board moves every SHIFT_EVERY moves
 
 // Level 0 rule variants. Before each Level 0 game the last winner spins the wheel (or a RULE PICK prize chooses).
 const RULES = {
@@ -19,8 +26,11 @@ const RULES = {
   vanish:  { icon: '👻', name: 'Vanishing Marks', short: 'Keep only your 3 newest marks. Your 4th makes your oldest vanish.' },
   gravity: { icon: '⬇️', name: 'Gravity', short: 'The board stands up: marks drop to the bottom of their column, like Connect Four.' },
   shift:   { icon: '🔀', name: 'Shifting Squares', short: `Every ${SHIFT_EVERY} moves a row or column slides one space and wraps around.` },
-  wild:    { icon: '⭐', name: 'Wild Square', short: 'The shape-shifting mark counts for both players and jumps to a new square after every turn.' },
+  wild:    { icon: WILD_ICON, iconText: '✕◯', name: 'Wild Square', short: 'The shape-shifting mark counts for both players and jumps to a new space after every turn.' },
   misere:  { icon: '🙃', name: 'Misère', short: 'Upside down: whoever makes three in a row LOSES.' },
+  fog:     { icon: FOG_ICON, iconText: '🌫️', name: 'Fog of War', short: 'Fog rolls over each mark after the next move. Fogged spaces are taken, so remember who is where!' },
+  ring:    { icon: '🔄', name: 'Ring Spin', short: `Every ${SHIFT_EVERY} moves the 8 outer spaces turn one step clockwise around the center.` },
+  cross:   { icon: CROSS_ICON, iconText: '❌', name: 'Crossfire', short: `Every ${SHIFT_EVERY} moves the marks on both diagonals slide along them, corner to corner. The center stays put.` },
 };
 const RULE_KEYS = Object.keys(RULES);
 
@@ -48,6 +58,7 @@ class Board {
     this.rule = 'classic';
     this.ruled = false;            // rule chosen by the wheel / RULE PICK yet?
     this.shift = null;             // Shifting board: the next slide { axis: 'row'|'col', idx, dir }
+    this.fogAt = Array(9).fill(null);  // Fog of War: the move count when each mark was placed
   }
 }
 
@@ -62,6 +73,32 @@ function applyShift(o, sh) {
     o[cells[m]] = vals[n];
     if (vals[n]) moves.push({ from: k, to: cells[m], wrap: Math.abs(m - n) === 2 });
   });
+  return moves;
+}
+// Fog of War: is square k's mark hidden under fog right now? (it fogs once the next move has landed)
+function fogged(b, k) {
+  const c = b.cells[k], at = b.fogAt ? b.fogAt[k] : null;
+  return b.rule === 'fog' && !b.winner && !b.fogLift && at != null && b.moves - at >= 1 && (c.owner === 'X' || c.owner === 'O');
+}
+// Ring Spin: every outer mark steps to the next outer square clockwise.
+function applyRing(o) {
+  const vals = RING.map((k) => o[k]), moves = [];
+  RING.forEach((k, n) => {
+    const to = RING[(n + 1) % 8];
+    o[to] = vals[n];
+    if (vals[n]) moves.push({ from: k, to });
+  });
+  return moves;
+}
+// Crossfire: the marks at the two ends of each diagonal slide through the center and trade places.
+function applyCross(o) {
+  const moves = [];
+  for (const [a, b] of CROSS) {
+    const va = o[a], vb = o[b];
+    o[a] = vb; o[b] = va;
+    if (va) moves.push({ from: a, to: b });
+    if (vb) moves.push({ from: b, to: a });
+  }
   return moves;
 }
 // Gravity: marks fall toward the front-left edge along their column (i fixed, j grows).
@@ -166,6 +203,8 @@ const AI = {
     const moves = st.moves + 1;
     let shift = st.shift;
     if (st.rule === 'shift' && shift && moves % SHIFT_EVERY === 0) { applyShift(o, shift); shift = null; }
+    if (st.rule === 'ring' && moves % SHIFT_EVERY === 0) applyRing(o);
+    if (st.rule === 'cross' && moves % SHIFT_EVERY === 0) applyCross(o);
     return { o, rule: st.rule, moves, shift };
   },
   ruleSearch(st, p, depth, alpha, beta, ply) {
@@ -187,7 +226,10 @@ const AI = {
     return best;
   },
   chooseRuleMove(board, me) {
-    const st = { o: board.cells.map((c) => c.owner), rule: board.rule, moves: board.moves, shift: board.shift };
+    // Fog of War: the computer only sees what a player sees. A fogged square is taken, but whose mark
+    // is under it is forgotten, so it plans as if that square blocks both players.
+    const seen = (c, k) => (board.rule === 'fog' && fogged(board, k) ? DEAD : c.owner);
+    const st = { o: board.cells.map(seen), rule: board.rule, moves: board.moves, shift: board.shift };
     const mv = this.ruleMoves(st);
     if (Math.random() < 0.12) return mv[(Math.random() * mv.length) | 0];
     let best = -Infinity, picks = [];
@@ -202,7 +244,7 @@ const AI = {
   chooseL0(board, me) { return board.rule === 'vanish' ? this.chooseVanish(board, me) : this.chooseRuleMove(board, me); },
   // RULE PICK: the computer favors lively rules, and avoids repeating the current one.
   chooseRule(cur) {
-    const w = { gravity: 3, wild: 3, shift: 2.5, misere: 1.5, vanish: 1, classic: 0.5 };
+    const w = { gravity: 3, wild: 3, shift: 2.5, ring: 2.5, cross: 2.5, fog: 2.5, misere: 1.5, vanish: 1, classic: 0.5 };
     if (cur) w[cur] *= 0.3;
     const tot = Object.values(w).reduce((a, b) => a + b, 0);
     let r = Math.random() * tot;
@@ -242,7 +284,7 @@ const AI = {
 // ---------- persistence ----------
 function serialize(b) {
   return {
-    l: b.level, s: b.starter, t: b.turn, p: b.pending, sd: b.seeded, w: b.winner, wl: b.winLine, h: b.hist, mv: b.moves, jp: b.jackpot, kp: b.keep, r: b.rule, sh: b.shift, ru: b.ruled,
+    l: b.level, s: b.starter, t: b.turn, p: b.pending, sd: b.seeded, w: b.winner, wl: b.winLine, h: b.hist, mv: b.moves, jp: b.jackpot, kp: b.keep, r: b.rule, sh: b.shift, ru: b.ruled, fg: b.rule === 'fog' ? b.fogAt : undefined,
     c: b.cells.map((c) => [c.owner, c.child ? serialize(c.child) : null, c.record ? serialize(c.record) : null]),
   };
 }
@@ -255,6 +297,7 @@ function deserialize(d, parent = null, parentIndex = -1) {
   if (d.kp) b.keep = d.kp;
   b.rule = d.r || 'vanish';
   if (d.sh) b.shift = d.sh;
+  if (d.fg) b.fogAt = d.fg;
   b.ruled = d.ru !== undefined ? d.ru : true;
   b.parent = parent; b.parentIndex = parentIndex;
   b.born = -1e9;
@@ -317,11 +360,12 @@ const Game = {
       }
     } catch (e) { this.root = null; }
     if (!this.root) this.root = new Board(0, 'X');
+    if (restored) this.loadLog();
     this.layoutAll();
     Renderer.setCam(viewOf(this.current()));
     this.updateHUD();
     if (!restored) { this.showHelp(true); this.ruleCardOnHelpClose = true; }
-    else this.toast(`Welcome back! Picking up at Level ${this.current().level}.`);
+    else this.toast(`Welcome back! Picking up at ${lvName(this.current().level, true)}.`);
     if (restored && !this.current().ruled) this.beginL0(this.current());
     this.scheduleCPU();
   },
@@ -346,7 +390,7 @@ const Game = {
     } else {
       const spinner = this.lastWinner || 'X';
       this.updateHUD();
-      rule = await this.step(Wheel.spin(spinner, this.vsCPU && spinner === 'O', b.parent ? `for the ${CELL_NAMES[b.parentIndex]} square of Level ${b.parent.level}` : ''));
+      rule = await this.step(Wheel.spin(spinner, this.vsCPU && spinner === 'O', b.parent ? `for the ${CELL_NAMES[b.parentIndex]} space of Level ${b.parent.level}` : ''));
       how = `Spun by <b class="${spinner}">${spinner}</b>`;
     }
     this.initRule(b, rule);
@@ -355,7 +399,7 @@ const Game = {
     this.updateHUD();
     this.showRuleCard(b, how);
     this.save();
-    await this.step(wait(900));
+    await this.step(wait(b.wildIntro ? Math.max(TIMING.ruleCard.afterCard, b.wildIntro.end - performance.now()) : TIMING.ruleCard.afterCard));
   },
 
   newGame() {
@@ -369,6 +413,9 @@ const Game = {
     { const s = document.getElementById('slots'); s.hidden = true; s.classList.remove('show'); }
     ReviewSet.clear();
     Tweens.list = [];
+    if (this.replay) { clearTimeout(this.replay.timer); this.replay = null; document.body.classList.remove('instant-replay'); $('replaybar').hidden = true; }
+    this.log = []; this.games = [];
+    try { localStorage.removeItem(LOG_KEY); } catch (e) { /* ignore */ }
     this.root = new Board(0, 'X');
     this.nextRule = null; this.nextRuleBy = null; this.lastWinner = null;
     Sound.stopMusic();
@@ -400,7 +447,7 @@ const Game = {
         Renderer.floatText(x, y - 20, 'CLAIMED!', p, 30 + b.level * 6);
         b.waveT = performance.now(); b.waveAmp = 0.12;
       }
-    }, 273);
+    }, TIMING.board.markImpact);
   },
 
   async play(k, byCPU = false) {
@@ -434,9 +481,9 @@ const Game = {
         Sound.zoomIn();
         Renderer.ripple(b, k, b.turn, 1.2);
         Renderer.kick(0.04);
-        this.toast(`<b class="${b.turn}">${b.turn}</b> goes for the ${CELL_NAMES[k]} square. Win this Level ${child.level} game to claim it!`);
-        Tweens.add(700, (e) => { child.alpha = e; }, Ease.outCubic);
-        await this.step(Renderer.flyTo(viewOf(child), 1200));
+        this.toast(`<b class="${b.turn}">${b.turn}</b> goes for the ${CELL_NAMES[k]} space. Win this ${child.level === 0 ? 'Turf Battle' : `Level ${child.level} game`} to claim it!`);
+        Tweens.add(TIMING.camera.childFadeIn, (e) => { child.alpha = e; }, Ease.outCubic);
+        await this.step(Renderer.flyTo(viewOf(child), TIMING.camera.zoomIntoChild));
         await this.startRule(child);
       }
     } catch (e) {
@@ -499,6 +546,7 @@ const Game = {
       if (devNow && !res) return;
       ck = null;
       const capped = res === null && b.level === 0 && b.moves >= MOVE_CAP;
+      if (res !== null || capped) await this.liftFog(b);
       if (res === null && !capped) { b.turn = other(b.turn); return; }
       if (res === 'draw' || capped) {
         if (b.level === 0 && b.parent) { ck = b.parentIndex; b = await this.deadSquare(b); continue; }
@@ -524,25 +572,25 @@ const Game = {
         Renderer.sparks(x, y, res.p, 26, 9);
         Renderer.ripple(b, k, res.p, 1.3);
         Sound.pop(i);
-      }, 120 + i * 110));
-      Renderer.floatText(sx, sy - 40, `LEVEL ${b.level} WON!`, res.p, 46);
-      this.toast(`<b class="${res.p}">${res.p}</b> wins Level ${b.level}!`);
+      }, TIMING.camera.winLineFirst + i * TIMING.camera.winLineGap));
+      Renderer.floatText(sx, sy - 40, b.level === 0 ? 'TURF WON!' : `LEVEL ${b.level} WON!`, res.p, 46);
+      this.toast(`<b class="${res.p}">${res.p}</b> wins ${lvName(b.level, true)}!`);
       this.updateHUD();
-      await this.step(wait(1400));
+      await this.step(wait(TIMING.camera.winPause));
 
       if (!b.parent) { await this.ascend(b); return; }
 
       // Zoom back out and drop the winner's mark into the parent square.
       const P = b.parent, k = b.parentIndex;
       Sound.zoomOut();
-      Tweens.add(800, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, 250);
-      await this.step(Renderer.flyTo(viewOf(P), 1200));
+      Tweens.add(TIMING.camera.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.wonFadeDelay);
+      await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.zoomOutToParent));
       P.cells[k].child = null;
       P.cells[k].record = b;
       P.pending = null;
       this.claim(P, k, b.winner);
-      this.toast(`<b class="${b.winner}">${b.winner}</b> claims the ${CELL_NAMES[k]} square of Level ${P.level}.`);
-      await this.step(wait(800));
+      this.toast(`<b class="${b.winner}">${b.winner}</b> claims the ${CELL_NAMES[k]} space of Level ${P.level}.`);
+      await this.step(wait(TIMING.camera.afterClaim));
       ck = k;
       b = P;
     }
@@ -569,17 +617,18 @@ const Game = {
     Renderer.fireworks(b.winner, 5);
     this.best = Math.max(this.best, N.level);
     this.savePrefs();
-    Tweens.add(1000, (e) => { N.alpha = e; }, Ease.outCubic, 200);
-    Tweens.add(900, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, 900);
-    await this.step(Renderer.flyTo(viewOf(N), 1900));
+    const TC = TIMING.camera;
+    Tweens.add(TC.ascendNewFadeIn, (e) => { N.alpha = e; }, Ease.outCubic, TC.ascendNewFadeDelay);
+    Tweens.add(TC.ascendOldFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TC.ascendOldFadeDelay);
+    await this.step(Renderer.flyTo(viewOf(N), TC.ascendZoom));
     N.cells[4].child = null;
     N.cells[4].record = b;
     N.pending = null;
     this.claim(N, 4, b.winner);
     Renderer.kick(0.12);
-    N.waveT = performance.now() + 250; N.waveAmp = 0.45;
+    N.waveT = performance.now() + TC.ascendWaveDelay; N.waveAmp = 0.45;
     this.toast(`Level ${N.level} begins! <b class="${b.winner}">${b.winner}</b> holds the center. <b class="${N.turn}">${N.turn}</b> picks first.`);
-    await this.step(wait(700));
+    await this.step(wait(TC.ascendSettle));
   },
 
   // ---------- Level 0 rules ----------
@@ -589,12 +638,38 @@ const Game = {
     b.keep = { X: k, O: k };
     b.shift = b.rule === 'shift' ? randomShift() : null;
     b.shiftedAt = 0;
+    b.fogAt = Array(9).fill(null); b.fogLift = 0;
     b.cells.forEach((c) => { if (c.owner === WILD) { c.owner = null; } });
     if (b.rule === 'wild') {
       const empt = b.cells.map((c, i) => (!c.owner && i !== b.jackpot ? i : -1)).filter((i) => i >= 0);
       const w = empt[(Math.random() * empt.length) | 0];
-      b.cells[w].owner = WILD; b.cells[w].t = performance.now() + 700;
+      b.cells[w].owner = WILD;
+      b.wildIntro = this.wildRoulette(b, w);
+      b.cells[w].t = b.wildIntro.drop;
     }
+  },
+  // Wild Square intro: the squares light up in a quick random run that slows down and ends on the
+  // wild square, then the mark drops onto it (render.js puffs dust when it hits).
+  wildRoulette(b, w) {
+    const TB = TIMING.board, t0 = performance.now() + TB.wildIntroStart;   // starts once the rule card has flown up out of the way
+    const seq = [];
+    let prev = -1;
+    const N = TB.wildIntroSteps;
+    for (let n = 0; n < N; n++) {
+      let k; do { k = (Math.random() * 9) | 0; } while (k === prev || (n === N - 1 && k === w) || k === w && n > N - 5);
+      seq.push(k); prev = k;
+    }
+    seq.push(w);
+    const steps = [];
+    let t = t0;
+    seq.forEach((k, n) => { steps.push({ k, t }); const q = n / (seq.length - 1); t += TB.wildStepMin + TB.wildStepGrow * q * q * q; });
+    const last = steps[steps.length - 1].t;
+    const gen = this.gen;
+    steps.forEach(({ t: st }, n) => setTimeout(() => {
+      if (gen !== this.gen) return;
+      if (n === steps.length - 1) Sound.wild(); else Sound.reelTick();
+    }, st - performance.now()));
+    return { steps, drop: last + TB.wildDropDelay, end: last + TB.wildDropDelay + TB.markDrop };
   },
   takeNextRule() {
     const r = this.nextRule || 'vanish';
@@ -610,7 +685,7 @@ const Game = {
     clearTimeout(this.ruleCardTimer); clearTimeout(this.ruleFlyTimer);
     if (this.ruleFly) { this.ruleFly.cancel(); this.ruleFly = null; }
     el.className = 'rulecard';
-    el.innerHTML = `<div class="rc-inner rule-${rule}">${how ? `<div class="rc-tag">${how}</div>` : ''}<div class="rc-icon">${R.icon}</div><div class="rc-kicker">${next ? 'Next Level 0 game' : 'Level 0 rule'}</div><div class="rc-name">${R.name}</div><div class="rc-line">${R.short}</div></div>`;
+    el.innerHTML = `<div class="rc-inner rule-${rule}">${how ? `<div class="rc-tag">${how}</div>` : ''}<div class="rc-icon">${R.icon}</div><div class="rc-kicker">${next ? 'Next Turf Battle' : 'Turf Battle rule'}</div><div class="rc-name">${R.name}</div><div class="rc-line">${R.short}</div></div>`;
     // the pinned plate at the top is filled in now but its slot stays hidden until the card lands on it
     this.pinState = { waiting: slot, arrive: null };
     this.updateRulePin(this.current ? this.current() : b);
@@ -640,11 +715,11 @@ const Game = {
         { transform: 'none', opacity: 1, offset: 0 },
         { transform: 'translateY(16px) scale(1.04)', opacity: 1, offset: 0.18 },
         { transform: `translate(${dx}px, ${dy}px) scale(${sc})`, opacity: 0.85, offset: 1 },
-      ], { duration: 720, easing: 'cubic-bezier(.55,0,.6,1)', fill: 'forwards' });
+      ], { duration: TIMING.ruleCard.fly, easing: 'cubic-bezier(.55,0,.6,1)', fill: 'forwards' });
       this.ruleFly.onfinish = () => { settle(); Sound.cardPick(); };
-    }, 2200);
+    }, TIMING.ruleCard.hold);
     // failsafe: never leave the card stuck on screen
-    this.ruleCardTimer = setTimeout(() => { if (this.pinState && this.pinState.waiting) settle(); else el.classList.remove('play'); }, 4200);
+    this.ruleCardTimer = setTimeout(() => { if (this.pinState && this.pinState.waiting) settle(); else el.classList.remove('play'); }, TIMING.ruleCard.failsafe);
   },
 
   // The rule plate pinned at the top of the screen for the whole Level 0 game,
@@ -663,25 +738,36 @@ const Game = {
       const N = RULES[this.nextRule], by = this.nextRuleBy;
       h += main
         ? `<div class="rpn rpn-mini rule-${this.nextRule}${cls('next')}" data-slot="next" title="${N.short}"><span class="rpn-kick">Next</span><span class="rpn-icon">${N.icon}</span><span class="rpn-name">${N.name}</span></div>`
-        : `<div class="rpn rule-${this.nextRule}${cls('next')}" data-slot="next"><span class="rpn-icon">${N.icon}</span><span class="rpn-text"><span class="rpn-kick">Next Level 0 game${by ? ` · picked by <b class="${by}">${by}</b>` : ''}</span><span class="rpn-name">${N.name}</span><span class="rpn-line">${N.short}</span></span></div>`;
+        : `<div class="rpn rule-${this.nextRule}${cls('next')}" data-slot="next"><span class="rpn-icon">${N.icon}</span><span class="rpn-text"><span class="rpn-kick">Next Turf Battle${by ? ` · picked by <b class="${by}">${by}</b>` : ''}</span><span class="rpn-name">${N.name}</span><span class="rpn-line">${N.short}</span></span></div>`;
     }
     if (pin.innerHTML !== h) pin.innerHTML = h;
     document.body.classList.toggle('pin-next', !!(main && this.nextRule));
   },
 
   async postMove(b) {
-    const gen = this.gen;
-    if (b.rule === 'gravity' && this.settleGravity(b)) await this.step(wait(450));
+    const gen = this.gen, T = TIMING.board;
+    if (b.rule === 'gravity' && this.settleGravity(b)) await this.step(wait(T.gravitySettle));
     if (b.rule === 'shift' && b.shift && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
       b.shiftedAt = b.moves;
-      await this.step(wait(420));
+      await this.step(wait(T.shiftBefore));
       this.doShift(b);
-      await this.step(wait(650));
+      await this.step(wait(T.shiftAfter));
+    }
+    if ((b.rule === 'ring' || b.rule === 'cross') && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
+      b.shiftedAt = b.moves;
+      await this.step(wait(T.turnBefore));
+      this.doTurn(b);
+      await this.step(wait(b.rule === 'cross' ? T.crossAfter : T.ringAfter));
+    }
+    if (b.rule === 'fog' && b.moves > 1) {
+      // the previous mark disappears into the fog once this move lands
+      const k = b.fogAt.findIndex((m) => m === b.moves - 1);
+      if (k >= 0 && b.cells[k].owner) { Sound.fog(); await this.step(wait(T.fogPause)); }
     }
     if (b.rule === 'wild') {
-      await this.step(wait(250));
+      await this.step(wait(T.wildBefore));
       this.moveWild(b);
-      await this.step(wait(450));
+      await this.step(wait(T.wildAfter));
     }
     if (gen !== this.gen) throw new Error('cancelled');
   },
@@ -714,6 +800,39 @@ const Game = {
     const [x, y] = Renderer.boardScreenCenter(b);
     Renderer.floatText(x, y - 60, 'SHIFT!', null, 50);
     b.shift = randomShift();
+  },
+
+  // Fog of War is over (a win or a stalemate): the fog evaporates so everyone can see the marks.
+  async liftFog(b) {
+    if (b.level !== 0 || b.rule !== 'fog' || b.fogLift) return;
+    const cells = b.cells.map((c, k) => (fogged(b, k) ? k : -1)).filter((k) => k >= 0);
+    if (!cells.length) return;
+    b.fogLift = performance.now();
+    Renderer.fogEvaporate(b, cells);
+    Sound.fogLift();
+    const [x, y] = Renderer.boardScreenCenter(b);
+    Renderer.floatText(x, y - 70, 'THE FOG LIFTS!', null, 40);
+    await this.step(wait(TIMING.board.fogLiftPause));
+  },
+
+  // Ring Spin / Crossfire: move the marks and animate them sliding (Crossfire's corners hop over the center)
+  doTurn(b) {
+    const o = b.cells.map((c) => c.owner);
+    const moves = b.rule === 'ring' ? applyRing(o) : applyCross(o);
+    const fog = b.fogAt.slice();
+    b.cells.forEach((c, k) => { c.owner = o[k]; });
+    for (const m of moves) {
+      this.slideCell(b, m.to, m.from);
+      if (b.rule === 'cross') { b.cells[m.to].slide.hop = 1.3; b.cells[m.to].slide.dur = TIMING.board.crossHop; }
+      b.fogAt[m.to] = fog[m.from];
+    }
+    for (const p of ['X', 'O']) b.hist[p] = b.hist[p].map((k) => { const m = moves.find((x) => x.from === k); return m ? m.to : k; });
+    Sound.shift();
+    Renderer.shake(b.rule === 'cross' ? 7 : 9);
+    Renderer.kick(0.03);
+    (b.rule === 'ring' ? RING : [0, 2, 6, 8]).forEach((k) => Renderer.ripple(b, k, 'W', 0.9));
+    const [x, y] = Renderer.boardScreenCenter(b);
+    Renderer.floatText(x, y - 60, MOVERS[b.rule], null, 50);
   },
 
   settleGravity(b) {
@@ -750,7 +869,7 @@ const Game = {
       const [x, y] = Renderer.cellScreen(b, to);
       Renderer.sparks(x, y, WILD, 26, 6);
       Renderer.ripple(b, to, WILD, 1.1);
-    }, 273);
+    }, TIMING.board.markImpact);
   },
 
   // ---------- Developer Mode ----------
@@ -789,7 +908,7 @@ const Game = {
         this.save();
       } else {
         const rule = await this.step(Wheel.spin(b.turn, false, '(Developer Mode preview)'));
-        this.toast(`🛠 The wheel landed on ${RULES[rule].icon} <b>${RULES[rule].name}</b> (preview only: no Level 0 game is running).`);
+        this.toast(`🛠 The wheel landed on ${RULES[rule].icon} <b>${RULES[rule].name}</b> (preview only: no Turf Battle is running).`);
       }
     } catch (e) {
       if (gen === this.gen) console.error(e);
@@ -816,7 +935,7 @@ const Game = {
     const opts = (items) => items.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
     $('dvForce').innerHTML = opts([['', '🎲 Random (normal odds)'], ['extra', '⚡ Extra turn'], ['bomb', '💣 Bomb'], ['steal', '🎭 Steal'],
       ['shield', '🛡️ +1 mark'], ['rule', '🎲 Rule pick'], ['jackpot', '🎆 Instant win'], ['bust', '❌ No win']]);
-    $('dvWheel').innerHTML = opts([['', '🎡 Random'], ...RULE_KEYS.map((k) => [k, `${RULES[k].icon} ${RULES[k].name}`])]);
+    $('dvWheel').innerHTML = opts([['', '🎡 Random'], ...RULE_KEYS.map((k) => [k, `${RULES[k].iconText || RULES[k].icon} ${RULES[k].name}`])]);
     const bind = (id, key, prop = 'value') => $(id).addEventListener('change', (e) => { this.dev[key] = e.target[prop]; this.savePrefs(); });
     bind('dvForce', 'force'); bind('dvWheel', 'wheel');
     bind('dvTease', 'tease', 'checked'); bind('dvEvery', 'everywhere', 'checked'); bind('dvReveal', 'reveal', 'checked');
@@ -832,6 +951,7 @@ const Game = {
   vanish(b, p, k) {
     b.moves++;
     b.hist[p].push(k);
+    b.fogAt[k] = b.moves;
     this.dropOldest(b, p);
   },
 
@@ -841,7 +961,7 @@ const Game = {
     const old = h.shift();
     const c = b.cells[old];
     c.owner = null; c.t = -1e9;
-    const t = performance.now() + 240;
+    const t = performance.now() + TIMING.board.vanishPoof;
     b.ghosts.push({ k: old, owner: p, t });
     const gen = this.gen;
     setTimeout(() => {
@@ -850,13 +970,13 @@ const Game = {
       Renderer.sparks(x, y - 10, p, 30, 5);
       Renderer.floatText(x, y - 30, 'POOF!', p, 24);
       Sound.poof();
-    }, 240);
+    }, TIMING.board.vanishPoof);
   },
 
   // ---------- mystery jackpot ----------
   async jackpotSpin(b, k, p) {
     const [x, y] = Renderer.cellScreen(b, k);
-    await this.step(wait(300));
+    await this.step(wait(TIMING.slots.jackpotFoundDelay));
     Sound.jackpotFound();
     Renderer.flash(0.45, '255,210,63');
     Renderer.shake(12);
@@ -864,7 +984,7 @@ const Game = {
     Renderer.coins(x, y, 70);
     Renderer.ripple(b, k, p, 1.6);
     Renderer.floatText(x, y - 30, 'JACKPOT!', null, 54);
-    await this.step(wait(900));
+    await this.step(wait(TIMING.slots.jackpotToMachine));
     const spin = Slots.spin(p, b.level, this.vsCPU && p === 'O', { shield: b.level === 0 && b.rule === 'vanish' });
     await this.step(spin);
     const prize = await spin;
@@ -890,11 +1010,11 @@ const Game = {
       this.updateHUD();
       // the same title card as the wheel, then it flies up to sit beside the current rule as "next game"
       this.showRuleCard(b, `Picked by <b class="${p}">${p}</b>`, rule);
-      await this.step(wait(3000));
+      await this.step(wait(TIMING.slots.rulePickSettle));
       return {};
     }
     let cands, verb;
-    if (prize === 'jackpot') { cands = cellsOf((c) => !c.owner && !c.child); verb = 'Pick any empty square to claim'; }
+    if (prize === 'jackpot') { cands = cellsOf((c) => !c.owner && !c.child); verb = 'Pick any empty space to claim'; }
     if (prize === 'steal') { cands = cellsOf((c) => c.owner === opp); verb = `Pick an <b class="${opp}">${opp}</b> mark to steal`; }
     if (prize === 'bomb') { cands = cellsOf((c) => c.owner === opp || (b.level > 0 && c.owner === DEAD)); verb = `Pick an <b class="${opp}">${opp}</b> mark${b.level > 0 ? ' or stone' : ''} to blow up`; }
     if (!cands.length) { this.toast('Nothing to target, so it becomes an extra move!'); return { extra: true }; }
@@ -929,7 +1049,7 @@ const Game = {
       Renderer.kick(0.08);
       Renderer.floatText(x, y - 30, 'BOOM!', null, 56);
     }
-    await this.step(wait(700));
+    await this.step(wait(TIMING.slots.prizeSettle));
     return {};
   },
 
@@ -939,7 +1059,7 @@ const Game = {
       Renderer.select = this.selecting;
       this.toast(`${verb}!`);
       this.updateHUD();
-      if (this.vsCPU && p === 'O') setTimeout(() => this.select(AI.pickTarget(b, p, cands, kind)), 1000);
+      if (this.vsCPU && p === 'O') setTimeout(() => this.select(AI.pickTarget(b, p, cands, kind)), TIMING.slots.cpuTargetDelay);
     });
   },
 
@@ -958,11 +1078,11 @@ const Game = {
     Renderer.shake(8);
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, 'STALEMATE!', null, 46); }
     const P = b.parent, k = b.parentIndex;
-    this.toast(`${b.rule === 'vanish' ? `No winner after ${MOVE_CAP} moves` : 'The board filled up with no winner'}. The ${CELL_NAMES[k]} square of Level ${P.level} turns to stone.`);
-    await this.step(wait(1300));
+    this.toast(`${b.rule === 'vanish' ? `No winner after ${MOVE_CAP} moves` : 'The board filled up with no winner'}. The ${CELL_NAMES[k]} space of Level ${P.level} turns to stone.`);
+    await this.step(wait(TIMING.camera.stalematePause));
     Sound.zoomOut();
-    Tweens.add(800, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, 250);
-    await this.step(Renderer.flyTo(viewOf(P), 1200));
+    Tweens.add(TIMING.camera.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.wonFadeDelay);
+    await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.zoomOutToParent));
     P.cells[k].child = null;
     P.cells[k].record = b;
     P.pending = null;
@@ -978,8 +1098,8 @@ const Game = {
       Renderer.shake(14);
       Renderer.kick(0.05);
       Renderer.floatText(x, y - 20, 'BLOCKED!', null, 34);
-    }, 273);
-    await this.step(wait(900));
+    }, TIMING.board.markImpact);
+    await this.step(wait(TIMING.camera.stalemateSettle));
     return P;
   },
 
@@ -989,9 +1109,9 @@ const Game = {
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, 'DRAW!', null, 50); }
     const big = b.level >= 1;
     this.toast(big
-      ? `Level ${b.level} is a draw! Corners and center stay as a head start, edges and stone squares clear. <b class="${other(b.starter)}">${other(b.starter)}</b> picks first.`
-      : `Draw! Replaying Level ${b.level} with <b class="${other(b.starter)}">${other(b.starter)}</b> going first.`);
-    await this.step(wait(1500));
+      ? `${lvName(b.level)} is a draw! Corners and center stay as a head start, edges and stone spaces clear. <b class="${other(b.starter)}">${other(b.starter)}</b> picks first.`
+      : `Draw! Replaying ${lvName(b.level, true)} with <b class="${other(b.starter)}">${other(b.starter)}</b> going first.`);
+    await this.step(wait(TIMING.camera.drawPause));
     const keep = (k, c) => big ? ([0, 2, 4, 6, 8].includes(k) && c.owner !== DEAD) : (b.seeded && k === 4);
     b.cells.forEach((c, k) => {
       if (keep(k, c)) return;
@@ -1007,7 +1127,7 @@ const Game = {
     b.starter = other(b.starter);
     b.turn = b.starter;
     b.born = performance.now();
-    await this.step(wait(600));
+    await this.step(wait(TIMING.camera.drawSettle));
     if (!big) await this.startRule(b);
   },
 
@@ -1058,9 +1178,9 @@ const Game = {
       if (ReviewSet.has(r)) continue;
       r.alpha = 0;
       ReviewSet.add(r);
-      Tweens.add(650, (e) => { r.alpha = e; }, Ease.outCubic);
+      Tweens.add(TIMING.camera.browseFade, (e) => { r.alpha = e; }, Ease.outCubic);
     }
-    for (const r of leaving) Tweens.add(650, (e) => { r.alpha = 1 - e; }, Ease.inOutCubic, 250);
+    for (const r of leaving) Tweens.add(TIMING.camera.browseFade, (e) => { r.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.browseFadeDelay);
     const goingIn = target.level < from.level;
     this.view = target === this.current() ? null : target;
     this.layoutAll();
@@ -1068,7 +1188,7 @@ const Game = {
     this.updateHUD();
     goingIn ? Sound.zoomIn() : Sound.zoomOut();
     try {
-      await this.step(Renderer.flyTo(viewOf(target), 1000));
+      await this.step(Renderer.flyTo(viewOf(target), TIMING.camera.browseZoom));
       leaving.forEach((r) => ReviewSet.delete(r));
     } catch (e) {
       if (gen === this.gen) console.error(e);
@@ -1082,6 +1202,7 @@ const Game = {
   },
 
   settled() {
+    if (this.replay) return;
     this.save();
     this.updateHUD();
     this.scheduleCPU();
@@ -1097,16 +1218,178 @@ const Game = {
       const c = this.current();
       if (c !== b || c.turn !== 'O') return;
       this.play(c.level === 0 ? AI.chooseL0(c, 'O') : AI.choose(c.cells.map((x) => x.owner), 'O'), true);
-    }, 750);
+    }, TIMING.board.cpuMoveDelay);
   },
 
   // ---------- storage ----------
   save() {
+    if (this.replay) return;   // never save the replay's copy of the game
     try {
       const d = serialize(this.root);
       d.nr = this.nextRule; d.nb = this.nextRuleBy; d.lw = this.lastWinner;
-      localStorage.setItem(SAVE_KEY, JSON.stringify(d));
+      const json = JSON.stringify(d);
+      localStorage.setItem(SAVE_KEY, json);
+      this.snapshot(json);
     } catch (e) { /* storage unavailable */ }
+  },
+
+  // ---------- game review / instant replay ----------
+  // Every saved state of the game is kept as a snapshot, so any earlier game can be played back.
+  log: [],      // [{s: serialized root, p: path to the live board}]
+  games: [],    // [{i: first snapshot, label, level, path, rule, winner}] in the order they started
+  replay: null, // the running Instant Replay, if any
+  pathOf(b) { const p = []; for (let x = b; x.parent; x = x.parent) p.unshift(x.parentIndex); return p; },
+  boardAt(root, path) {
+    let b = root;
+    for (const k of path) { const c = b && b.cells[k]; b = c ? (c.child || c.record) : null; }
+    return b;
+  },
+  gameLabel(b) {
+    if (b.level === 0) return b.parent ? `Turf Battle for the ${CELL_NAMES[b.parentIndex]} space of Level ${b.parent.level}` : 'Opening Turf Battle';
+    return `Level ${b.level}`;
+  },
+  snapshot(json) {
+    const last = this.log[this.log.length - 1];
+    if (last && last.s === json) return;
+    const cur = this.current(), p = this.pathOf(cur), key = `${p.join('.')}@${cur.level}`;
+    const i = this.log.length;
+    this.log.push({ s: json, p });
+    const g = this.games[this.games.length - 1];
+    // a new game: the live board moved somewhere else, or it was cleared for a rematch after a draw
+    // a new big level begins when the top of the tower grows
+    if (this.root.level > 0 && !this.games.some((x) => x.top && x.level === this.root.level)) this.games.push({ i, key: `top${this.root.level}`, label: `Level ${this.root.level}`, level: this.root.level, path: [], top: true });
+    // a new Turf Battle: the live board moved somewhere else, or it was cleared for a rematch after a draw
+    const lastTurf = [...this.games].reverse().find((x) => !x.top);
+    if (cur.level === 0 && (!lastTurf || lastTurf.key !== key || cur.moves < (lastTurf.moves || 0) || (cur.ruled === false && lastTurf.rule && lastTurf.done))) {
+      this.games.push({ i, key, label: this.gameLabel(cur), level: 0, path: p, moves: cur.moves });
+    }
+    const gg = cur.level === 0 ? [...this.games].reverse().find((x) => !x.top) : null;
+    if (gg) { gg.moves = cur.moves; if (cur.ruled) { gg.rule = cur.rule; gg.done = true; } }
+    // who won each game, once it's over (an old top board now sits under the center of the one above it)
+    const find = (x) => { let bb = this.boardAt(this.root, x.path); while (bb && bb.level > x.level) bb = bb.cells[4].record || null; return bb; };
+    for (const x of this.games) if (!x.winner) { const bb = find(x); if (bb && bb.level === x.level && bb.winner && bb.winner !== DEAD) x.winner = bb.winner; }
+    if (this.log.length > LOG_CAP) this.trimLog(this.log.length - LOG_CAP);
+    this.saveLog();
+  },
+  trimLog(n) {
+    this.log.splice(0, n);
+    this.games = this.games.map((g) => ({ ...g, i: g.i - n })).filter((g) => g.i >= 0);
+  },
+  saveLog() {
+    for (let tries = 0; tries < 4; tries++) {
+      try { localStorage.setItem(LOG_KEY, JSON.stringify({ log: this.log, games: this.games })); return; } catch (e) {
+        if (this.log.length < 10) return;
+        this.trimLog(Math.ceil(this.log.length / 3));   // out of space: forget the oldest third
+      }
+    }
+  },
+  loadLog() {
+    try { const d = JSON.parse(localStorage.getItem(LOG_KEY) || 'null'); if (d && Array.isArray(d.log)) { this.log = d.log; this.games = d.games || []; } } catch (e) { /* none */ }
+  },
+
+  startReplay(i) {
+    if (this.replay) return;
+    if (this.busy || this.selecting) { this.toast('Wait for the current move to finish, then start the replay.'); return; }
+    if (!this.log.length) { this.toast('Nothing to replay yet.'); return; }
+    this.showReview(false);
+    clearTimeout(this.cpuTimer);
+    this.busy = true;
+    this.view = null; this.trail = [];
+    this.replay = { i: Math.max(0, Math.min(i, this.log.length - 1)), live: this.root, speed: 1, paused: false, timer: 0, end: this.log.length - 1 };
+    document.body.classList.add('instant-replay');
+    $('replaybar').hidden = false;
+    Sound.cardFlip(0);
+    this.applySnap(this.replay.i, true);
+    this.queueReplay(TIMING.replay.firstStep);
+  },
+  applySnap(i, first = false) {
+    const R = this.replay, snap = this.log[i], prevRoot = this.root;
+    const prevCur = first ? null : this.current();
+    const prevPath = prevCur ? this.pathOf(prevCur).join('.') : null;
+    this.root = deserialize(JSON.parse(snap.s));
+    this.layoutAll();
+    const cur = this.current(), now = performance.now();
+    const moved = prevPath !== this.pathOf(cur).join('.');
+    if (!first && !moved) {
+      // same board as last step: drop in the new marks and fade out the ones that left
+      const old = this.boardAt(prevRoot, this.pathOf(cur));
+      if (old) cur.cells.forEach((c, k) => {
+        const o = old.cells[k].owner;
+        if (c.owner && c.owner !== o) { c.t = now; if (c.owner === 'X' || c.owner === 'O') { Sound.place(c.owner); setTimeout(() => Sound.land(cur.level), TIMING.board.markImpact); } }
+        if (o && o !== c.owner && !c.owner) cur.ghosts.push({ k, owner: o, t: now });
+      });
+      if (old && !old.winner && cur.winner) { const [x, y] = Renderer.boardScreenCenter(cur); Renderer.floatText(x, y - 40, `${cur.winner} WINS!`, cur.winner, 44); Sound.win(); }
+    }
+    // keep the camera on the board being played
+    if (first || moved) Renderer.flyTo(viewOf(cur), first ? TIMING.replay.cameraFirst : TIMING.replay.cameraMove);
+    R.i = i;
+    this.updateHUD();
+    this.updateReplayBar();
+    return moved;
+  },
+  queueReplay(ms) {
+    const R = this.replay; if (!R) return;
+    clearTimeout(R.timer);
+    if (R.paused) return;
+    R.timer = setTimeout(() => this.stepReplay(), ms / R.speed);
+  },
+  stepReplay() {
+    const R = this.replay; if (!R) return;
+    if (R.i >= this.log.length - 1) { this.stopReplay(true); return; }
+    const moved = this.applySnap(R.i + 1);
+    this.queueReplay(moved ? TIMING.replay.stepNewBoard : TIMING.replay.stepSameBoard);
+  },
+  stopReplay(caughtUp = false) {
+    const R = this.replay; if (!R) return;
+    clearTimeout(R.timer);
+    this.replay = null;
+    this.root = R.live;
+    this.layoutAll();
+    document.body.classList.remove('instant-replay');
+    $('replaybar').hidden = true;
+    this.busy = false;
+    Renderer.flyTo(viewOf(this.current()), TIMING.replay.cameraBack);
+    this.toast(caughtUp ? 'Instant Replay caught up. Back to the live game!' : 'Instant Replay stopped. Back to the live game.');
+    this.settled();
+  },
+  toggleReplayPause() {
+    const R = this.replay; if (!R) return;
+    R.paused = !R.paused;
+    if (!R.paused) this.queueReplay(TIMING.replay.resume);
+    else clearTimeout(R.timer);
+    this.updateReplayBar();
+  },
+  replaySpeed() {
+    const R = this.replay; if (!R) return;
+    R.speed = R.speed >= 4 ? 1 : R.speed * 2;
+    this.updateReplayBar();
+    if (!R.paused) this.queueReplay(600);
+  },
+  updateReplayBar() {
+    const R = this.replay; if (!R) return;
+    const g = [...this.games].reverse().find((x) => x.i <= R.i && !x.top) || null;
+    const cur = this.current();
+    const rule = cur.level === 0 && cur.ruled && RULES[cur.rule] ? ` · ${RULES[cur.rule].icon} ${RULES[cur.rule].name}` : '';
+    $('rpTitle').innerHTML = `${g ? g.label : lvName(cur.level)}${rule}`;
+    const n = this.log.length - 1, pct = n ? (R.i / n) * 100 : 100;
+    $('rpFill').style.width = `${pct}%`;
+    $('rpPause').textContent = R.paused ? '▶ Play' : '⏸ Pause';
+    $('rpSpeed').textContent = `${R.speed}×`;
+  },
+
+  // The Game review panel: every Level and Turf Battle so far, each with an Instant Replay button.
+  showReview(show) {
+    const el = $('review');
+    if (!show) { el.hidden = true; return; }
+    if (this.replay) return;
+    const rows = this.games.map((g, n) => ({ g, n })).reverse().map(({ g, n }) => {
+      const icon = g.top ? '🏆' : g.rule && RULES[g.rule] ? RULES[g.rule].icon : '⚔️';
+      const res = g.winner ? `won by <b class="${g.winner}">${g.winner}</b>` : (n === this.games.length - 1 || (g.top && g.level === this.root.level)) ? '<i>in progress</i>' : '';
+      const rule = g.rule && RULES[g.rule] ? `<span class="rv-rule">${RULES[g.rule].name}</span>` : '';
+      return `<li class="rv-row${g.top ? ' top' : ''}"><span class="rv-icon">${icon}</span><span class="rv-text"><b class="rv-name">${g.label}</b>${rule}<span class="rv-res">${res}</span></span><button type="button" class="rv-play" data-i="${g.i}">▶ Instant Replay</button></li>`;
+    }).join('');
+    $('rvList').innerHTML = rows || '<li class="rv-empty">No games yet. Play a Turf Battle first!</li>';
+    el.hidden = false;
   },
   loadPrefs() {
     try {
@@ -1141,12 +1424,12 @@ const Game = {
       const cls = ['crumb', b === focus ? 'here' : '', this.isRecord(b) ? 'replay' : '', b === cur && this.view ? 'live' : ''].join(' ');
       const next = chain[i + 1];
       const where = next ? ` · ${CELL_NAMES[next.parentIndex]}` : '';
-      return `<button type="button" class="${cls}" data-i="${i}" style="--h:${levelHue(b.level)}">Level ${b.level}${where}</button>`;
+      return `<button type="button" class="${cls}" data-i="${i}" style="--h:${levelHue(b.level)}">${lvName(b.level)}${where}</button>`;
     });
     $('path').innerHTML = parts.join('<span class="sep">▸</span>');
     $('zLevels').innerHTML = chain.slice().map((b, i) => {
       const cls = ['zl', b === focus ? 'here' : '', this.isRecord(b) ? 'replay' : '', b === cur ? 'live' : ''].join(' ');
-      return `<button type="button" class="${cls}" data-i="${i}" style="--h:${levelHue(b.level)}" title="Zoom to Level ${b.level}">L${b.level}</button>`;
+      return `<button type="button" class="${cls}" data-i="${i}" style="--h:${levelHue(b.level)}" title="Zoom to ${lvName(b.level, true)}">${b.level === 0 ? 'Turf' : `L${b.level}`}</button>`;
     }).join('');
     $('zOut').disabled = !focus.parent;
     const t = this.trail[this.trail.length - 1];
@@ -1159,14 +1442,14 @@ const Game = {
     let txt;
     if (this.view && this.isRecord(focus)) {
       const P = focus.parent;
-      txt = `Replay: Level ${focus.level} game for the ${CELL_NAMES[focus.parentIndex]} square of Level ${P.level}, won by <b class="${focus.winner}">${focus.winner}</b>`;
+      txt = `Replay: ${focus.level === 0 ? 'the Turf Battle' : `the Level ${focus.level} game`} for the ${CELL_NAMES[focus.parentIndex]} space of Level ${P.level}, won by <b class="${focus.winner}">${focus.winner}</b>`;
     } else if (this.view && replaying) {
-      txt = `Replay: Level ${focus.level}, won by <b class="${focus.winner}">${focus.winner}</b>`;
+      txt = `Replay: ${lvName(focus.level)}, won by <b class="${focus.winner}">${focus.winner}</b>`;
     } else if (this.view) {
-      txt = `Viewing Level ${focus.level}. The live game is on Level ${cur.level}.`;
+      txt = `Viewing ${lvName(focus.level, true)}. The live game is ${cur.level === 0 ? 'the Turf Battle' : `on Level ${cur.level}`}.`;
     } else if (cur.winner) txt = `<b class="${cur.winner}">${cur.winner}</b> wins!`;
     else if (cur.level === 0) txt = `<b class="${p}">${p}</b> ${who ? `(${who}) ` : ''}to move`;
-    else txt = `<b class="${p}">${p}</b> ${who ? `(${who}) ` : ''}picks a square to fight for`;
+    else txt = `<b class="${p}">${p}</b> ${who ? `(${who}) ` : ''}picks a space to fight for`;
     this.updateStakes(cur);
     this.updateRuleBadge(cur);
     this.updateRulePin(cur);
@@ -1195,9 +1478,12 @@ const Game = {
           for (let i = 0; i < keep; i++) dots += `<i class="${i < n ? 'on' : ''}${i === 0 && n >= keep ? ' old' : ''}${i === 0 && n >= keep && cur.turn === p ? ' next' : ''}"></i>`;
           return `<span class="rb-dots ${p}"><b class="${p}">${p}</b>${dots}</span>`;
         }).join('');
-      } else if (cur.rule === 'shift') {
+      } else if (MOVERS[cur.rule]) {
         const left = SHIFT_EVERY - (cur.moves % SHIFT_EVERY);
-        h += `<span class="rb-sub${left === 1 ? ' hot' : ''}">${left === 1 ? 'shifts after this move!' : `shifts in ${left} moves`}</span>`;
+        const verb = { shift: 'shifts', ring: 'spins', cross: 'crosses' }[cur.rule];
+        h += `<span class="rb-sub${left === 1 ? ' hot' : ''}">${left === 1 ? `${verb} after this move!` : `${verb} in ${left} moves`}</span>`;
+      } else if (cur.rule === 'fog') {
+        h += `<span class="rb-sub">fog covers each mark after the next move</span>`;
       }
       if (h) h = `<span class="rb-icon">${R.icon}</span>` + h;
     }
@@ -1237,12 +1523,12 @@ const Game = {
         const s = this.stakesFor(P, k);
         match = s.win.length > 0;
         html = (match ? '🔥 MATCH POINT: ' : 'Stakes: ') +
-          (s.parts.length ? s.parts.join(' · ') : `whoever wins takes the ${CELL_NAMES[k]} square of Level ${P.level}`);
+          (s.parts.length ? s.parts.join(' · ') : `whoever wins takes the ${CELL_NAMES[k]} space of Level ${P.level}`);
       } else {
         const t = threatsOf(cur.cells.map((c) => c.owner));
         const desc = (p) => [...t[p]].map((i) => CELL_NAMES[i]).join(', ');
         const bits = ['X', 'O'].filter((p) => t[p].size).map((p) => `<b class="${p}">${p}</b> can win at ${desc(p)}`);
-        html = bits.length ? `Glowing squares win the level: ${bits.join(' · ')}` : 'Pick a square. Glowing squares will mark winning spots.';
+        html = bits.length ? `Glowing spaces win the level: ${bits.join(' · ')}` : 'Pick a space. Glowing spaces mark winning spots.';
       }
     }
     if (html && !this.view && cur.jackpot >= 0) html += ' · <span class="jp">🎰 jackpot hidden here</span>';
@@ -1271,7 +1557,7 @@ const Game = {
     el.innerHTML = html;
     el.classList.add('show');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+    this.toastTimer = setTimeout(() => el.classList.remove('show'), TIMING.board.toast);
   },
 
   banner(text) {
@@ -1396,12 +1682,22 @@ const Game = {
   window.addEventListener('keydown', (e) => {
     if (e.target.closest && e.target.closest('input,textarea,select')) return;
     if (e.key === 'D' && e.shiftKey) { Game.setDev(!Game.dev.on); return; }
-    if (e.key === 'Escape') { if (!$('help').hidden) Game.showHelp(false); else Game.backToLive(); }
+    if (e.key === 'Escape') { if (Game.replay) Game.stopReplay(); else if (!$('review').hidden) Game.showReview(false); else if (!$('help').hidden) Game.showHelp(false); else Game.backToLive(); }
+    else if (e.key === ' ' && Game.replay) { e.preventDefault(); Game.toggleReplayPause(); }
     else if (e.key === '-' || e.key === '_' || e.key === 'PageUp') Game.zoomOut();
     else if (e.key === '+' || e.key === '=' || e.key === 'PageDown') Game.zoomIn();
   });
 
   $('btnHelp').addEventListener('click', () => Game.showHelp(true));
+  $('btnReview').addEventListener('click', () => { Sound.ensure(); Game.showReview(true); });
+  $('rvClose').addEventListener('click', () => Game.showReview(false));
+  $('review').addEventListener('click', (e) => {
+    if (e.target.id === 'review') { Game.showReview(false); return; }
+    const b = e.target.closest('.rv-play'); if (b) Game.startReplay(+b.dataset.i);
+  });
+  $('rpPause').addEventListener('click', () => Game.toggleReplayPause());
+  $('rpSpeed').addEventListener('click', () => Game.replaySpeed());
+  $('rpStop').addEventListener('click', () => Game.stopReplay());
   $('btnCloseHelp').addEventListener('click', () => {
     Sound.ensure(); Game.showHelp(false);
   });
@@ -1422,3 +1718,8 @@ const Game = {
   }
   requestAnimationFrame(loop);
 })();
+
+// rule icons written into static HTML (the rules list)
+document.querySelectorAll('.wild-icon').forEach((e) => { e.innerHTML = WILD_ICON; });
+document.querySelectorAll('.fog-icon').forEach((e) => { e.innerHTML = FOG_ICON; });
+document.querySelectorAll('.cross-icon').forEach((e) => { e.innerHTML = CROSS_ICON; });

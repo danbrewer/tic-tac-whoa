@@ -85,7 +85,7 @@ const MiniMap = {
       ctx.fillStyle = `hsl(${hue},100%,80%)`;
       ctx.font = `600 ${it.past ? 10 : 12}px Fredoka, system-ui, sans-serif`;
       ctx.textAlign = 'left';
-      ctx.fillText(`Level ${b.level}`, x0, y0 - 5);
+      ctx.fillText(lvName(b.level), x0, y0 - 5);
       if (live) { ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(x0 + S - 4, y0 - 9, 3.5, 0, Math.PI * 2); ctx.fill(); }
     }
     // backing
@@ -116,7 +116,8 @@ const MiniMap = {
       }
       ctx.fillStyle = fill;
       ctx.beginPath(); ctx.roundRect(cx + 1, cy + 1, cs - 2, cs - 2, 2); ctx.fill();
-      if (c.owner) this.glyph(c.owner, cx + cs / 2, cy + cs / 2, cs * 0.3);
+      if (fogged(b, k)) { const ctx = this.ctx; ctx.fillStyle = 'rgba(214,218,236,0.85)'; [[-0.35, 0.1, 0.32], [0.3, 0.1, 0.3], [0, -0.15, 0.4]].forEach(([u, v, r]) => { ctx.beginPath(); ctx.arc(cx + cs / 2 + u * cs * 0.4, cy + cs / 2 + v * cs * 0.4, r * cs * 0.4, 0, Math.PI * 2); ctx.fill(); }); }
+      else if (c.owner && !(c.owner === 'W' && b.wildIntro && performance.now() < c.t + TIMING.board.markImpact)) this.glyph(c.owner, cx + cs / 2, cy + cs / 2, cs * 0.3);
     }
     if (b.winLine) {
       const ctr = (k) => [x0 + pad + ((k % 3) + 0.5) * cs, y0 + pad + (((k / 3) | 0) + 0.5) * cs];
@@ -131,26 +132,7 @@ const MiniMap = {
 
   glyph(p, x, y, r) {
     const ctx = this.ctx;
-    if (p === 'W') {
-      // the wild mark: an X whose arms curl into an O and back, turning slowly
-      const now = performance.now(), ph = (now % 3600) / 3600;
-      const tri = ph < 0.15 ? 0 : ph < 0.5 ? (ph - 0.15) / 0.35 : ph < 0.65 ? 1 : 1 - (ph - 0.65) / 0.35;
-      const m = tri * tri * (3 - 2 * tri), rot = now / 1100;
-      ctx.strokeStyle = `hsl(${(322 - 134 * m + 360) % 360},100%,66%)`;
-      ctx.lineWidth = Math.max(1.5, r * 0.45); ctx.lineCap = 'round';
-      ctx.beginPath();
-      for (let k = 0; k < 4; k++) {
-        const phi = rot + Math.PI / 4 + (k * Math.PI) / 2;
-        for (let i = 0; i <= 8; i++) {
-          const t = i / 8, xr = r * 1.3 * t, ps = phi + (t - 0.5) * (Math.PI / 2), ro = r * 0.85;
-          const px = x + xr * Math.cos(phi) + (ro * Math.cos(ps) - xr * Math.cos(phi)) * m;
-          const py = y + xr * Math.sin(phi) + (ro * Math.sin(ps) - xr * Math.sin(phi)) * m;
-          i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-        }
-      }
-      ctx.stroke();
-      return;
-    }
+    if (p === 'W') { drawWildMark(ctx, x, y, r * 1.2); return; }
     if (p === '#') {
       ctx.fillStyle = 'hsl(255,12%,58%)';
       ctx.fillRect(x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2);

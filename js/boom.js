@@ -19,7 +19,7 @@ const Boom = {
     const n = 7;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.random() * 0.6;
-      blasts.push({ x: cx + Math.cos(a) * r.width * (0.3 + Math.random() * 0.2), y: cy + Math.sin(a) * r.height * (0.3 + Math.random() * 0.2), t: 140 + i * 95 + Math.random() * 60, s: 0.55 + Math.random() * 0.35 });
+      blasts.push({ x: cx + Math.cos(a) * r.width * (0.3 + Math.random() * 0.2), y: cy + Math.sin(a) * r.height * (0.3 + Math.random() * 0.2), t: TIMING.boom.blastFirst + i * TIMING.boom.blastGap + Math.random() * 60, s: 0.55 + Math.random() * 0.35 });
     }
     const base = Math.min(W, H) * 0.28;
     const parts = [];
@@ -45,7 +45,7 @@ const Boom = {
     for (let k = 0; k < 14; k++) { const m = 16 * (1 - k / 14); shake.push({ transform: `translate(${(Math.random() - 0.5) * 2 * m}px, ${(Math.random() - 0.5) * 2 * m}px)` }); }
     shake.push({ transform: 'translate(0,0)' });
     const app = document.querySelector('#app') || document.querySelector('main') || document.body;
-    app.animate(shake, { duration: 900, easing: 'linear' });
+    app.animate(shake, { duration: TIMING.boom.shake, easing: 'linear' });
     let last = t0;
     const tick = (now) => {
       const dt = Math.min(50, now - last) / 1000; last = now;
@@ -187,7 +187,7 @@ const IconFly = {
     if (!src || !src.animate) return;
     const r = src.getBoundingClientRect(), fs = parseFloat(getComputedStyle(src).fontSize) || 54;
     const BASE = 120, el = document.createElement('div');
-    el.className = 'iconfly'; el.textContent = src.textContent.trim();
+    el.className = 'iconfly'; el.innerHTML = src.innerHTML.trim();
     el.style.fontSize = `${BASE}px`;
     document.body.appendChild(el);
     const W = window.innerWidth, H = window.innerHeight;
@@ -200,16 +200,16 @@ const IconFly = {
       { transform: `translate(${x0}px, ${y0 - 30}px) translate(-50%, -50%) scale(${(fs / BASE) * 1.4}) rotate(-10deg)`, filter: 'brightness(1.6)', offset: 0.3 },
       { transform: `translate(${this.x}px, ${this.y}px) translate(-50%, -50%) scale(${big * 1.15}) rotate(8deg)`, filter: 'brightness(1.3)', offset: 0.8 },
       { transform: `translate(${this.x}px, ${this.y}px) translate(-50%, -50%) scale(${big}) rotate(0)`, filter: 'brightness(1)' },
-    ], { duration: 900, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => {
+    ], { duration: TIMING.ruleCard.iconLift, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => {
       if (this.el !== el) return;
       this.idle = el.animate([
         { transform: `translate(${this.x}px, ${this.y}px) translate(-50%, -50%) scale(${big}) rotate(-4deg)` },
         { transform: `translate(${this.x}px, ${this.y}px) translate(-50%, -50%) scale(${big * 1.08}) rotate(4deg)` },
-      ], { duration: 520, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' });
+      ], { duration: TIMING.ruleCard.iconIdle, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' });
     };
   },
   // fly the big icon onto the title card's icon once the card has popped in
-  land(target, wait = 470) {
+  land(target, wait = TIMING.ruleCard.iconLandDelay) {
     const el = this.el; if (!el) return;
     if (target) target.style.visibility = 'hidden';
     setTimeout(() => {
@@ -223,9 +223,9 @@ const IconFly = {
         { transform: `translate(${this.x}px, ${this.y}px) translate(-50%, -50%) scale(${this.s})` },
         { transform: `translate(${(this.x + tx) / 2}px, ${Math.min(this.y, ty) - 60}px) translate(-50%, -50%) scale(${this.s * 0.7}) rotate(200deg)`, offset: 0.5 },
         { transform: `translate(${tx}px, ${ty}px) translate(-50%, -50%) scale(${ts}) rotate(360deg)` },
-      ], { duration: 560, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' }).onfinish = () => {
+      ], { duration: TIMING.ruleCard.iconLand, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' }).onfinish = () => {
         target.style.visibility = '';
-        target.animate([{ transform: 'scale(1.6)', filter: 'brightness(2)' }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: 380, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+        target.animate([{ transform: 'scale(1.6)', filter: 'brightness(2)' }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: TIMING.ruleCard.iconBounce, easing: 'cubic-bezier(.3,1.6,.5,1)' });
         Sound.cardPick && Sound.cardPick();
         this.drop();
       };

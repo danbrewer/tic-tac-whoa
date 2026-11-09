@@ -1,6 +1,6 @@
 'use strict';
 // Wheel of games: before each Level 0 game the last winner spins it to pick the game type.
-// 24 spots: the six game types repeated four times, so equal odds and no two neighbours alike.
+// 27 spots: the nine game types repeated three times, so equal odds and no two neighbours alike.
 const WHEEL_TYPES = [
   { k: 'classic', label: 'CLASSIC', col: '#3a86ff', dark: '#1f5fd1' },
   { k: 'vanish', label: 'VANISH', col: '#8338ec', dark: '#5f1fc2' },
@@ -8,9 +8,19 @@ const WHEEL_TYPES = [
   { k: 'shift', label: 'SHIFT', col: '#fb8500', dark: '#c95f00' },
   { k: 'wild', label: 'WILD', col: '#ff006e', dark: '#c4004f' },
   { k: 'misere', label: 'MISÈRE', col: '#06a77d', dark: '#037a5a' },
+  { k: 'fog', label: 'FOG', col: '#6d7fa8', dark: '#4b5b80' },
+  { k: 'ring', label: 'RING', col: '#ffb703', dark: '#c78a00' },
+  { k: 'cross', label: 'CROSS', col: '#d62828', dark: '#a01b1b' },
 ];
+// a slice's icon: drawn marks for Wild Square, Fog of War and Crossfire, the emoji for the rest
+function wheelIcon(ctx, k, x, y, sz) {
+  if (k === 'wild') drawWildMark(ctx, x, y, sz * 0.45);
+  else if (k === 'fog') drawFogMark(ctx, x, y, sz * 0.5);
+  else if (k === 'cross') drawCrossMark(ctx, x, y, sz * 0.42);
+  else ctx.fillText(RULES[k].icon, x, y);
+}
 const WHEEL_SEGS = [];
-for (let r = 0; r < 4; r++) WHEEL_TYPES.forEach((t) => WHEEL_SEGS.push({ ...t, alt: r % 2 }));
+for (let r = 0; r < 3; r++) WHEEL_TYPES.forEach((t) => WHEEL_SEGS.push({ ...t, alt: r % 2 }));
 const WHEEL_K = ISO_Y / ISO_X;   // same squash as the isometric board
 const LETTER_COLS = ['#ffe14d', '#ff7ac6', '#7fe3ff', '#9dff8a', '#ffb347', '#ffffff'];
 
@@ -50,7 +60,7 @@ const Wheel = {
     let rad = r * 0.9;
     const iconSz = Math.min(r * 0.16, fit(rad));
     ctx.font = `${Math.round(iconSz)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-    ctx.fillText(RULES[S.k].icon, 0, -(rad - iconSz * 0.55));
+    wheelIcon(ctx, S.k, 0, -(rad - iconSz * 0.55), iconSz);
     rad -= iconSz * 1.15;
     const letters = [...S.label], inner = r * 0.2;
     let k = 1;
@@ -241,7 +251,7 @@ const Wheel = {
       let rad = r * 0.9;
       const iconSz = Math.min(R * 0.11, fit(rad));
       ctx.font = `${Math.round(iconSz)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-      ctx.fillText(RULES[WHEEL_SEGS[i].k].icon, 0, -(rad - iconSz * 0.55));
+      wheelIcon(ctx, WHEEL_SEGS[i].k, 0, -(rad - iconSz * 0.55), iconSz);
       rad -= iconSz * 1.15;
       const letters = [...WHEEL_SEGS[i].label];
       let k = 1;
@@ -305,6 +315,8 @@ const Wheel = {
       ctx.restore();
     }
 
+    this.drawPointer(ctx, g, now);
+
     // sparks (in canvas pixels)
     this.sparks = this.sparks.filter((p) => {
       p.x += p.vx; p.y += p.vy; p.vy += R * 0.0012; p.life -= 0.03;
@@ -315,6 +327,63 @@ const Wheel = {
       return true;
     });
     ctx.globalAlpha = 1;
+  },
+
+  // The pointer: a red flipper on a gold mounting block at the front of the rim, lying in the wheel's
+  // plane and drawn in the same squashed isometric projection, with real thickness. It flicks
+  // sideways on its pivot each time a peg passes.
+  drawPointer(ctx, g, now) {
+    const { R, K, cx, cy } = g;
+    const P = (u, v, z) => [cx + u, cy + v * K - z];
+    // extrude a footprint in the wheel's plane from z0 to z1: the walls facing the viewer, then the top
+    const prism = (pts, z0, z1, top, side, edge) => {
+      let area = 0;
+      for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; area += a[0] * b[1] - b[0] * a[1]; }
+      if (area < 0) pts = pts.slice().reverse();
+      const walls = [];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        const nx = b[1] - a[1], ny = -(b[0] - a[0]), l = Math.hypot(nx, ny) || 1;
+        if (ny / l > 0.02) walls.push({ a, b, sh: nx / l, d: a[1] + b[1] });
+      }
+      walls.sort((p, q) => p.d - q.d);
+      for (const w of walls) {
+        ctx.beginPath();
+        [P(w.a[0], w.a[1], z0), P(w.b[0], w.b[1], z0), P(w.b[0], w.b[1], z1), P(w.a[0], w.a[1], z1)].forEach(([x, y], n) => (n ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.closePath(); ctx.fillStyle = side(w.sh); ctx.fill();
+      }
+      ctx.beginPath(); pts.forEach(([u, v], n) => { const [x, y] = P(u, v, z1); n ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.closePath(); ctx.fillStyle = top; ctx.fill();
+      if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = Math.max(1, R * 0.004); ctx.lineJoin = 'round'; ctx.stroke(); }
+    };
+    const pv = R * 0.975;                                       // pivot, on the rim at the front
+    // flick: a quick swing to one side and back, set off by each peg
+    const fq = Math.min(1, (now - (this.flapT || -1e9)) / TIMING.wheel.pointerFlick);
+    const th = -0.32 * Math.sin(fq * Math.PI) * (1 - fq * 0.3);
+    ctx.save();
+    // contact shadow under the block
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(cx, cy + pv * K + R * 0.004, R * 0.075, R * 0.075 * K, 0, 0, Math.PI * 2); ctx.fill();
+    // gold mounting block
+    const bw = R * 0.055, bz = R * 0.045;
+    prism([[-bw, pv - bw], [bw, pv - bw], [bw, pv + bw], [-bw, pv + bw]], 0, bz,
+      '#ffd23f', (sh) => (sh > 0.3 ? '#b86e00' : sh < -0.3 ? '#8a4f00' : '#d98a10'), 'rgba(255,246,200,0.8)');
+    // red flipper, pointing in toward the hub, turned by th around the pivot
+    const rot = ([u, v]) => { const du = u, dv = v - pv; return [du * Math.cos(th) - dv * Math.sin(th), pv + du * Math.sin(th) + dv * Math.cos(th)]; };
+    const L = R * 0.2, hw = R * 0.05;
+    const fl = [[0, pv - L], [hw * 0.55, pv - L * 0.45], [hw, pv + hw * 0.2], [hw * 0.6, pv + hw * 0.9], [-hw * 0.6, pv + hw * 0.9], [-hw, pv + hw * 0.2], [-hw * 0.55, pv - L * 0.45]].map(rot);
+    ctx.shadowColor = 'rgba(255,80,100,0.8)'; ctx.shadowBlur = R * 0.04;
+    const tg = ctx.createLinearGradient(cx, cy + (pv - L) * K, cx, cy + (pv + hw) * K);
+    tg.addColorStop(0, '#ff5a6e'); tg.addColorStop(1, '#e0102f');
+    prism(fl, bz, bz + R * 0.032, tg, (sh) => (sh > 0.3 ? '#a3001c' : sh < -0.3 ? '#6e0012' : '#8a0018'), 'rgba(255,220,225,0.85)');
+    ctx.shadowBlur = 0;
+    // brass pivot pin
+    const [px, py] = P(0, pv, bz + R * 0.032);
+    const pg = ctx.createRadialGradient(px - R * 0.006, py - R * 0.004, 0, px, py, R * 0.02);
+    pg.addColorStop(0, '#fffbe0'); pg.addColorStop(1, '#c98a00');
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.ellipse(px, py, R * 0.018, R * 0.018 * K, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   },
 
   // sparks thrown from the pointer at the front of the wheel (or from a given canvas point)
@@ -349,7 +418,7 @@ const Wheel = {
   // the wheel plummets from above the screen, slams onto the board with a BOOM and a cloud of dust
   dropIn(el) {
     const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
-    const FALL = 620;
+    const T = TIMING.wheel, FALL = T.dropFall;
     Sound.whoosh && Sound.whoosh();
     // fall, then (exactly when the fall animation ends) squash + BOOM + dust
     const fall = stage.animate([
@@ -357,25 +426,25 @@ const Wheel = {
       { transform: 'translateY(0) rotate(0) scale(0.92, 1.08)' },
     ], { duration: FALL, easing: 'cubic-bezier(.5,0,1,1)', fill: 'backwards' });
     ui.forEach((u, i) => u.animate([{ opacity: 0, transform: 'translateY(-30px) scale(0.8)' }, { opacity: 1, transform: 'none' }],
-      { duration: 450, delay: FALL + 120 + i * 90, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
+      { duration: T.dropTitleIn, delay: FALL + T.dropTitleGap + i * T.dropTitleStagger, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
     fall.onfinish = () => {
       const f = this.footprint(stage);
       stage.animate([
         { transform: 'scale(1.12, 0.8)' }, { transform: 'translateY(-3%) scale(0.97, 1.04)', offset: 0.5 }, { transform: 'none' },
-      ], { duration: 380, easing: 'ease-out' });
+      ], { duration: T.dropSquash, easing: 'ease-out' });
       Sound.bigBoom(1, 0);
       Fx.dust(f);
       Renderer.flash && Renderer.flash(0.35, '255,240,220');
       const sh = []; for (let k = 0; k < 12; k++) { const m = 18 * (1 - k / 12); sh.push({ transform: `translate(${(Math.random() - 0.5) * m}px, ${(Math.random() - 0.3) * m * 1.6}px)` }); }
       sh.push({ transform: 'none' });
-      document.body.animate(sh, { duration: 700 });
+      document.body.animate(sh, { duration: T.dropShake });
     };
   },
   // when the game type is picked the wheel rumbles, ignites, and blasts off like a rocket
   blastOff(el, done) {
     const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
-    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: 300, fill: 'forwards' }));
-    const RUMBLE = 800, FLY = 1000;
+    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: TIMING.wheel.blastUiFade, fill: 'forwards' }));
+    const RUMBLE = TIMING.wheel.blastRumble, FLY = TIMING.wheel.blastFly;
     Sound.rocketRumble && Sound.rocketRumble(RUMBLE / 1000);
     const sh = []; for (let k = 0; k < 10; k++) sh.push({ transform: `translate(${(Math.random() - 0.5) * 8}px, ${(Math.random() - 0.5) * 5}px)` });
     sh.push({ transform: 'none' });
@@ -405,7 +474,7 @@ const Wheel = {
     }, RUMBLE);
     setTimeout(() => {
       done();
-      setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, 400);
+      setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, TIMING.wheel.blastCleanup);
     }, RUMBLE + FLY);
   },
 
@@ -449,15 +518,15 @@ const Wheel = {
         const within = (Math.random() < 0.5 ? 0.08 + Math.random() * 0.12 : 0.2 + Math.random() * 0.65) * seg;
         const base = -(target * seg + within);
         // 1) wind-back: drag the wheel backwards a little before letting go
-        const pullT = 520, pull = seg * 1.4, a0 = this.angle;
+        const pullT = TIMING.wheel.windBack, pull = seg * 1.4, a0 = this.angle;
         Sound.wheelPull(pullT / 1000);
         let end = base;
         while (end < a0 - pull + Math.PI * 2 * 6) end += Math.PI * 2;
         const start = a0 - pull;
         // two-phase motion: (A) a long cubic slow-down from the launch, then (B) a constant-deceleration crawl
         // over the last ~4 spokes, so every final spoke is visibly slower than the one before, right up to the stop
-        const TOT = end - start, dB = seg * 3.3 + within, TB = 3400, vB = (2 * dB) / TB;
-        const TA = 6800 + Math.random() * 400, DA = TOT - dB;
+        const TOT = end - start, dB = seg * 3.3 + within, TB = TIMING.wheel.spinCrawl, vB = (2 * dB) / TB;
+        const TA = TIMING.wheel.spinFast + Math.random() * TIMING.wheel.spinFastRandom, DA = TOT - dB;
         const v0 = vB + ((DA - vB * TA) * 4) / TA, aB = (vB * vB) / (2 * dB), T = TA + TB;
         const posAt = (t) => {
           if (t <= TA) { const u = t / TA; return vB * t + ((v0 - vB) * TA / 4) * (1 - Math.pow(1 - u, 4)); }
@@ -466,7 +535,7 @@ const Wheel = {
         const velAt = (t) => (t <= TA ? vB + (v0 - vB) * Math.pow(1 - t / TA, 3) : Math.max(0, vB - aB * (t - TA)));
         const t0 = performance.now();
         let launched = 0, lastSeg = segAt(a0), rolled = false, nextBeat = 0, beatN = 0;
-        const BEATS = [1200, 1200, 1000, 1000, 800, 800, 600, 600];
+        const BEATS = TIMING.wheel.heartbeats;
         const live = (i) => {
           const sg = WHEEL_SEGS[i];
           res.innerHTML = `<span class="wh-live" style="color:${sg.col};font-size:${Math.round(18 + this.sus * 22)}px">${RULES[sg.k].icon} ${sg.label}</span>`;
@@ -497,14 +566,14 @@ const Wheel = {
           if (q < 1) {
             if (!nextBeat) nextBeat = launched;
             if (now >= nextBeat) {
-              // stepped pairs: 1.2s, 1.2s, 1.0s, 1.0s, 0.8s, 0.8s, 0.6s, 0.6s, then 0.4s until the wheel stops
-              const gap = BEATS[beatN] || 400; beatN++;
+              // stepped pairs (TIMING.wheel.heartbeats), then TIMING.wheel.heartbeatFast until the wheel stops
+              const gap = BEATS[beatN] || TIMING.wheel.heartbeatFast; beatN++;
               const bpm = 60000 / gap;
               nextBeat += gap;
-              if (nextBeat > launched + T - 120) nextBeat = Infinity; // no beat right on (or after) the stop
+              if (nextBeat > launched + T - TIMING.wheel.heartbeatStopGuard) nextBeat = Infinity; // no beat right on (or after) the stop
               const hk = Math.max(0, Math.min(1, (bpm - 45) / 120)); Sound.heartPulse(0.3 + hk * 0.7, 0.24 - hk * 0.13);
               const stage = el.querySelector('.wh-stage');
-              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out', composite: 'add' });
+              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: TIMING.wheel.heartbeatPulse, easing: 'ease-out', composite: 'add' });
             }
           }
           const cur = segAt(this.angle);
@@ -512,7 +581,7 @@ const Wheel = {
           if (cur !== lastSeg) {
             lastSeg = cur;
             Sound.wheelClack(this.sus);
-            pointer.classList.remove('flap'); void pointer.offsetWidth; pointer.classList.add('flap');
+            this.flapT = performance.now();
             if (this.speed < 0.35) { this.spark(this.sus > 0.5 ? 10 : 4, this.sus > 0.5); live(cur); }
             if (this.sus > 0.7) el.style.setProperty('--jit', ((Math.random() - 0.5) * 0.8).toFixed(2));
           }
@@ -526,7 +595,7 @@ const Wheel = {
         this.hit = i; this.speed = 0; this.sus = 0;
         el.classList.remove('spinning');
         el.style.setProperty('--sus', 0); el.style.setProperty('--jit', 0);
-        btn.textContent = R.icon;
+        btn.innerHTML = R.icon;
         this.spark(40, true);
         el.classList.add('landed');
         Sound.slotWin(false);
@@ -537,16 +606,16 @@ const Wheel = {
           el.removeEventListener('click', finish);
           this.blastOff(el, () => {
             el.classList.remove('show');
-            setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, 260);
+            setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, TIMING.wheel.hide);
           });
         };
         // the winning wedge pops out of the wheel, flips up to face the player and hovers, glowing
         setTimeout(() => {
-          this.lift = { t0: performance.now(), dur: 950 };
+          this.lift = { t0: performance.now(), dur: TIMING.wheel.wedgeLift };
           el.classList.add('lifting');
           Sound.wheelLaunch();
           this.spark(30, true, [this.geo(this.canvas().width).cx, this.geo(this.canvas().width).cy + this.geo(this.canvas().width).r * WHEEL_K * 0.5]);
-        }, 450);
+        }, TIMING.wheel.wedgeLiftDelay);
         setTimeout(() => {
           const cv = this.canvas(), g = this.geo(cv.width);
           const px = g.cx, py = g.cy + g.R * 0.2 - g.r * 0.6;
@@ -560,13 +629,13 @@ const Wheel = {
           // rules with a voice-over (Gravity, Vanishing Marks) announce now; the wheel waits for it before blasting off
           const voiced = Sound.hasRuleVoice(k);
           if (voiced) Sound.ruleVoice(k, 0.15);
-          setTimeout(() => el.addEventListener('click', finish), voiced ? 2600 : 0);
-        }, 1400);
-        setTimeout(finish, Sound.hasRuleVoice(k) ? 5000 : 3300);
+          setTimeout(() => el.addEventListener('click', finish), voiced ? TIMING.wheel.clickSkipVoiced : TIMING.wheel.clickSkip);
+        }, TIMING.wheel.announceDelay);
+        setTimeout(finish, Sound.hasRuleVoice(k) ? TIMING.wheel.autoFinishVoiced : TIMING.wheel.autoFinish);
       };
       btn.onclick = go;
       el.querySelector('.wh-stage').onclick = (e) => { if (!auto && e.target !== btn) go(); };
-      if (auto) setTimeout(go, 900);
+      if (auto) setTimeout(go, TIMING.wheel.autoSpinDelay);
       else window.addEventListener('keydown', onKey);
     });
   },

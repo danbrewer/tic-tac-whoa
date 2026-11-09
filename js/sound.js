@@ -172,6 +172,16 @@ const Sound = {
     this.tone(220, 0.35, { type: 'sawtooth', vol: 0.05, slideTo: 440 });
     this.tone(90, 0.3, { type: 'sine', vol: 0.3, when: 0.25, slideTo: 50 });
   },
+  fog() {
+    // a soft rush of air as the fog rolls over a mark
+    this.noise(0.9, { vol: 0.09, from: 300, to: 1600, q: 0.5 });
+    this.noise(0.7, { vol: 0.05, from: 2400, to: 900, q: 0.6, when: 0.15 });
+  },
+  fogLift() {
+    // a long airy exhale rising in pitch as the fog burns off, with a soft shimmer
+    this.noise(1.6, { vol: 0.12, from: 500, to: 5000, q: 0.5 });
+    [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.5, { type: 'sine', vol: 0.035, when: 0.35 + i * 0.12 }));
+  },
   wild() {
     [1319, 1568, 1976, 2637].forEach((f, i) => this.tone(f, 0.14, { type: 'sine', vol: 0.05, when: i * 0.05 }));
   },
@@ -411,19 +421,21 @@ const Sound = {
   },
   // ---- recorded voice-overs, played through a big concert-hall reverb so they BOOM
   voices: {},
-  hallIR() {
-    if (this._hall && this._hall.ctx === this.ctx) return this._hall.buf;
-    // synthetic impulse response: 4.2 s of stereo noise with a slow exponential decay, darker as it fades
-    const sr = this.ctx.sampleRate, len = Math.floor(sr * 4.2), buf = this.ctx.createBuffer(2, len, sr);
+  hallIR(big = false) {
+    const key = big ? '_hallBig' : '_hall';
+    if (this[key] && this[key].ctx === this.ctx) return this[key].buf;
+    // synthetic impulse response: stereo noise with an exponential decay, darker as it fades
+    // (2.8 s for the mode voices, the original 4.2 s for the big Instant Win hall)
+    const sr = this.ctx.sampleRate, len = Math.floor(sr * (big ? 4.2 : 2.8)), buf = this.ctx.createBuffer(2, len, sr);
     for (let ch = 0; ch < 2; ch++) {
       const d = buf.getChannelData(ch); let lp = 0;
       for (let i = 0; i < len; i++) {
         const t = i / sr, k = Math.min(0.92, 0.25 + t * 0.2);   // low-pass gets heavier over time
         lp = lp * k + (Math.random() * 2 - 1) * (1 - k);
-        d[i] = lp * Math.pow(1 - i / len, 2.2) * (t < 0.03 ? t / 0.03 : 1) * 2.2;
+        d[i] = lp * Math.pow(1 - i / len, big ? 2.2 : 2.8) * (t < 0.03 ? t / 0.03 : 1) * 2.2;
       }
     }
-    this._hall = { ctx: this.ctx, buf };
+    this[key] = { ctx: this.ctx, buf };
     return buf;
   },
   // fetch + decode a voice file once (needs the game served over http; file:// falls back below)
@@ -457,12 +469,13 @@ const Sound = {
       // deepen and fatten the voice, then send it into the hall
       const low = c.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 160; low.gain.value = 7;
       const comp = c.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 5; comp.attack.value = 0.005; comp.release.value = 0.2;
-      const dry = c.createGain(); dry.gain.value = 0.95;
+      const big = style === 'big';   // Instant Win only: the original huge hall
+      const dry = c.createGain(); dry.gain.value = big ? 0.95 : 1;
       const pre = c.createDelay(0.2); pre.delayTime.value = 0.045;
-      const conv = c.createConvolver(); conv.buffer = this.hallIR();
-      const wet = c.createGain(); wet.gain.value = 0.85;
+      const conv = c.createConvolver(); conv.buffer = this.hallIR(big);
+      const wet = c.createGain(); wet.gain.value = big ? 0.85 : 0.45;
       // slap-back echoes off the far walls of the hall
-      const slap = c.createDelay(1); slap.delayTime.value = 0.32; const sg = c.createGain(); sg.gain.value = 0.32;
+      const slap = c.createDelay(1); slap.delayTime.value = big ? 0.32 : 0.28; const sg = c.createGain(); sg.gain.value = big ? 0.32 : 0.16;
       const slp = c.createBiquadFilter(); slp.type = 'lowpass'; slp.frequency.value = 1800;
       const norm = c.createGain(); norm.gain.value = (this.voiceNorm && this.voiceNorm[name]) || 1;
       src.connect(norm).connect(low).connect(comp);
@@ -479,7 +492,7 @@ const Sound = {
       a.onerror = () => play(files.slice(1));
       setTimeout(() => { const p = a.play(); if (p && p.catch) p.catch(() => {}); }, when * 1000);
     };
-    play([`${name}-${style}`, name]);
+    play([`${name}-${style === 'big' ? 'hall' : style}`, name]);
   },
   // a booming announcer over a stadium PA: horn-speaker band-limiting, a little amp grit, and
   // discrete echoes bouncing back off the far stands, all feeding a big hall
@@ -512,7 +525,7 @@ const Sound = {
     src.start(t0);
   },
   // rule announcements (voice-overs in media/soundfx), all through the same big hall as INSTANT WIN
-  RULE_VOICES: { gravity: 'gravity', vanish: 'vanishing-marks', misere: 'misere' },
+  RULE_VOICES: { gravity: 'gravity', vanish: 'vanishing-marks', misere: 'misere', shift: 'shifting-squares', wild: 'wild-square', classic: 'classic', fog: 'fog-of-war', ring: 'ring-spin', cross: 'crossfire' },
   hasRuleVoice(rule) { return !!this.RULE_VOICES[rule]; },
   ruleVoice(rule, when = 0.35) {
     const name = this.RULE_VOICES[rule];
@@ -524,7 +537,7 @@ const Sound = {
     this.voice(name, { when });
   },
   gravityVoice(when) { this.ruleVoice('gravity', when); },   // same big-hall treatment as INSTANT WIN
-  instantWin() { this.voice('instant-win', { when: 0.15 }); },
+  instantWin() { this.voice('instant-win', { when: 0.15, style: 'big' }); },
 
   // the board locking upright: a heavy metal CLUNK, a latch click and a ringing echo
   clunk() {

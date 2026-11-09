@@ -20,6 +20,11 @@ They are not wired into the game yet. The game still synthesizes its sounds live
 - `vanishing-marks-hall.mp3`: the pre-mixed hall version, used when the game is opened from disk.
 - `misere.mp3`: Dan's "MISÈRE" voice-over, with the same hall treatment, announced like Gravity.
 - `misere-hall.mp3`: the pre-mixed hall version, used when the game is opened from disk.
+- `shifting-squares.mp3`, `wild-square.mp3`, `classic.mp3`: Dan's voice-overs for those modes, with the same hall treatment, announced like Gravity.
+- `shifting-squares-hall.mp3`, `wild-square-hall.mp3`, `classic-hall.mp3`: their pre-mixed hall versions, used when the game is opened from disk.
+- `ring-spin.mp3`, `crossfire.mp3`, `fog-of-war.mp3`: Dan's voice-overs for those modes, with the same hall treatment, announced like Gravity.
+- `ring-spin-hall.mp3`, `crossfire-hall.mp3`, `fog-of-war-hall.mp3`: their pre-mixed hall versions, used when the game is opened from disk.
+- The mode voices use a toned-down hall (a 2.8 s reverb, about half the wet level, lighter slap-back echoes). Only INSTANT WIN keeps the original huge 4.2 s hall.
 - `gravity-pa.mp3`: an earlier stadium-PA take, no longer used and safe to delete.
 
 ## Effects

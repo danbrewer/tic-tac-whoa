@@ -16,9 +16,9 @@ const SLOT_SYMS = {
 const PRIZES = {
   extra:   { name: 'EXTRA TURN', desc: 'Go again right now!' },
   steal:   { name: 'STEAL', desc: "Flip one of your opponent's marks to yours." },
-  bomb:    { name: 'BOMB', desc: 'Blow up one opponent mark (or a stone square).' },
+  bomb:    { name: 'BOMB', desc: 'Blow up one opponent mark (or a stone space).' },
   shield:  { name: '+1 MARK', desc: 'Keep 4 marks instead of 3 for the rest of this game.' },
-  rule:    { name: 'RULE PICK', desc: 'Choose the rule for the next Level 0 game.' },
+  rule:    { name: 'RULE PICK', desc: 'Choose the rule for the next Turf Battle.' },
   jackpot: { name: 'INSTANT WIN!', desc: '' },
   bust:    { name: 'NO WIN', desc: 'No luck this time.' },
 };
@@ -138,7 +138,7 @@ const Slots = {
     }
     // paytable
     const pool = this.pool(level).filter((k) => SLOT_SYMS[k].prize);
-    el.querySelector('.paytable').innerHTML = pool.map((k) => `<div class="pay" data-k="${k}">${this.cellHtml(k)}<div class="pay-txt">${k === 'jackpot' ? (level === 0 ? 'Win this game' : 'Claim any square') : k === 'rule' ? "Pick the next game's rule" : PRIZES[k].desc.replace(/\s*\(.*\)/, '')}</div></div>`).join('');
+    el.querySelector('.paytable').innerHTML = pool.map((k) => `<div class="pay" data-k="${k}">${this.cellHtml(k)}<div class="pay-txt">${k === 'jackpot' ? (level === 0 ? 'Win this game' : 'Claim any space') : k === 'rule' ? "Pick the next game's rule" : PRIZES[k].desc.replace(/\s*\(.*\)/, '')}</div></div>`).join('');
     // payline legend
     el.querySelector('.lines').innerHTML = PAYLINES.map((pl, li) => {
       let dots = '';
@@ -193,13 +193,14 @@ const Slots = {
         const isIW = prize === 'jackpot';          // shaking is reserved for a real INSTANT WIN
         // Two INSTANT WINs already on a payline: the deciding third reel spins much longer.
         const twoUp = windup && this.streakRows(grid, 1).size > 0;
-        let stops = [1000, 1400, 1800, 2200, 2600].map((t, i) => t + (teaser && i >= 2 ? (i - 1) * 450 : 0));
+        const TS = TIMING.slots;
+        let stops = TS.reelStops.map((t, i) => t + (teaser && i >= 2 ? (i - 1) * TS.teaserExtra : 0));
         if (windup) {
-          stops = [1000];
+          stops = [TS.windupFirstStop];
           for (let i = 1; i < REELS; i++) {
-            let gap = 1100;
-            if (i >= 2 && this.streakRows(grid, i - 1).size === 0) gap = 380;   // streak already broken: wrap up quickly
-            if (i === 2 && twoUp) gap = 3200;                                    // the suspense reel
+            let gap = TS.windupGap;
+            if (i >= 2 && this.streakRows(grid, i - 1).size === 0) gap = TS.windupBrokenGap;   // streak already broken: wrap up quickly
+            if (i === 2 && twoUp) gap = TS.suspenseGap;                                    // the suspense reel
             stops.push(stops[i - 1] + gap);
           }
         }
@@ -215,7 +216,7 @@ const Slots = {
             res.innerHTML = '<span class="tease-txt">🎆 INSTANT WIN on reel 1...</span>';
             Sound.windup((stops[twoUp ? 2 : REELS - 1] - stops[0]) / 1000);
             Sound.musicIntensity(1);
-          }, stops[0] + 30);
+          }, stops[0] + TS.windupTeaseDelay);
         }
         strips.forEach((strip, i) => {
           const n = Math.round(18 + i * 6 + (teaser && i >= 2 ? i * 4 : 0) + (windup && i >= 1 ? (stops[i] - 1000) / 75 : 0));
@@ -241,7 +242,7 @@ const Slots = {
               if (isIW) r3.classList.add('tension');
               Sound.musicMute(true);
               Sound.drumroll((stops[2] - stops[1]) / 1000);
-              setTimeout(() => { res.innerHTML = '<span class="tease-txt">🎆🎆 ONE MORE FOR AN INSTANT WIN...</span>'; }, 650);
+              setTimeout(() => { res.innerHTML = '<span class="tease-txt">🎆🎆 ONE MORE FOR AN INSTANT WIN...</span>'; }, TS.oneMoreTextDelay);
             }
             if (i === 2 && twoUp) Sound.musicMute(false);
             if (i === REELS - 1) { Sound.stopMusic(); el.classList.remove('windup'); }
@@ -250,19 +251,19 @@ const Slots = {
         });
         let t = 0;
         const last = stops[REELS - 1];
-        const tick = () => { if (t > last - 120) return; Sound.reelTick(); const gap = 50 + (t / last) * 150; t += gap; setTimeout(tick, gap); };
+        const tick = () => { if (t > last - TS.tickStopGuard) return; Sound.reelTick(); const gap = TS.tickGapStart + (t / last) * TS.tickGapGrow; t += gap; setTimeout(tick, gap); };
         tick();
-        setTimeout(() => this.reveal(el, res, player, level, prize, grid, wins, resolve), last + 200);
+        setTimeout(() => this.reveal(el, res, player, level, prize, grid, wins, resolve), last + TS.revealDelay);
       };
       spinBtn.onclick = pull;
-      if (auto) setTimeout(pull, 900);
+      if (auto) setTimeout(pull, TIMING.slots.autoPullDelay);
       else window.addEventListener('keydown', onKey);
     });
   },
 
   reveal(el, res, player, level, prize, grid, wins, resolve) {
     const p = PRIZES[prize];
-    const desc = prize === 'jackpot' ? (level === 0 ? 'You win this game on the spot!' : 'Claim any empty square instantly!') : p.desc;
+    const desc = prize === 'jackpot' ? (level === 0 ? 'You win this game on the spot!' : 'Claim any empty space instantly!') : p.desc;
     if (prize !== 'bust') {
       const w = wins[0];
       const kind = w.n === 5 ? 'FIVE' : w.n === 4 ? 'FOUR' : 'THREE';
@@ -282,7 +283,7 @@ const Slots = {
       Sound.fanfare();
       Sound.instantWin();                       // booming "INSTANT WIN!" voice-over in a big hall
       el.classList.add('instant');
-      setTimeout(() => el.classList.remove('instant'), 5200);
+      setTimeout(() => el.classList.remove('instant'), TIMING.slots.instantGlow);
       this.instantBanner(el, wins);
     }
     if (prize !== 'bust') {
@@ -297,10 +298,11 @@ const Slots = {
       this.explodeBanner();
       Boom.run(el.querySelector('.slot-machine').getBoundingClientRect());
       el.classList.remove('show');
-      setTimeout(() => { el.hidden = true; resolve(prize); }, 250);
+      setTimeout(() => { el.hidden = true; resolve(prize); }, TIMING.slots.hide);
     };
-    setTimeout(() => el.addEventListener('click', finish), 400);
-    setTimeout(finish, prize === 'bust' ? 2200 : prize === 'jackpot' ? 5600 : 3600);
+    const TS = TIMING.slots;
+    setTimeout(() => el.addEventListener('click', finish), TS.clickSkip);
+    setTimeout(finish, prize === 'bust' ? TS.autoFinishBust : prize === 'jackpot' ? TS.autoFinishJackpot : TS.autoFinishPrize);
   },
 
   // Rows of reel i that continue an unbroken INSTANT WIN run from reel 1 along some payline.
@@ -354,7 +356,7 @@ const Slots = {
     fl.className = 'jflash';
     fl.style.opacity = 0.15 + s * 0.12;
     machine.appendChild(fl);
-    setTimeout(() => fl.remove(), 600);
+    setTimeout(() => fl.remove(), TIMING.slots.lockFlash);
     if (isIW) Renderer.shake(3 + s * 3);
     Sound.lockIn(s);
     const res = el.querySelector('.slot-result');
@@ -379,14 +381,14 @@ const Slots = {
     for (let k = 0; k < 6; k++) setTimeout(() => {
       const x = br.left + Math.random() * br.width, y = br.top + Math.random() * br.height;
       this.boom(host, x, y, 34, 170);
-    }, 150 + k * 260);
+    }, TIMING.slots.bannerBoomFirst + k * TIMING.slots.bannerBoomGap);
     const mr2 = machine.getBoundingClientRect();
     machine.querySelectorAll('.cell.hit, .cell.lock').forEach((c, k) => setTimeout(() => {
       const r = c.getBoundingClientRect();
       this.domBurst(machine, r.left - mr2.left + r.width / 2 + machine.scrollLeft, r.top - mr2.top + r.height / 2 + machine.scrollTop, 26, 140);
-    }, k * 90));
+    }, k * TIMING.slots.bannerCellBurstGap));
     this.iwBanner = b;
-    setTimeout(() => { if (this.iwBanner === b) this.explodeBanner(); }, 9000);   // failsafe
+    setTimeout(() => { if (this.iwBanner === b) this.explodeBanner(); }, TIMING.slots.bannerFailsafe);   // failsafe
   },
 
   // The machine is leaving: blow the INSTANT WIN! letters apart, one after another.
@@ -400,7 +402,7 @@ const Slots = {
     const letters = [...b.querySelectorAll('span:not(.sp)')];
     const cx = window.innerWidth / 2;
     letters.forEach((sp, i) => {
-      const delay = i * 45;
+      const delay = i * TIMING.slots.letterGap;
       const r = sp.getBoundingClientRect();
       const x = r.left + r.width / 2, y = r.top + r.height / 2;
       const away = (x - cx) / (window.innerWidth / 2);
@@ -409,7 +411,7 @@ const Slots = {
         { transform: 'translate(0,0) scale(1) rotate(0)', opacity: 1, filter: 'brightness(1)' },
         { transform: 'translate(0,0) scale(1.45) rotate(0)', opacity: 1, filter: 'brightness(2.2)', offset: 0.18 },
         { transform: `translate(${dx}px, ${dy}px) scale(0.15) rotate(${(Math.random() - 0.5) * 900}deg)`, opacity: 0, filter: 'brightness(1)' },
-      ], { duration: 720, delay, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+      ], { duration: TIMING.slots.letterFly, delay, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
       setTimeout(() => {
         const col = getComputedStyle(sp).color;
         const ring = document.createElement('div');
@@ -419,10 +421,10 @@ const Slots = {
         ring.animate([{ transform: 'translate(-50%,-50%) scale(0.1)', opacity: 1 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }], { duration: 500, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => ring.remove();
         this.domBurst(wrap, x, y, 16, 120 + r.height, col);
         if (i % 2 === 0) Sound.boomSmall();
-      }, delay + 130);
+      }, delay + TIMING.slots.letterBoom);
     });
     Sound.pop(3);
-    setTimeout(() => { b.remove(); wrap.remove(); }, letters.length * 45 + 1500);
+    setTimeout(() => { b.remove(); wrap.remove(); }, letters.length * TIMING.slots.letterGap + TIMING.slots.letterCleanup);
   },
 
   // A screen-space explosion: a flash ring plus sparks (fixed position on the page).
@@ -531,7 +533,7 @@ const RulePick = {
   open(player, auto, current, cpuPick) {
     return new Promise((resolve) => {
       const el = document.getElementById('rulepick');
-      el.querySelector('.rp-who').innerHTML = `<b class="${player}">${player}</b> ${auto ? '(computer) ' : ''}chooses the rule for the next Level 0 game`;
+      el.querySelector('.rp-who').innerHTML = `<b class="${player}">${player}</b> ${auto ? '(computer) ' : ''}chooses the rule for the next Turf Battle`;
       const hand = el.querySelector('.rp-cards');
       hand.innerHTML = RULE_KEYS.map((k, i) => {
         const R = RULES[k];
@@ -542,7 +544,8 @@ const RulePick = {
       el.hidden = false;
       requestAnimationFrame(() => el.classList.add('show'));
       Sound.slotOpen();
-      RULE_KEYS.forEach((_, i) => setTimeout(() => Sound.cardFlip(i), 250 + i * 110));
+      const TP = TIMING.rulePick;
+      RULE_KEYS.forEach((_, i) => setTimeout(() => Sound.cardFlip(i), TP.cardFlipFirst + i * TP.cardFlipGap));
       const cards = [...hand.querySelectorAll('.rp-card')];
       let done = false;
       const choose = (k) => {
@@ -562,7 +565,7 @@ const RulePick = {
           { transform: 'scale(1.18) rotate(5deg)', filter: 'brightness(1.4)', opacity: 1, offset: 0.5 },
           { transform: 'scale(1.26) rotate(-6deg)', filter: 'brightness(1.7)', opacity: 1, offset: 0.75 },
           { transform: 'scale(1.34) rotate(0)', filter: 'brightness(2.4)', opacity: 1 },
-        ], { duration: 420, easing: 'ease-in', fill: 'forwards' });
+        ], { duration: TP.swell, easing: 'ease-in', fill: 'forwards' });
         // 2) BOOM: it shatters, and the blast knocks the rest of the hand off the screen
         setTimeout(() => {
           const r = card.getBoundingClientRect();
@@ -576,7 +579,7 @@ const RulePick = {
           el.querySelector('.rp-panel').animate([
             { transform: 'translate(0,0)' }, { transform: 'translate(-12px,6px)' }, { transform: 'translate(10px,-8px)' },
             { transform: 'translate(-7px,-4px)' }, { transform: 'translate(5px,5px)' }, { transform: 'translate(0,0)' },
-          ], { duration: 420, easing: 'ease-out' });
+          ], { duration: TP.shake, easing: 'ease-out' });
           cards.forEach((c, i) => {
             if (c === card) return;
             const q = c.getBoundingClientRect();
@@ -590,13 +593,13 @@ const RulePick = {
               { transform: 'translate(0,0) rotate(0)', opacity: 1 },
               { transform: `translate(${ux * 90}px, ${uy * 60 - 70}px) rotate(${spin * 0.12}deg) scale(1.05)`, opacity: 1, offset: 0.2 },
               { transform: `translate(${ux * far}px, ${uy * far * 0.5 + window.innerHeight * 0.55}px) rotate(${spin}deg) scale(0.8)`, opacity: 1 },
-            ], { duration: 1000 + Math.random() * 250, delay: d * 0.35, easing: 'cubic-bezier(.25,.6,.55,1)', fill: 'forwards' });
+            ], { duration: TP.cardsFly + Math.random() * 250, delay: d * 0.35, easing: 'cubic-bezier(.25,.6,.55,1)', fill: 'forwards' });
           });
-        }, 420);
+        }, TP.swell);
         setTimeout(() => {
           el.classList.remove('show');
-          setTimeout(() => { el.hidden = true; el.querySelectorAll('.rp-shard').forEach((n) => n.remove()); resolve(k); }, 260);
-        }, 2000);
+          setTimeout(() => { el.hidden = true; el.querySelectorAll('.rp-shard').forEach((n) => n.remove()); resolve(k); }, TP.hide);
+        }, TP.exitDelay);
       };
       if (auto) {
         // the computer "thinks": a highlight runs across the hand and slows down onto its pick
@@ -608,11 +611,11 @@ const RulePick = {
         const hop = () => {
           cards.forEach((c, i) => c.classList.toggle('lit', i === n % cards.length));
           Sound.reelTick();
-          if (n >= steps) { setTimeout(() => choose(pick), 350); return; }
+          if (n >= steps) { setTimeout(() => choose(pick), TP.cpuChoose); return; }
           n++;
-          setTimeout(hop, 70 + n * n * 1.6);
+          setTimeout(hop, TP.cpuHopBase + n * n * TP.cpuHopGrow);
         };
-        setTimeout(hop, 1100);
+        setTimeout(hop, TP.cpuStart);
       } else {
         el.querySelector('.rp-hint').textContent = 'Click a card to choose';
         cards.forEach((c) => c.addEventListener('click', () => choose(c.dataset.k)));
