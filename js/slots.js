@@ -3,25 +3,18 @@
 // Line up 3, 4 or 5 matching prize symbols from the leftmost reel along a payline to win that prize.
 
 const SLOT_SYMS = {
-  extra:   { e: '⚡', label: 'EXTRA TURN', prize: true },
-  bomb:    { e: '💣', label: 'BOMB', prize: true },
-  steal:   { e: '🎭', label: 'STEAL', prize: true },
-  shield:  { e: '🛡️', label: '+1 MARK', prize: true },
-  rule:    { e: '🎲', label: 'RULE PICK', prize: true },
-  jackpot: { e: '🎆', label: 'INSTANT WIN', prize: true },
+  // labels under the prize symbols come from STRINGS.slots.symbols (js/strings.js)
+  extra:   { e: '⚡', label: STRINGS.slots.symbols.extra, prize: true },
+  bomb:    { e: '💣', label: STRINGS.slots.symbols.bomb, prize: true },
+  steal:   { e: '🎭', label: STRINGS.slots.symbols.steal, prize: true },
+  shield:  { e: '🛡️', label: STRINGS.slots.symbols.shield, prize: true },
+  rule:    { e: '🎲', label: STRINGS.slots.symbols.rule, prize: true },
+  jackpot: { e: '🎆', label: STRINGS.slots.symbols.jackpot, prize: true },
   xo:      { e: '<b class="gx">X</b>', label: '' },
   oo:      { e: '<b class="go">O</b>', label: '' },
   gem:     { e: '💎', label: '' },
 };
-const PRIZES = {
-  extra:   { name: 'EXTRA TURN', desc: 'Go again right now!' },
-  steal:   { name: 'STEAL', desc: "Flip one of your opponent's marks to yours." },
-  bomb:    { name: 'BOMB', desc: 'Blow up one opponent mark (or a stone space).' },
-  shield:  { name: '+1 MARK', desc: 'Keep 4 marks instead of 3 for the rest of this game.' },
-  rule:    { name: 'RULE PICK', desc: 'Choose the rule for the next Turf Battle.' },
-  jackpot: { name: 'INSTANT WIN!', desc: '' },
-  bust:    { name: 'NO WIN', desc: 'No luck this time.' },
-};
+const PRIZES = STRINGS.slots.prizes;   // { name, desc } for each outcome: text lives in js/strings.js
 // Odds (percent) of each outcome. Tune here.
 const SLOT_ODDS = {
   level0: { extra: 22, bomb: 15, steal: 10, shield: 12, rule: 16, jackpot: 5, bust: 20 },
@@ -29,15 +22,15 @@ const SLOT_ODDS = {
 };
 // Rows: 0 = top, 1 = middle, 2 = bottom. One entry per reel.
 const PAYLINES = [
-  { name: 'Middle', rows: [1, 1, 1, 1, 1] },
-  { name: 'Top', rows: [0, 0, 0, 0, 0] },
-  { name: 'Bottom', rows: [2, 2, 2, 2, 2] },
-  { name: 'V', rows: [0, 1, 2, 1, 0] },
-  { name: 'Peak', rows: [2, 1, 0, 1, 2] },
-  { name: 'Zig-zag', rows: [0, 1, 0, 1, 0] },
-  { name: 'Zag-zig', rows: [2, 1, 2, 1, 2] },
-  { name: 'Step down', rows: [0, 0, 1, 2, 2] },
-  { name: 'Step up', rows: [2, 2, 1, 0, 0] },
+  { name: STRINGS.slots.paylines[0], rows: [1, 1, 1, 1, 1] },
+  { name: STRINGS.slots.paylines[1], rows: [0, 0, 0, 0, 0] },
+  { name: STRINGS.slots.paylines[2], rows: [2, 2, 2, 2, 2] },
+  { name: STRINGS.slots.paylines[3], rows: [0, 1, 2, 1, 0] },
+  { name: STRINGS.slots.paylines[4], rows: [2, 1, 0, 1, 2] },
+  { name: STRINGS.slots.paylines[5], rows: [0, 1, 0, 1, 0] },
+  { name: STRINGS.slots.paylines[6], rows: [2, 1, 2, 1, 2] },
+  { name: STRINGS.slots.paylines[7], rows: [0, 0, 1, 2, 2] },
+  { name: STRINGS.slots.paylines[8], rows: [2, 2, 1, 0, 0] },
 ];
 const REELS = 5, ROWS = 3;
 
@@ -138,7 +131,7 @@ const Slots = {
     }
     // paytable
     const pool = this.pool(level).filter((k) => SLOT_SYMS[k].prize);
-    el.querySelector('.paytable').innerHTML = pool.map((k) => `<div class="pay" data-k="${k}">${this.cellHtml(k)}<div class="pay-txt">${k === 'jackpot' ? (level === 0 ? 'Win this game' : 'Claim any space') : k === 'rule' ? "Pick the next game's rule" : PRIZES[k].desc.replace(/\s*\(.*\)/, '')}</div></div>`).join('');
+    el.querySelector('.paytable').innerHTML = pool.map((k) => `<div class="pay" data-k="${k}">${this.cellHtml(k)}<div class="pay-txt">${k === 'jackpot' ? (level === 0 ? STRINGS.slots.payJackpotTurf : STRINGS.slots.payJackpotBig) : k === 'rule' ? STRINGS.slots.payRule : PRIZES[k].desc.replace(/\s*\(.*\)/, '')}</div></div>`).join('');
     // payline legend
     el.querySelector('.lines').innerHTML = PAYLINES.map((pl, li) => {
       let dots = '';
@@ -156,10 +149,10 @@ const Slots = {
       const prize = this.roll(level);
       const { grid, wins } = this.makeGrid(prize, level);
       const pool = this.pool(level);
-      el.querySelector('.slot-who').innerHTML = `<b class="${player}">${player}</b> found the mystery jackpot! Line up 3+ prize symbols from the left on any payline.`;
+      el.querySelector('.slot-who').innerHTML = STRINGS.slots.who(player);
       const res = el.querySelector('.slot-result');
       res.className = 'slot-result';
-      res.innerHTML = auto ? 'The computer spins...' : '';
+      res.innerHTML = auto ? STRINGS.slots.computerSpins : '';
       this.initPops(el);
       const spinBtn = document.getElementById('slotSpin');
       spinBtn.disabled = auto;
@@ -213,7 +206,7 @@ const Slots = {
             if (isIW) strips.slice(1).forEach((s) => s.parentElement.classList.add('tension'));
             el.classList.add('windup');
             el.classList.toggle('shaky', isIW);
-            res.innerHTML = '<span class="tease-txt">🎆 INSTANT WIN on reel 1...</span>';
+            res.innerHTML = STRINGS.slots.teaseReel1;
             Sound.windup((stops[twoUp ? 2 : REELS - 1] - stops[0]) / 1000);
             Sound.musicIntensity(1);
           }, stops[0] + TS.windupTeaseDelay);
@@ -242,7 +235,7 @@ const Slots = {
               if (isIW) r3.classList.add('tension');
               Sound.musicMute(true);
               Sound.drumroll((stops[2] - stops[1]) / 1000);
-              setTimeout(() => { res.innerHTML = '<span class="tease-txt">🎆🎆 ONE MORE FOR AN INSTANT WIN...</span>'; }, TS.oneMoreTextDelay);
+              setTimeout(() => { res.innerHTML = STRINGS.slots.oneMore; }, TS.oneMoreTextDelay);
             }
             if (i === 2 && twoUp) Sound.musicMute(false);
             if (i === REELS - 1) { Sound.stopMusic(); el.classList.remove('windup'); }
@@ -263,11 +256,11 @@ const Slots = {
 
   reveal(el, res, player, level, prize, grid, wins, resolve) {
     const p = PRIZES[prize];
-    const desc = prize === 'jackpot' ? (level === 0 ? 'You win this game on the spot!' : 'Claim any empty space instantly!') : p.desc;
+    const desc = prize === 'jackpot' ? (level === 0 ? STRINGS.slots.jackpotTurf : STRINGS.slots.jackpotBig) : p.desc;
     if (prize !== 'bust') {
       const w = wins[0];
-      const kind = w.n === 5 ? 'FIVE' : w.n === 4 ? 'FOUR' : 'THREE';
-      res.innerHTML = `<div class="prize-name">${p.name}</div><div class="prize-desc">${kind} of a kind on the <b>${PAYLINES[w.li].name}</b> line${wins.length > 1 ? ` (+${wins.length - 1} more line${wins.length > 2 ? 's' : ''})` : ''}. ${desc}</div>`;
+      const kind = STRINGS.slots.ofAKind[w.n];
+      res.innerHTML = `<div class="prize-name">${p.name}</div><div class="prize-desc">${STRINGS.slots.winLine(kind, PAYLINES[w.li].name, wins.length - 1, desc)}</div>`;
       this.drawWinLines(el, wins);
       el.querySelector(`.pay[data-k="${prize}"]`)?.classList.add('hit');
       wins.forEach((x) => el.querySelector(`.pl[data-li="${x.li}"]`)?.classList.add('hit'));
@@ -339,7 +332,7 @@ const Slots = {
     }
     // fresh cells on this reel get the big pop
     const cells = [...strips[i].querySelectorAll('.cell')].slice(-ROWS);
-    const labels = { 2: 'x2!', 3: 'INSTANT WIN!', 4: 'MEGA WIN!!', 5: 'ULTRA WIN!!!' };
+    const labels = STRINGS.slots.streakPop;
     const mr = machine.getBoundingClientRect();
     rows.forEach((row) => {
       const c = cells[row];
@@ -360,7 +353,7 @@ const Slots = {
     if (isIW) Renderer.shake(3 + s * 3);
     Sound.lockIn(s);
     const res = el.querySelector('.slot-result');
-    res.innerHTML = `<span class="tease-txt">🎆 ${'🎆'.repeat(s - 1)} ${s} IN A ROW${s >= 3 ? '... INSTANT WIN!' : '...'}</span>`;
+    res.innerHTML = STRINGS.slots.streak(s);
     Sound.musicIntensity(1);
   },
 
@@ -370,7 +363,7 @@ const Slots = {
     const mr = machine.getBoundingClientRect();
     const b = document.createElement('div');
     b.className = 'iwb';
-    const word = 'INSTANT WIN!';
+    const word = STRINGS.slots.banner;
     b.innerHTML = [...word].map((ch, i) => ch === ' ' ? '<span class="sp"> </span>' : `<span style="--i:${i}">${ch}</span>`).join('');
     document.body.appendChild(b);
     const h = b.getBoundingClientRect().height;
@@ -533,12 +526,12 @@ const RulePick = {
   open(player, auto, current, cpuPick) {
     return new Promise((resolve) => {
       const el = document.getElementById('rulepick');
-      el.querySelector('.rp-who').innerHTML = `<b class="${player}">${player}</b> ${auto ? '(computer) ' : ''}chooses the rule for the next Turf Battle`;
+      el.querySelector('.rp-who').innerHTML = STRINGS.rulePick.who(player, auto);
       const hand = el.querySelector('.rp-cards');
       hand.innerHTML = RULE_KEYS.map((k, i) => {
         const R = RULES[k];
         return `<button type="button" class="rp-card rule-${k}${k === current ? ' current' : ''}" data-k="${k}" style="--i:${i}" ${auto ? 'disabled' : ''}>
-          <span class="rp-icon">${R.icon}</span><span class="rp-name">${R.name}</span><span class="rp-line">${R.short}</span>${k === current ? '<span class="rp-now">playing now</span>' : ''}</button>`;
+          <span class="rp-icon">${R.icon}</span><span class="rp-name">${R.name}</span><span class="rp-line">${R.short}</span>${k === current ? `<span class="rp-now">${STRINGS.rulePick.playingNow}</span>` : ''}</button>`;
       }).join('');
       el.classList.remove('picked');
       el.hidden = false;
@@ -553,7 +546,7 @@ const RulePick = {
         const card = cards.find((c) => c.dataset.k === k);
         cards.forEach((c) => { c.disabled = true; c.classList.remove('lit'); });
         el.classList.add('picked');
-        el.querySelector('.rp-hint').innerHTML = `${RULES[k].icon} <b>${RULES[k].name}</b> it is!`;
+        el.querySelector('.rp-hint').innerHTML = STRINGS.rulePick.chosen(RULES[k].icon, RULES[k].name);
         // 1) the chosen card swells and trembles like it's about to blow
         Sound.windup(0.4);
         card.style.zIndex = 3;
@@ -604,7 +597,7 @@ const RulePick = {
       if (auto) {
         // the computer "thinks": a highlight runs across the hand and slows down onto its pick
         const pick = cpuPick();
-        el.querySelector('.rp-hint').textContent = 'The computer is choosing...';
+        el.querySelector('.rp-hint').textContent = STRINGS.rulePick.cpuHint;
         const target = RULE_KEYS.indexOf(pick);
         const steps = 2 * RULE_KEYS.length + target;
         let n = 0;
@@ -617,7 +610,7 @@ const RulePick = {
         };
         setTimeout(hop, TP.cpuStart);
       } else {
-        el.querySelector('.rp-hint').textContent = 'Click a card to choose';
+        el.querySelector('.rp-hint').textContent = STRINGS.rulePick.clickHint;
         cards.forEach((c) => c.addEventListener('click', () => choose(c.dataset.k)));
       }
     });

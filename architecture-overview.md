@@ -7,10 +7,17 @@ This document is for a developer who is new to the codebase. It explains how the
 Related documents:
 
 - [`transitions-technical-overview.md`](transitions-technical-overview.md): every timing of the automatic sequences, and where it is used.
+- [`strings-reference.md`](strings-reference.md): every piece of player-facing text, and where it is used.
 - [`app-analysis.md`](app-analysis.md): code health, risks, and suggested improvements.
 - [`media/soundfx/README.md`](media/soundfx/README.md): the sound and voice files.
 
 ---
+
+## Standing rules for new work
+
+- **Player-facing text goes in [`js/strings.js`](js/strings.js).** This means every word the player sees: names, descriptions, buttons, messages, tooltips and screen-reader labels. Never type it into another script or into `index.html`. See [`strings-reference.md`](strings-reference.md).
+- **Timings of automatic sequences go in [`js/timing.js`](js/timing.js).** See [`transitions-technical-overview.md`](transitions-technical-overview.md).
+- When you add a string or a timing, add its row to the matching reference document.
 
 ## 1. Running the game
 
@@ -25,9 +32,10 @@ The only external resource is the fonts, loaded from Google Fonts in [`index.htm
 
 | File | Lines | What it is responsible for |
 |---|---|---|
-| [`index.html`](index.html) | ~190 | The page: the game canvas, the HUD, the overlays (wheel, slots, RULE PICK, rule card, help, review, mixer, developer panel) and the script tags |
+| [`index.html`](index.html) | ~170 | The page structure: the game canvas, the HUD, the overlays (wheel, slots, RULE PICK, rule card, help, review, mixer, developer panel) and the script tags. It holds no text: `data-str` attributes name the strings that fill it |
 | [`style.css`](style.css) | ~1100 | All styling: HUD, overlays, the slot machine, cards, animations, phone layout |
-| [`js/timing.js`](js/timing.js) | ~300 | `TIMING`: every duration and pause of the automatic sequences (see the transitions doc) |
+| [`js/timing.js`](js/timing.js) | ~330 | `TIMING`: every duration and pause of the automatic sequences (see the transitions doc) |
+| [`js/strings.js`](js/strings.js) | ~440 | `STRINGS`: every piece of player-facing text, plus `applyPageStrings()`, which fills the page's text on load (see the strings reference) |
 | [`js/sound.js`](js/sound.js) | ~610 | `Sound`: synthesised sound effects, music, voice-over playback with reverb, the volume mixer |
 | [`js/render.js`](js/render.js) | ~1430 | The isometric renderer (`Renderer`), animation helpers (`Ease`, `Tweens`, `wait`), board layout, the game-type icons |
 | [`js/minimap.js`](js/minimap.js) | ~150 | `MiniMap`: the small overview of the live boards in the corner |
@@ -45,10 +53,10 @@ The only external resource is the fonts, loaded from Google Fonts in [`index.htm
 There are no modules or imports. Each script is a classic `<script>` tag. Each one defines one or more global objects with `const`, such as `const Wheel = { ... }`. The order in [`index.html`](index.html) matters, because a script can only use things defined by scripts above it *at load time*:
 
 ```
-timing.js → sound.js → render.js → minimap.js → crew.js → boom.js → slots.js → wheel.js → game.js
+timing.js → strings.js → sound.js → render.js → minimap.js → crew.js → boom.js → slots.js → wheel.js → game.js
 ```
 
-Most cross-references happen later, when functions run, so by then every global exists. For example, `Wheel.spin()` reads `RULES` (defined in `game.js`) while the game is running. The exceptions are values computed at load time. For example, `RULES` in `game.js` uses `WILD_ICON` from `render.js`, so `render.js` must load first.
+`timing.js` and `strings.js` load first because they only define data, and everything else reads them. Most cross-references happen later, when functions run, so by then every global exists. For example, `Wheel.spin()` reads `RULES` (defined in `game.js`) while the game is running. The exceptions are values computed at load time. For example, `RULES` in `game.js` uses `WILD_ICON` from `render.js`, so `render.js` must load first.
 
 `game.js` loads last. At the bottom it runs `main()`, which wires up all input and starts the main loop (section 6).
 
@@ -68,7 +76,7 @@ Most cross-references happen later, when functions run, so by then every global 
        └──────┬─────────────┘
               ▼
    Sound, Fx, Boom, IconFly, Crew  ◄── effects, called by everything
-   TIMING                          ◄── read by everything
+   TIMING, STRINGS                 ◄── read by everything
 ```
 
 - **`Game` drives everything.** The overlays (`Wheel`, `Slots`, `RulePick`) are opened by `Game` and return a `Promise` that resolves with the result, such as the chosen game type or the prize. `Game` `await`s them.
@@ -124,7 +132,7 @@ Game.root  (Level 2)
 
 ### Game types
 
-`RULES` in [`js/game.js`](js/game.js) lists the nine game types with their icon, name and one-line description. The rules themselves live in several places, and section 9 has the checklist. In short:
+`RULES` in [`js/game.js`](js/game.js) lists the nine game types. Each entry is its icon plus its text from `STRINGS.rules` (name, wheel label, one-line description, How to play text). The rules themselves live in several places, and section 9 has the checklist. In short:
 
 - `judge()` decides wins. The Wild mark counts for both players, and Misère flips the result.
 - `landingCell()` handles Gravity: a mark drops to the lowest free space in its column.
@@ -217,17 +225,18 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 | Change slot prizes or odds | `SLOT_SYMS`, `PRIZES`, `SLOT_ODDS`, `PAYLINES` at the top of `slots.js`; prize effects in `Game.applyPrize()` |
 | Change colours of X, O, stone, wild | `PIECE_COL` and `LEVEL_HUES` at the top of `render.js` |
 | Change a sound | The matching method on `Sound` (for example `Sound.place`) in `sound.js` |
-| Change HUD text or the help | `index.html`, plus `Game.updateHUD()` and its helpers in `game.js` |
+| Change any text the player sees | `js/strings.js` (see the strings reference) |
+| Change how the HUD is laid out | `index.html`, `style.css`, and `Game.updateHUD()` and its helpers in `game.js` |
 | Test a specific game type or prize | Developer Mode: press **Shift+D**. It can force the wheel's result, force a slot prize, put a jackpot under every space, or reveal the jackpot |
 
 ### Adding a new game type: checklist
 
-1. `RULES` in `game.js`: icon, name, one-line description (use `iconText` too if the icon is SVG).
+1. The text, in `STRINGS.rules` in `strings.js`: `name`, `wheel` (spoke label), `short` (one-liner) and `help` (How to play). If the board moves by itself, also add `STRINGS.hud.movesIn` and `STRINGS.pop.movers` entries. Then add the icon in `RULES` in `game.js` with `...STRINGS.rules.NAME` (use `iconText` too if the icon is SVG).
 2. The rule logic: `initRule()`, `postMove()`, and `judge()` / `landingCell()` if it changes wins or placement.
 3. The computer: make sure `AI.chooseRuleMove` handles it, and add a weight in `AI.chooseRule`.
-4. The wheel: add an entry to `WHEEL_TYPES` in `wheel.js`. Each type appears three times on the wheel.
+4. The wheel: add an entry to `WHEEL_TYPES` in `wheel.js`, with its label taken from `STRINGS.rules.NAME.wheel`. Each type appears three times on the wheel.
 5. The drawing: anything special in `drawBoard()` (`render.js`), and in `MiniMap.board()` if it hides or moves marks.
 6. The voice-over (optional): add it to `RULE_VOICES` in `sound.js`, and put `NAME.mp3` and `NAME-hall.mp3` in `media/soundfx/`.
 7. Styling: the `rule-NAME` colours for the RULE PICK card and the rule plate in `style.css`.
-8. The help text in `index.html`.
+8. How to play lists the new type automatically, using `STRINGS.rules.NAME.help`. Check that any other help step that mentions game types still reads correctly (`STRINGS.help.steps`).
 9. Save compatibility: if the type needs new board state, add it to `serialize()` and `deserialize()`.

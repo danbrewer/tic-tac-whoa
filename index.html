@@ -3,79 +3,81 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Infinite Tic-Tac-Toe</title>
+  <title>Infinite Tic-Tac-Toe</title>  <!-- replaced on load by STRINGS.page.title -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Luckiest+Guy&family=Pacifico&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="scene" aria-label="Isometric tic-tac-toe board"></canvas>
+  <!-- All player-facing text lives in js/strings.js. Elements below carry data-str attributes naming
+       the string that fills them (see applyPageStrings in js/strings.js). Don't type text here. -->
+  <canvas id="scene" data-str-label="page.sceneLabel"></canvas>
 
   <header class="hud-top">
     <div class="brand">
       <span class="brand-x">X</span><span class="brand-o">O</span>
-      <span class="brand-text">Infinite<br>Tic-Tac-Toe</span>
+      <span class="brand-text" data-str="page.brand"></span>
     </div>
-    <div class="level-box" title="The highest level reached in this game">
-      <div class="level-label">Top level</div>
+    <div class="level-box" data-str-title="page.levelBoxTitle">
+      <div class="level-label" data-str="page.topLevel"></div>
       <div id="topLevel" class="level-num">0</div>
-      <div id="bestLevel" class="level-best">Best: 0</div>
+      <div id="bestLevel" class="level-best"></div>
     </div>
   </header>
 
   <div id="rulepin" class="rulepin" aria-live="polite"></div>
-  <nav id="path" class="path" aria-label="Where you are"></nav>
+  <nav id="path" class="path" data-str-label="page.pathLabel"></nav>
   <div id="stakes" class="stakes" aria-live="polite"></div>
-  <canvas id="minimap" class="minimap" aria-label="Mini-map of the live boards and earlier levels"></canvas>
+  <canvas id="minimap" class="minimap" data-str-label="page.minimapLabel"></canvas>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="banner" class="banner" aria-hidden="true"></div>
 
-  <div id="zoombar" class="zoombar" aria-label="Level zoom">
-    <div class="zb-label">Zoom</div>
-    <button id="zOut" type="button" title="Zoom out a level (− key or scroll down)">−</button>
+  <div id="zoombar" class="zoombar" data-str-label="page.zoomBarLabel">
+    <div class="zb-label" data-str="page.zoom"></div>
+    <button id="zOut" type="button" data-str-title="page.zoomOutTitle">−</button>
     <div id="zLevels" class="zlevels"></div>
-    <button id="zIn" type="button" title="Zoom in a level (+ key or scroll up)">+</button>
-    <button id="zLive" type="button" class="zlive" title="Back to the live game (Esc)">Back to game</button>
+    <button id="zIn" type="button" data-str-title="page.zoomInTitle">+</button>
+    <button id="zLive" type="button" class="zlive" data-str-title="page.zoomLiveTitle" data-str="page.zoomLive"></button>
   </div>
 
   <div class="hud-bottom">
     <div id="rulebadge" class="rulebadge" aria-live="polite"></div>
     <div id="turn" class="turn"></div>
     <div class="controls">
-      <button id="btnNew" type="button">New game</button>
-      <button id="btnCpu" type="button">vs Computer: Off</button>
-      <button id="btnSound" type="button">Sound: On</button>
-      <button id="btnMix" type="button" aria-expanded="false" aria-controls="mixer" title="Volume mix">🎚️ Mix</button>
-      <button id="btnReview" type="button" title="Game review: replay earlier games">🎬 Review</button>
-      <button id="btnHelp" type="button">How to play</button>
+      <button id="btnNew" type="button" data-str="page.newGame"></button>
+      <button id="btnCpu" type="button"></button>
+      <button id="btnSound" type="button"></button>
+      <button id="btnMix" type="button" aria-expanded="false" aria-controls="mixer" data-str-title="page.mixTitle" data-str="page.mix"></button>
+      <button id="btnReview" type="button" data-str-title="page.reviewTitle" data-str="page.review"></button>
+      <button id="btnHelp" type="button" data-str="page.howToPlay"></button>
     </div>
   </div>
 
   <div id="replaybar" class="replaybar" hidden>
-    <div class="rp-row"><span class="rp-live">● INSTANT REPLAY</span><span id="rpTitle" class="rp-title"></span></div>
+    <div class="rp-row"><span class="rp-live" data-str="review.live"></span><span id="rpTitle" class="rp-title"></span></div>
     <div class="rp-track"><div id="rpFill" class="rp-fill"></div></div>
     <div class="rp-row rp-btns">
-      <button id="rpPause" type="button">⏸ Pause</button>
-      <button id="rpSpeed" type="button" title="Replay speed">1×</button>
-      <button id="rpStop" type="button" class="rp-stop">⏹ Stop</button>
+      <button id="rpPause" type="button" data-str="review.pause"></button>
+      <button id="rpSpeed" type="button" data-str-title="review.speedTitle"></button>
+      <button id="rpStop" type="button" class="rp-stop" data-str="review.stop"></button>
     </div>
   </div>
 
   <div id="review" class="modal" hidden>
     <div class="modal-card review-card">
-      <h2>🎬 Game review</h2>
-      <p class="hint">Pick any earlier Level or Turf Battle. Instant Replay plays the game from that moment and keeps going until you stop it or it catches up with the live game.</p>
+      <h2 data-str="review.title"></h2>
+      <p class="hint" data-str="review.hint"></p>
       <ol id="rvList" class="rv-list"></ol>
-      <button id="rvClose" type="button" class="primary">Close</button>
+      <button id="rvClose" type="button" class="primary" data-str="review.close"></button>
     </div>
   </div>
 
   <div id="mixer" class="mixer" hidden>
-    <div class="mx-title">Volume mix</div>
-    <label class="mx-row"><span>Sound effects</span><input id="mxSfx" type="range" min="0" max="100" step="1"><b id="mxSfxV"></b></label>
-    <label class="mx-row"><span>Voices</span><input id="mxVox" type="range" min="0" max="100" step="1"><b id="mxVoxV"></b></label>
-    <button id="mxTest" type="button">▶ Test voice</button>
+    <div class="mx-title" data-str="page.mixerTitle"></div>
+    <label class="mx-row"><span data-str="page.mixerSfx"></span><input id="mxSfx" type="range" min="0" max="100" step="1"><b id="mxSfxV"></b></label>
+    <label class="mx-row"><span data-str="page.mixerVoices"></span><input id="mxVox" type="range" min="0" max="100" step="1"><b id="mxVoxV"></b></label>
+    <button id="mxTest" type="button" data-str="page.mixerTest"></button>
   </div>
 
   <div id="slots" class="slots" hidden>
@@ -83,52 +85,52 @@
     <div class="slot-machine">
       <div class="slot-ring" aria-hidden="true"></div>
       <div class="slot-crew" aria-hidden="true"></div>
-      <div class="slot-title" aria-label="Mystery Jackpot!"><span class="mj-burst" aria-hidden="true"></span><span class="mj-mystery" aria-hidden="true">Mystery</span><span class="mj-jackpot" aria-hidden="true"><i style="--i:0">J</i><i style="--i:1">A</i><i style="--i:2">C</i><i style="--i:3">K</i><i style="--i:4">P</i><i style="--i:5">O</i><i style="--i:6">T</i><i style="--i:7">!</i></span><span class="mj-spark s1">✦</span><span class="mj-spark s2">✦</span><span class="mj-spark s3">✧</span><span class="mj-spark s4">✦</span></div>
+      <div class="slot-title" data-str-label="slots.titleLabel"><span class="mj-burst" aria-hidden="true"></span><span class="mj-mystery" aria-hidden="true" data-str="slots.titleSmall"></span><span class="mj-jackpot" aria-hidden="true" data-str-letters="slots.titleBig"></span><span class="mj-spark s1">✦</span><span class="mj-spark s2">✦</span><span class="mj-spark s3">✧</span><span class="mj-spark s4">✦</span></div>
       <div class="slot-who"></div>
       <div class="slot-body">
         <div class="reels"><svg class="winlines" preserveAspectRatio="none"></svg></div>
         <div class="slot-pop" data-pop="symbols" hidden>
-          <div class="pop-head"><span>🎲 How it plays</span><button type="button" class="pop-x" aria-label="Close">×</button></div>
-          <p class="pop-text">Line up <b>3, 4 or 5</b> of the same prize symbol on any payline, starting from the <b>leftmost reel</b>, to win that prize. X, O and 💎 are blanks.</p>
+          <div class="pop-head"><span data-str="slots.howHead"></span><button type="button" class="pop-x" data-str-label="slots.close">×</button></div>
+          <p class="pop-text" data-str="slots.howText"></p>
           <div class="paytable"></div>
         </div>
         <div class="slot-pop" data-pop="lines" hidden>
-          <div class="pop-head"><span>〰️ 9 Paylines</span><button type="button" class="pop-x" aria-label="Close">×</button></div>
-          <p class="pop-text">A win counts on any of these lines, reading from the left.</p>
+          <div class="pop-head"><span data-str="slots.linesHead"></span><button type="button" class="pop-x" data-str-label="slots.close">×</button></div>
+          <p class="pop-text" data-str="slots.linesText"></p>
           <div class="lines"></div>
         </div>
       </div>
       <div class="slot-controls">
-        <button type="button" class="slot-tab" data-open="symbols">🎲 Symbols</button>
-        <div class="slot-mid"><div class="slot-result"></div><button id="slotSpin" type="button" class="spin-btn">SPIN THE REELS!</button></div>
-        <button type="button" class="slot-tab" data-open="lines">〰️ Paylines</button>
+        <button type="button" class="slot-tab" data-open="symbols" data-str="slots.symbolsTab"></button>
+        <div class="slot-mid"><div class="slot-result"></div><button id="slotSpin" type="button" class="spin-btn" data-str="slots.spin"></button></div>
+        <button type="button" class="slot-tab" data-open="lines" data-str="slots.paylinesTab"></button>
       </div>
     </div>
     </div>
   </div>
 
   <div id="devpanel" class="devpanel" hidden>
-    <div class="dv-head"><span>🛠 Developer Mode</span><button id="dvClose" type="button" title="Turn off Developer Mode (Shift+D)">×</button></div>
-    <label class="dv-row">Slot result<select id="dvForce"></select></label>
-    <label class="dv-check"><input type="checkbox" id="dvTease"> Tease 🎆 on reel 1 (wind-up)</label>
-    <button id="dvSpin" type="button" class="dv-spin">🎰 Spin the jackpot now</button>
-    <label class="dv-check"><input type="checkbox" id="dvEvery"> Jackpot under every square</label>
-    <label class="dv-check"><input type="checkbox" id="dvReveal"> Show the jackpot square</label>
-    <label class="dv-row">Wheel result<select id="dvWheel"></select></label>
-    <button id="dvWheelSpin" type="button" class="dv-spin">🎡 Spin the wheel now</button>
-    <div class="dv-hint">Shift+D or ?dev in the address turns it on. Tap the title to fold it.</div>
+    <div class="dv-head"><span data-str="dev.head"></span><button id="dvClose" type="button" data-str-title="dev.closeTitle">×</button></div>
+    <label class="dv-row"><span data-str="dev.slotResult"></span><select id="dvForce"></select></label>
+    <label class="dv-check"><input type="checkbox" id="dvTease"> <span data-str="dev.tease"></span></label>
+    <button id="dvSpin" type="button" class="dv-spin" data-str="dev.spinJackpot"></button>
+    <label class="dv-check"><input type="checkbox" id="dvEvery"> <span data-str="dev.everywhere"></span></label>
+    <label class="dv-check"><input type="checkbox" id="dvReveal"> <span data-str="dev.reveal"></span></label>
+    <label class="dv-row"><span data-str="dev.wheelResult"></span><select id="dvWheel"></select></label>
+    <button id="dvWheelSpin" type="button" class="dv-spin" data-str="dev.spinWheel"></button>
+    <div class="dv-hint" data-str="dev.hint"></div>
   </div>
 
   <div id="rulecard" class="rulecard" aria-live="polite"></div>
 
   <div id="wheel" class="wheelov" hidden>
     <div class="wh-panel">
-      <div class="wh-title" aria-label="Wheel of Games!"><span class="wt-burst" aria-hidden="true"></span><span class="wt-wheel" aria-hidden="true"></span><span class="wt-words" aria-hidden="true"><span class="wt-of">Wheel of</span><span class="wt-games"><i style="--i:0;--c:#ff3b5c">G</i><i style="--i:1;--c:#ff9f1c">A</i><i style="--i:2;--c:#ffe14d">M</i><i style="--i:3;--c:#3ddc84">E</i><i style="--i:4;--c:#29d3ff">S</i><i style="--i:5;--c:#c86bff">!</i></span></span><span class="wt-wheel r" aria-hidden="true"></span><span class="mj-spark s1">✦</span><span class="mj-spark s2">✦</span><span class="mj-spark s3">✧</span></div>
+      <div class="wh-title" data-str-label="wheel.titleLabel"><span class="wt-burst" aria-hidden="true"></span><span class="wt-wheel" aria-hidden="true"></span><span class="wt-words" aria-hidden="true"><span class="wt-of" data-str="wheel.titleSmall"></span><span class="wt-games" data-str-letters="wheel.titleBig" data-colors="#ff3b5c,#ff9f1c,#ffe14d,#3ddc84,#29d3ff,#c86bff"></span></span><span class="wt-wheel r" aria-hidden="true"></span><span class="mj-spark s1">✦</span><span class="mj-spark s2">✦</span><span class="mj-spark s3">✧</span></div>
       <div class="wh-who"></div>
       <div class="wh-stage">
-        <canvas class="wh-canvas" aria-label="Wheel of game types"></canvas>
+        <canvas class="wh-canvas" data-str-label="wheel.canvasLabel"></canvas>
         <div class="wh-pointer"></div>
-        <button type="button" class="wh-spin">SPIN!</button>
+        <button type="button" class="wh-spin" data-str="wheel.spin"></button>
       </div>
       <div class="wh-result"></div>
     </div>
@@ -136,7 +138,7 @@
 
   <div id="rulepick" class="rulepick" hidden>
     <div class="rp-panel">
-      <div class="rp-title">🎲 RULE PICK 🎲</div>
+      <div class="rp-title" data-str="rulePick.title"></div>
       <div class="rp-who"></div>
       <div class="rp-cards"></div>
       <div class="rp-hint"></div>
@@ -145,37 +147,15 @@
 
   <div id="help" class="modal" hidden>
     <div class="modal-card">
-      <h2>How to play</h2>
-      <ol>
-        <li>Every game starts with a <b>Turf Battle</b>: a quick game of tic-tac-toe on the smallest board. <span class="x">X</span> goes first.</li>
-        <li>Win the Turf Battle and your mark becomes the <b>center space of Level 1</b>, a brand-new, bigger board. The other player picks first there.</li>
-        <li>On Level 1 and above you don't just place a mark. You <b>pick an empty space</b>, the camera zooms in, and a fresh <b>Turf Battle</b> decides who owns it. Whoever picked moves first in that game.</li>
-        <li>Win three in a row on Level 1 and your mark becomes the center of Level 2, and so on, forever. Every space on every level is won with one Turf Battle.</li>
-        <li><b>Glowing spaces</b> on the bigger boards would complete a line for that color. The <b>stakes bar</b> at the top tells you what the current game means, and the <b>mini-map</b> on the left shows the live boards and earlier levels. Click a mini board to zoom to it.</li>
-        <li><b>Level zoom:</b> use the zoom bar, the trail at the top, your scroll wheel, or the <b>+</b> / <b>−</b> keys to move between levels. Click any claimed space to zoom into the finished game that won it. Press <b>Esc</b> or <b>Back to game</b> to return.</li>
-        <li><b>Wheel of games:</b> before every Turf Battle, the winner of the last Turf Battle spins the wheel to pick the game type (X spins first). A title card names the rule, and the badge above the turn bar keeps it on screen.
-          <ul class="rules">
-            <li>⭕ <b>Classic Tic-Tac-Toe:</b> plain rules.</li>
-            <li>👻 <b>Vanishing Marks:</b> you keep only your <b>3 newest marks</b>. Your 4th makes your oldest vanish (it flickers when it's next; the dots on the badge count your marks). No winner within 18 moves is a stalemate.</li>
-            <li>⬇️ <b>Gravity:</b> the board stands up like Connect Four, and marks drop to the bottom of their column.</li>
-            <li>🔀 <b>Shifting Squares:</b> every 3 moves the row or column with the arrows slides one space, and marks pushed off the edge wrap around.</li>
-            <li><span class="wild-icon"></span> <b>Wild Square:</b> the shape-shifting mark counts for both players and jumps to a new space after every turn.</li>
-            <li>🙃 <b>Misère:</b> whoever makes three in a row <b>loses</b>.</li>
-            <li><span class="fog-icon"></span> <b>Fog of War:</b> once the next move lands, fog rolls over each mark and hides whether it's an X or an O. Fogged spaces are still taken, so remember who is where. The fog lifts when the game ends.</li>
-            <li>🔄 <b>Ring Spin:</b> every 3 moves the 8 outer spaces turn one step clockwise around the center.</li>
-            <li><span class="cross-icon"></span> <b>Crossfire:</b> every 3 moves the marks at the ends of each diagonal slide through the center and trade corners. The center and edge spaces stay put.</li>
-          </ul>
-          Outside Vanishing Marks, a full board with no line is a stalemate. A 🎲 <b>rule pick</b> from the slot machine lets its winner choose the next game type instead of spinning.</li>
-        <li><b>🎬 Game review:</b> open Review to see every Level and Turf Battle so far, and start an <b>Instant Replay</b> from any of them. It plays forward until you press Stop (or Esc) or it reaches the live game. Space pauses it.</li>
-        <li><b>Mystery jackpot:</b> every new board hides a jackpot under one space (watch for a little extra sparkle). Land a mark on it to spin the slot machine: ⚡ extra move, 🎭 steal a mark, 💣 bomb a mark or stone, 🛡️ keep 4 marks (Vanishing Marks only), 🎲 <b>rule pick</b> (choose the next game type), 🎆 <b>INSTANT WIN</b> in a Turf Battle or a free space on big boards... or bust.</li>
-        <li><b>Stone spaces:</b> a stalemate turns the space it was deciding into stone, which blocks both players. If a whole big board fills with no line, the edges and stone spaces clear, corners and center stay as a head start, and the other player picks first.</li>
-      </ol>
-      <p class="hint">Play hot-seat with a friend, or turn on <b>vs Computer</b> to play <span class="x">X</span> against a computer <span class="o">O</span>. Your game is saved in this browser automatically.</p>
-      <button id="btnCloseHelp" type="button" class="primary">Let's play</button>
+      <h2 data-str="help.title"></h2>
+      <ol id="helpSteps"></ol>  <!-- filled by Game.buildHelp() from STRINGS.help.steps and STRINGS.rules -->
+      <p class="hint" data-str="help.hint"></p>
+      <button id="btnCloseHelp" type="button" class="primary" data-str="help.close"></button>
     </div>
   </div>
 
   <script src="js/timing.js"></script>
+  <script src="js/strings.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/render.js"></script>
   <script src="js/minimap.js"></script>

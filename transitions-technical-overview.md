@@ -32,7 +32,7 @@ You should not need to edit any other file to adjust pacing. The tables below li
 
 ## How the code reads the settings
 
-`js/timing.js` is the first script loaded by [`index.html`](index.html#L178), so `TIMING` is available everywhere. Most code reads it directly, as in `TIMING.wheel.announceDelay`. A few functions that read the same group many times give it a short local name at the top of the function:
+`js/timing.js` is the first script loaded by [`index.html`](index.html#L157), so `TIMING` is available everywhere. Most code reads it directly, as in `TIMING.wheel.announceDelay`. A few functions that read the same group many times give it a short local name at the top of the function:
 
 | Short name | Means | Where |
 |---|---|---|
@@ -157,18 +157,18 @@ jackpotSpin() (game.js)
 |---|---|---|---|---|
 | `TIMING.slots.jackpotFoundDelay` | 300 | game.js: after the mark lands on the jackpot space, before "JACKPOT!" | [`js/timing.js:92`](js/timing.js#L92) | [`js/game.js:979`](js/game.js#L979) |
 | `TIMING.slots.jackpotToMachine` | 900 | game.js: after "JACKPOT!", before the slot machine appears | [`js/timing.js:93`](js/timing.js#L93) | [`js/game.js:987`](js/game.js#L987) |
-| `TIMING.slots.autoPullDelay` | 900 | computer's turn: how long before the computer pulls the lever | [`js/timing.js:94`](js/timing.js#L94) | [`js/slots.js:259`](js/slots.js#L259) |
-| `TIMING.slots.reelStops` | [1000, 1400, 1800, 2200, 2600] |  | [`js/timing.js:97`](js/timing.js#L97) | [`js/slots.js:197`](js/slots.js#L197) |
-| `TIMING.slots.teaserExtra` | 450 | a likely win on reels 1+2: reels 3, 4, 5 stop 450, 900, 1350 later | [`js/timing.js:98`](js/timing.js#L98) | [`js/slots.js:197`](js/slots.js#L197) |
-| `TIMING.slots.windupFirstStop` | 1000 | INSTANT WIN on reel 1: when reel 1 stops ... | [`js/timing.js:99`](js/timing.js#L99) | [`js/slots.js:199`](js/slots.js#L199) |
-| `TIMING.slots.windupGap` | 1100 | ... and the gap before each later reel stops | [`js/timing.js:100`](js/timing.js#L100) | [`js/slots.js:201`](js/slots.js#L201) |
-| `TIMING.slots.windupBrokenGap` | 380 | ... but only this gap once the INSTANT WIN streak is broken | [`js/timing.js:101`](js/timing.js#L101) | [`js/slots.js:202`](js/slots.js#L202) |
-| `TIMING.slots.suspenseGap` | 3200 | two INSTANT WINs lined up: the gap before the deciding third reel stops | [`js/timing.js:102`](js/timing.js#L102) | [`js/slots.js:203`](js/slots.js#L203) |
-| `TIMING.slots.windupTeaseDelay` | 30 | after reel 1 stops, before "INSTANT WIN on reel 1..." appears | [`js/timing.js:103`](js/timing.js#L103) | [`js/slots.js:219`](js/slots.js#L219) |
-| `TIMING.slots.oneMoreTextDelay` | 650 | after reel 2 stops, before "ONE MORE FOR AN INSTANT WIN..." appears | [`js/timing.js:104`](js/timing.js#L104) | [`js/slots.js:245`](js/slots.js#L245) |
-| `TIMING.slots.tickGapStart` | 50 | the reel ticking sound: gap between ticks at the start ... | [`js/timing.js:105`](js/timing.js#L105) | [`js/slots.js:254`](js/slots.js#L254) |
-| `TIMING.slots.tickGapGrow` | 150 | ... growing by up to this much as the reels slow down | [`js/timing.js:106`](js/timing.js#L106) | [`js/slots.js:254`](js/slots.js#L254) |
-| `TIMING.slots.tickStopGuard` | 120 | the ticking stops this long before the last reel stops | [`js/timing.js:107`](js/timing.js#L107) | [`js/slots.js:254`](js/slots.js#L254) |
+| `TIMING.slots.autoPullDelay` | 900 | computer's turn: how long before the computer pulls the lever | [`js/timing.js:94`](js/timing.js#L94) | [`js/slots.js:252`](js/slots.js#L252) |
+| `TIMING.slots.reelStops` | [1000, 1400, 1800, 2200, 2600] |  | [`js/timing.js:97`](js/timing.js#L97) | [`js/slots.js:190`](js/slots.js#L190) |
+| `TIMING.slots.teaserExtra` | 450 | a likely win on reels 1+2: reels 3, 4, 5 stop 450, 900, 1350 later | [`js/timing.js:98`](js/timing.js#L98) | [`js/slots.js:190`](js/slots.js#L190) |
+| `TIMING.slots.windupFirstStop` | 1000 | INSTANT WIN on reel 1: when reel 1 stops ... | [`js/timing.js:99`](js/timing.js#L99) | [`js/slots.js:192`](js/slots.js#L192) |
+| `TIMING.slots.windupGap` | 1100 | ... and the gap before each later reel stops | [`js/timing.js:100`](js/timing.js#L100) | [`js/slots.js:194`](js/slots.js#L194) |
+| `TIMING.slots.windupBrokenGap` | 380 | ... but only this gap once the INSTANT WIN streak is broken | [`js/timing.js:101`](js/timing.js#L101) | [`js/slots.js:195`](js/slots.js#L195) |
+| `TIMING.slots.suspenseGap` | 3200 | two INSTANT WINs lined up: the gap before the deciding third reel stops | [`js/timing.js:102`](js/timing.js#L102) | [`js/slots.js:196`](js/slots.js#L196) |
+| `TIMING.slots.windupTeaseDelay` | 30 | after reel 1 stops, before "INSTANT WIN on reel 1..." appears | [`js/timing.js:103`](js/timing.js#L103) | [`js/slots.js:212`](js/slots.js#L212) |
+| `TIMING.slots.oneMoreTextDelay` | 650 | after reel 2 stops, before "ONE MORE FOR AN INSTANT WIN..." appears | [`js/timing.js:104`](js/timing.js#L104) | [`js/slots.js:238`](js/slots.js#L238) |
+| `TIMING.slots.tickGapStart` | 50 | the reel ticking sound: gap between ticks at the start ... | [`js/timing.js:105`](js/timing.js#L105) | [`js/slots.js:247`](js/slots.js#L247) |
+| `TIMING.slots.tickGapGrow` | 150 | ... growing by up to this much as the reels slow down | [`js/timing.js:106`](js/timing.js#L106) | [`js/slots.js:247`](js/slots.js#L247) |
+| `TIMING.slots.tickStopGuard` | 120 | the ticking stops this long before the last reel stops | [`js/timing.js:107`](js/timing.js#L107) | [`js/slots.js:247`](js/slots.js#L247) |
 
 How long each reel visibly spins follows from its stop time: the code adds about one symbol of strip per 75 ms of extra spin. You don't need to change that when you change the stop times.
 
@@ -176,27 +176,27 @@ How long each reel visibly spins follows from its stop time: the code adds about
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.slots.revealDelay` | 200 | after the last reel stops, before the prize is shown | [`js/timing.js:110`](js/timing.js#L110) | [`js/slots.js:256`](js/slots.js#L256) |
-| `TIMING.slots.clickSkip` | 400 | after the reveal, how soon a click closes the machine | [`js/timing.js:111`](js/timing.js#L111) | [`js/slots.js:304`](js/slots.js#L304) |
-| `TIMING.slots.autoFinishBust` | 2200 | after the reveal, the machine closes on its own: no prize | [`js/timing.js:112`](js/timing.js#L112) | [`js/slots.js:305`](js/slots.js#L305) |
-| `TIMING.slots.autoFinishJackpot` | 5600 | ... INSTANT WIN | [`js/timing.js:113`](js/timing.js#L113) | [`js/slots.js:305`](js/slots.js#L305) |
-| `TIMING.slots.autoFinishPrize` | 3600 | ... any other prize | [`js/timing.js:114`](js/timing.js#L114) | [`js/slots.js:305`](js/slots.js#L305) |
-| `TIMING.slots.instantGlow` | 5200 | how long the machine glows after an INSTANT WIN | [`js/timing.js:115`](js/timing.js#L115) | [`js/slots.js:286`](js/slots.js#L286) |
-| `TIMING.slots.hide` | 250 | the overlay's fade-out before the game continues (matches --t-overlay-fade) | [`js/timing.js:116`](js/timing.js#L116) | [`js/slots.js:301`](js/slots.js#L301) |
+| `TIMING.slots.revealDelay` | 200 | after the last reel stops, before the prize is shown | [`js/timing.js:110`](js/timing.js#L110) | [`js/slots.js:249`](js/slots.js#L249) |
+| `TIMING.slots.clickSkip` | 400 | after the reveal, how soon a click closes the machine | [`js/timing.js:111`](js/timing.js#L111) | [`js/slots.js:297`](js/slots.js#L297) |
+| `TIMING.slots.autoFinishBust` | 2200 | after the reveal, the machine closes on its own: no prize | [`js/timing.js:112`](js/timing.js#L112) | [`js/slots.js:298`](js/slots.js#L298) |
+| `TIMING.slots.autoFinishJackpot` | 5600 | ... INSTANT WIN | [`js/timing.js:113`](js/timing.js#L113) | [`js/slots.js:298`](js/slots.js#L298) |
+| `TIMING.slots.autoFinishPrize` | 3600 | ... any other prize | [`js/timing.js:114`](js/timing.js#L114) | [`js/slots.js:298`](js/slots.js#L298) |
+| `TIMING.slots.instantGlow` | 5200 | how long the machine glows after an INSTANT WIN | [`js/timing.js:115`](js/timing.js#L115) | [`js/slots.js:279`](js/slots.js#L279) |
+| `TIMING.slots.hide` | 250 | the overlay's fade-out before the game continues (matches --t-overlay-fade) | [`js/timing.js:116`](js/timing.js#L116) | [`js/slots.js:294`](js/slots.js#L294) |
 
 ### The INSTANT WIN! title
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.slots.bannerBoomFirst` | 150 | the first explosion around the title | [`js/timing.js:119`](js/timing.js#L119) | [`js/slots.js:384`](js/slots.js#L384) |
-| `TIMING.slots.bannerBoomGap` | 260 | gap between those explosions (6 of them) | [`js/timing.js:120`](js/timing.js#L120) | [`js/slots.js:384`](js/slots.js#L384) |
-| `TIMING.slots.bannerCellBurstGap` | 90 | gap between the bursts on each winning symbol | [`js/timing.js:121`](js/timing.js#L121) | [`js/slots.js:389`](js/slots.js#L389) |
-| `TIMING.slots.bannerFailsafe` | 9000 | the title blows itself up after this long if the machine is still open | [`js/timing.js:122`](js/timing.js#L122) | [`js/slots.js:391`](js/slots.js#L391) |
-| `TIMING.slots.lockFlash` | 600 | the white flash each time an INSTANT WIN locks into place on a reel | [`js/timing.js:123`](js/timing.js#L123) | [`js/slots.js:359`](js/slots.js#L359) |
-| `TIMING.slots.letterGap` | 45 | the title blowing apart: delay between one letter and the next | [`js/timing.js:124`](js/timing.js#L124) | [`js/slots.js:405`](js/slots.js#L405)<br>[`js/slots.js:427`](js/slots.js#L427) |
-| `TIMING.slots.letterFly` | 720 | each letter flying away | [`js/timing.js:125`](js/timing.js#L125) | [`js/slots.js:414`](js/slots.js#L414) |
-| `TIMING.slots.letterBoom` | 130 | after a letter starts flying, its little explosion | [`js/timing.js:126`](js/timing.js#L126) | [`js/slots.js:424`](js/slots.js#L424) |
-| `TIMING.slots.letterCleanup` | 1500 | after the last letter starts, before the leftovers are removed | [`js/timing.js:127`](js/timing.js#L127) | [`js/slots.js:427`](js/slots.js#L427) |
+| `TIMING.slots.bannerBoomFirst` | 150 | the first explosion around the title | [`js/timing.js:119`](js/timing.js#L119) | [`js/slots.js:377`](js/slots.js#L377) |
+| `TIMING.slots.bannerBoomGap` | 260 | gap between those explosions (6 of them) | [`js/timing.js:120`](js/timing.js#L120) | [`js/slots.js:377`](js/slots.js#L377) |
+| `TIMING.slots.bannerCellBurstGap` | 90 | gap between the bursts on each winning symbol | [`js/timing.js:121`](js/timing.js#L121) | [`js/slots.js:382`](js/slots.js#L382) |
+| `TIMING.slots.bannerFailsafe` | 9000 | the title blows itself up after this long if the machine is still open | [`js/timing.js:122`](js/timing.js#L122) | [`js/slots.js:384`](js/slots.js#L384) |
+| `TIMING.slots.lockFlash` | 600 | the white flash each time an INSTANT WIN locks into place on a reel | [`js/timing.js:123`](js/timing.js#L123) | [`js/slots.js:352`](js/slots.js#L352) |
+| `TIMING.slots.letterGap` | 45 | the title blowing apart: delay between one letter and the next | [`js/timing.js:124`](js/timing.js#L124) | [`js/slots.js:398`](js/slots.js#L398)<br>[`js/slots.js:420`](js/slots.js#L420) |
+| `TIMING.slots.letterFly` | 720 | each letter flying away | [`js/timing.js:125`](js/timing.js#L125) | [`js/slots.js:407`](js/slots.js#L407) |
+| `TIMING.slots.letterBoom` | 130 | after a letter starts flying, its little explosion | [`js/timing.js:126`](js/timing.js#L126) | [`js/slots.js:417`](js/slots.js#L417) |
+| `TIMING.slots.letterCleanup` | 1500 | after the last letter starts, before the leftovers are removed | [`js/timing.js:127`](js/timing.js#L127) | [`js/slots.js:420`](js/slots.js#L420) |
 
 ### What happens after the prize
 
@@ -222,17 +222,17 @@ RULE PICK is a slot machine prize. The player picks the game type for the next T
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.rulePick.cardFlipFirst` | 250 | the deal: the first card's flip sound ... | [`js/timing.js:155`](js/timing.js#L155) | [`js/slots.js:548`](js/slots.js#L548) |
-| `TIMING.rulePick.cardFlipGap` | 110 | ... and the gap between cards | [`js/timing.js:156`](js/timing.js#L156) | [`js/slots.js:548`](js/slots.js#L548) |
-| `TIMING.rulePick.swell` | 420 | the chosen card swells and trembles, then shatters | [`js/timing.js:157`](js/timing.js#L157) | [`js/slots.js:568`](js/slots.js#L568)<br>[`js/slots.js:598`](js/slots.js#L598) |
-| `TIMING.rulePick.shake` | 420 | the panel shake when it shatters | [`js/timing.js:158`](js/timing.js#L158) | [`js/slots.js:582`](js/slots.js#L582) |
-| `TIMING.rulePick.cardsFly` | 1000 | the other cards being blown off the screen (plus up to 250 random) | [`js/timing.js:159`](js/timing.js#L159) | [`js/slots.js:596`](js/slots.js#L596) |
-| `TIMING.rulePick.exitDelay` | 2000 | after a card is chosen, before the overlay fades away | [`js/timing.js:160`](js/timing.js#L160) | [`js/slots.js:602`](js/slots.js#L602) |
-| `TIMING.rulePick.hide` | 260 | the overlay's fade-out (matches --t-overlay-fade) | [`js/timing.js:161`](js/timing.js#L161) | [`js/slots.js:601`](js/slots.js#L601) |
-| `TIMING.rulePick.cpuStart` | 1100 | computer's turn: before the highlight starts running over the cards | [`js/timing.js:162`](js/timing.js#L162) | [`js/slots.js:618`](js/slots.js#L618) |
-| `TIMING.rulePick.cpuHopBase` | 70 | the highlight's first hop ... | [`js/timing.js:163`](js/timing.js#L163) | [`js/slots.js:616`](js/slots.js#L616) |
-| `TIMING.rulePick.cpuHopGrow` | 1.6 | ... each hop n waits cpuHopBase + n * n * cpuHopGrow (NOT ms: a multiplier) | [`js/timing.js:164`](js/timing.js#L164) | [`js/slots.js:616`](js/slots.js#L616) |
-| `TIMING.rulePick.cpuChoose` | 350 | after the highlight stops, before the card is chosen | [`js/timing.js:165`](js/timing.js#L165) | [`js/slots.js:614`](js/slots.js#L614) |
+| `TIMING.rulePick.cardFlipFirst` | 250 | the deal: the first card's flip sound ... | [`js/timing.js:155`](js/timing.js#L155) | [`js/slots.js:541`](js/slots.js#L541) |
+| `TIMING.rulePick.cardFlipGap` | 110 | ... and the gap between cards | [`js/timing.js:156`](js/timing.js#L156) | [`js/slots.js:541`](js/slots.js#L541) |
+| `TIMING.rulePick.swell` | 420 | the chosen card swells and trembles, then shatters | [`js/timing.js:157`](js/timing.js#L157) | [`js/slots.js:561`](js/slots.js#L561)<br>[`js/slots.js:591`](js/slots.js#L591) |
+| `TIMING.rulePick.shake` | 420 | the panel shake when it shatters | [`js/timing.js:158`](js/timing.js#L158) | [`js/slots.js:575`](js/slots.js#L575) |
+| `TIMING.rulePick.cardsFly` | 1000 | the other cards being blown off the screen (plus up to 250 random) | [`js/timing.js:159`](js/timing.js#L159) | [`js/slots.js:589`](js/slots.js#L589) |
+| `TIMING.rulePick.exitDelay` | 2000 | after a card is chosen, before the overlay fades away | [`js/timing.js:160`](js/timing.js#L160) | [`js/slots.js:595`](js/slots.js#L595) |
+| `TIMING.rulePick.hide` | 260 | the overlay's fade-out (matches --t-overlay-fade) | [`js/timing.js:161`](js/timing.js#L161) | [`js/slots.js:594`](js/slots.js#L594) |
+| `TIMING.rulePick.cpuStart` | 1100 | computer's turn: before the highlight starts running over the cards | [`js/timing.js:162`](js/timing.js#L162) | [`js/slots.js:611`](js/slots.js#L611) |
+| `TIMING.rulePick.cpuHopBase` | 70 | the highlight's first hop ... | [`js/timing.js:163`](js/timing.js#L163) | [`js/slots.js:609`](js/slots.js#L609) |
+| `TIMING.rulePick.cpuHopGrow` | 1.6 | ... each hop n waits cpuHopBase + n * n * cpuHopGrow (NOT ms: a multiplier) | [`js/timing.js:164`](js/timing.js#L164) | [`js/slots.js:609`](js/slots.js#L609) |
+| `TIMING.rulePick.cpuChoose` | 350 | after the highlight stops, before the card is chosen | [`js/timing.js:165`](js/timing.js#L165) | [`js/slots.js:607`](js/slots.js#L607) |
 
 The computer's highlight takes `cpuStart`, then hop *n* waits `cpuHopBase + n × n × cpuHopGrow`, then `cpuChoose`. To make the computer decide faster, lower `cpuHopGrow` first.
 
@@ -244,10 +244,10 @@ The big card in the middle of the screen names the game type. After `hold` it sh
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.ruleCard.hold` | 2200 | how long the card stays in the middle before flying up to the top plate | [`js/timing.js:178`](js/timing.js#L178) | [`js/game.js:720`](js/game.js#L720) |
-| `TIMING.ruleCard.fly` | 720 | the flight up into the plate at the top of the screen | [`js/timing.js:179`](js/timing.js#L179) | [`js/game.js:718`](js/game.js#L718) |
-| `TIMING.ruleCard.failsafe` | 4200 | the card is removed after this long no matter what | [`js/timing.js:180`](js/timing.js#L180) | [`js/game.js:722`](js/game.js#L722) |
-| `TIMING.ruleCard.afterCard` | 900 | after the card appears, before the Turf Battle can be played | [`js/timing.js:181`](js/timing.js#L181) | [`js/game.js:402`](js/game.js#L402) |
+| `TIMING.ruleCard.hold` | 2200 | how long the card stays in the middle before flying up to the top plate | [`js/timing.js:178`](js/timing.js#L178) | [`js/game.js:721`](js/game.js#L721) |
+| `TIMING.ruleCard.fly` | 720 | the flight up into the plate at the top of the screen | [`js/timing.js:179`](js/timing.js#L179) | [`js/game.js:719`](js/game.js#L719) |
+| `TIMING.ruleCard.failsafe` | 4200 | the card is removed after this long no matter what | [`js/timing.js:180`](js/timing.js#L180) | [`js/game.js:723`](js/game.js#L723) |
+| `TIMING.ruleCard.afterCard` | 900 | after the card appears, before the Turf Battle can be played | [`js/timing.js:181`](js/timing.js#L181) | [`js/game.js:403`](js/game.js#L403) |
 | `TIMING.ruleCard.iconLift` | 900 | RULE PICK: the chosen card's icon leaping to centre stage | [`js/timing.js:182`](js/timing.js#L182) | [`js/boom.js:203`](js/boom.js#L203) |
 | `TIMING.ruleCard.iconIdle` | 520 | ... then bobbing there (one swing) | [`js/timing.js:183`](js/timing.js#L183) | [`js/boom.js:208`](js/boom.js#L208) |
 | `TIMING.ruleCard.iconLandDelay` | 470 | after the title card appears, before the icon flies onto it | [`js/timing.js:184`](js/timing.js#L184) | [`js/boom.js:212`](js/boom.js#L212) |
@@ -266,27 +266,27 @@ The camera itself is `Renderer.flyTo()` in [`js/render.js`](js/render.js). It zo
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.camera.zoomIntoChild` | 1200 | a player picks a space: zoom down into its new Turf Battle (or lower level) | [`js/timing.js:202`](js/timing.js#L202) | [`js/game.js:486`](js/game.js#L486) |
-| `TIMING.camera.childFadeIn` | 700 | ... the new board fading in during that zoom | [`js/timing.js:203`](js/timing.js#L203) | [`js/game.js:485`](js/game.js#L485) |
-| `TIMING.camera.winPause` | 1400 | a board is won: celebrate before zooming out | [`js/timing.js:204`](js/timing.js#L204) | [`js/game.js:579`](js/game.js#L579) |
-| `TIMING.camera.zoomOutToParent` | 1200 | zoom out from the won board to the board above it | [`js/timing.js:205`](js/timing.js#L205) | [`js/game.js:587`](js/game.js#L587)<br>[`js/game.js:1085`](js/game.js#L1085) |
-| `TIMING.camera.wonFade` | 800 | ... the won board fading away during that zoom ... | [`js/timing.js:206`](js/timing.js#L206) | [`js/game.js:586`](js/game.js#L586)<br>[`js/game.js:1084`](js/game.js#L1084) |
-| `TIMING.camera.wonFadeDelay` | 250 | ... starting this long after the zoom starts | [`js/timing.js:207`](js/timing.js#L207) | [`js/game.js:586`](js/game.js#L586)<br>[`js/game.js:1084`](js/game.js#L1084) |
-| `TIMING.camera.afterClaim` | 800 | after the winner's mark drops into the board above, before play continues | [`js/timing.js:208`](js/timing.js#L208) | [`js/game.js:593`](js/game.js#L593) |
-| `TIMING.camera.winLineFirst` | 120 | the winning line's sparkles: the first space ... | [`js/timing.js:209`](js/timing.js#L209) | [`js/game.js:575`](js/game.js#L575) |
-| `TIMING.camera.winLineGap` | 110 | ... and the gap between spaces | [`js/timing.js:210`](js/timing.js#L210) | [`js/game.js:575`](js/game.js#L575) |
+| `TIMING.camera.zoomIntoChild` | 1200 | a player picks a space: zoom down into its new Turf Battle (or lower level) | [`js/timing.js:202`](js/timing.js#L202) | [`js/game.js:487`](js/game.js#L487) |
+| `TIMING.camera.childFadeIn` | 700 | ... the new board fading in during that zoom | [`js/timing.js:203`](js/timing.js#L203) | [`js/game.js:486`](js/game.js#L486) |
+| `TIMING.camera.winPause` | 1400 | a board is won: celebrate before zooming out | [`js/timing.js:204`](js/timing.js#L204) | [`js/game.js:580`](js/game.js#L580) |
+| `TIMING.camera.zoomOutToParent` | 1200 | zoom out from the won board to the board above it | [`js/timing.js:205`](js/timing.js#L205) | [`js/game.js:588`](js/game.js#L588)<br>[`js/game.js:1085`](js/game.js#L1085) |
+| `TIMING.camera.wonFade` | 800 | ... the won board fading away during that zoom ... | [`js/timing.js:206`](js/timing.js#L206) | [`js/game.js:587`](js/game.js#L587)<br>[`js/game.js:1084`](js/game.js#L1084) |
+| `TIMING.camera.wonFadeDelay` | 250 | ... starting this long after the zoom starts | [`js/timing.js:207`](js/timing.js#L207) | [`js/game.js:587`](js/game.js#L587)<br>[`js/game.js:1084`](js/game.js#L1084) |
+| `TIMING.camera.afterClaim` | 800 | after the winner's mark drops into the board above, before play continues | [`js/timing.js:208`](js/timing.js#L208) | [`js/game.js:594`](js/game.js#L594) |
+| `TIMING.camera.winLineFirst` | 120 | the winning line's sparkles: the first space ... | [`js/timing.js:209`](js/timing.js#L209) | [`js/game.js:576`](js/game.js#L576) |
+| `TIMING.camera.winLineGap` | 110 | ... and the gap between spaces | [`js/timing.js:210`](js/timing.js#L210) | [`js/game.js:576`](js/game.js#L576) |
 
 ### A whole level is won (moving up to a new level)
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.camera.ascendZoom` | 1900 | the zoom out to the new level | [`js/timing.js:213`](js/timing.js#L213) | [`js/game.js:623`](js/game.js#L623) |
-| `TIMING.camera.ascendNewFadeIn` | 1000 | the new board fading in ... | [`js/timing.js:214`](js/timing.js#L214) | [`js/game.js:621`](js/game.js#L621) |
-| `TIMING.camera.ascendNewFadeDelay` | 200 | ... starting this long after the zoom starts | [`js/timing.js:215`](js/timing.js#L215) | [`js/game.js:621`](js/game.js#L621) |
-| `TIMING.camera.ascendOldFade` | 900 | the old board fading out ... | [`js/timing.js:216`](js/timing.js#L216) | [`js/game.js:622`](js/game.js#L622) |
-| `TIMING.camera.ascendOldFadeDelay` | 900 | ... starting this long after the zoom starts | [`js/timing.js:217`](js/timing.js#L217) | [`js/game.js:622`](js/game.js#L622) |
-| `TIMING.camera.ascendWaveDelay` | 250 | after the zoom, before the ripple across the new board | [`js/timing.js:218`](js/timing.js#L218) | [`js/game.js:629`](js/game.js#L629) |
-| `TIMING.camera.ascendSettle` | 700 | after the zoom, before play continues | [`js/timing.js:219`](js/timing.js#L219) | [`js/game.js:631`](js/game.js#L631) |
+| `TIMING.camera.ascendZoom` | 1900 | the zoom out to the new level | [`js/timing.js:213`](js/timing.js#L213) | [`js/game.js:624`](js/game.js#L624) |
+| `TIMING.camera.ascendNewFadeIn` | 1000 | the new board fading in ... | [`js/timing.js:214`](js/timing.js#L214) | [`js/game.js:622`](js/game.js#L622) |
+| `TIMING.camera.ascendNewFadeDelay` | 200 | ... starting this long after the zoom starts | [`js/timing.js:215`](js/timing.js#L215) | [`js/game.js:622`](js/game.js#L622) |
+| `TIMING.camera.ascendOldFade` | 900 | the old board fading out ... | [`js/timing.js:216`](js/timing.js#L216) | [`js/game.js:623`](js/game.js#L623) |
+| `TIMING.camera.ascendOldFadeDelay` | 900 | ... starting this long after the zoom starts | [`js/timing.js:217`](js/timing.js#L217) | [`js/game.js:623`](js/game.js#L623) |
+| `TIMING.camera.ascendWaveDelay` | 250 | after the zoom, before the ripple across the new board | [`js/timing.js:218`](js/timing.js#L218) | [`js/game.js:630`](js/game.js#L630) |
+| `TIMING.camera.ascendSettle` | 700 | after the zoom, before play continues | [`js/timing.js:219`](js/timing.js#L219) | [`js/game.js:632`](js/game.js#L632) |
 
 The "LEVEL N" banner that appears at the same time is timed in CSS (see "Timings that live in CSS" below).
 
@@ -296,8 +296,8 @@ The "LEVEL N" banner that appears at the same time is timed in CSS (see "Timings
 |---|---|---|---|---|
 | `TIMING.camera.stalematePause` | 1300 | "STALEMATE!" before zooming out | [`js/timing.js:222`](js/timing.js#L222) | [`js/game.js:1082`](js/game.js#L1082) |
 | `TIMING.camera.stalemateSettle` | 900 | after the stone lands, before play continues | [`js/timing.js:223`](js/timing.js#L223) | [`js/game.js:1102`](js/game.js#L1102) |
-| `TIMING.camera.drawPause` | 1500 | "DRAW!" before the board clears | [`js/timing.js:226`](js/timing.js#L226) | [`js/game.js:1114`](js/game.js#L1114) |
-| `TIMING.camera.drawSettle` | 600 | after the board clears, before play (or the wheel) continues | [`js/timing.js:227`](js/timing.js#L227) | [`js/game.js:1130`](js/game.js#L1130) |
+| `TIMING.camera.drawPause` | 1500 | "DRAW!" before the board clears | [`js/timing.js:226`](js/timing.js#L226) | [`js/game.js:1112`](js/game.js#L1112) |
+| `TIMING.camera.drawSettle` | 600 | after the board clears, before play (or the wheel) continues | [`js/timing.js:227`](js/timing.js#L227) | [`js/game.js:1128`](js/game.js#L1128) |
 
 A stalemate's zoom out reuses `zoomOutToParent`, `wonFade` and `wonFadeDelay`.
 
@@ -305,9 +305,9 @@ A stalemate's zoom out reuses `zoomOutToParent`, `wonFade` and `wonFadeDelay`.
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.camera.browseZoom` | 1000 | flying to the board you clicked | [`js/timing.js:230`](js/timing.js#L230) | [`js/game.js:1191`](js/game.js#L1191) |
-| `TIMING.camera.browseFade` | 650 | finished boards fading in or out as you browse ... | [`js/timing.js:231`](js/timing.js#L231) | [`js/game.js:1181`](js/game.js#L1181)<br>[`js/game.js:1183`](js/game.js#L1183) |
-| `TIMING.camera.browseFadeDelay` | 250 | ... fading out starts this long after the move starts | [`js/timing.js:232`](js/timing.js#L232) | [`js/game.js:1183`](js/game.js#L1183) |
+| `TIMING.camera.browseZoom` | 1000 | flying to the board you clicked | [`js/timing.js:230`](js/timing.js#L230) | [`js/game.js:1189`](js/game.js#L1189) |
+| `TIMING.camera.browseFade` | 650 | finished boards fading in or out as you browse ... | [`js/timing.js:231`](js/timing.js#L231) | [`js/game.js:1179`](js/game.js#L1179)<br>[`js/game.js:1181`](js/game.js#L1181) |
+| `TIMING.camera.browseFadeDelay` | 250 | ... fading out starts this long after the move starts | [`js/timing.js:232`](js/timing.js#L232) | [`js/game.js:1181`](js/game.js#L1181) |
 | `TIMING.camera.gravityTilt` | 1300 | Gravity: the camera re-framing while the board tilts upright | [`js/timing.js:234`](js/timing.js#L234) | [`js/render.js:926`](js/render.js#L926) |
 
 ---
@@ -320,12 +320,12 @@ After each move, `postMove()` in `js/game.js` runs the active game type's automa
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.board.cpuMoveDelay` | 750 | computer's turn: "thinking" time before it plays | [`js/timing.js:255`](js/timing.js#L255) | [`js/game.js:1221`](js/game.js#L1221) |
-| `TIMING.board.markDrop` | 750 | a mark falling onto a space and bouncing (the impact is markImpact) | [`js/timing.js:256`](js/timing.js#L256) | [`js/game.js:672`](js/game.js#L672)<br>[`js/render.js:1064`](js/render.js#L1064) |
-| `TIMING.board.markImpact` | markDrop × 0.364 (= 273) | when a falling mark first hits (273 ms): sparks, ripple, sound | [`js/timing.js:257`](js/timing.js#L257) | [`js/game.js:450`](js/game.js#L450)<br>[`js/game.js:872`](js/game.js#L872)<br>[`js/game.js:1101`](js/game.js#L1101)<br>[`js/game.js:1318`](js/game.js#L1318)<br>[`js/minimap.js:120`](js/minimap.js#L120)<br>[`js/render.js:734`](js/render.js#L734)<br>[`js/render.js:1058`](js/render.js#L1058) |
+| `TIMING.board.cpuMoveDelay` | 750 | computer's turn: "thinking" time before it plays | [`js/timing.js:255`](js/timing.js#L255) | [`js/game.js:1219`](js/game.js#L1219) |
+| `TIMING.board.markDrop` | 750 | a mark falling onto a space and bouncing (the impact is markImpact) | [`js/timing.js:256`](js/timing.js#L256) | [`js/game.js:673`](js/game.js#L673)<br>[`js/render.js:1064`](js/render.js#L1064) |
+| `TIMING.board.markImpact` | markDrop × 0.364 (= 273) | when a falling mark first hits (273 ms): sparks, ripple, sound | [`js/timing.js:257`](js/timing.js#L257) | [`js/game.js:451`](js/game.js#L451)<br>[`js/game.js:873`](js/game.js#L873)<br>[`js/game.js:1101`](js/game.js#L1101)<br>[`js/game.js:1316`](js/game.js#L1316)<br>[`js/minimap.js:120`](js/minimap.js#L120)<br>[`js/render.js:734`](js/render.js#L734)<br>[`js/render.js:1058`](js/render.js#L1058) |
 | `TIMING.board.vanishPoof` | 240 | Vanishing Marks: the oldest mark's "POOF!" after a fourth mark is placed | [`js/timing.js:258`](js/timing.js#L258) | [`js/game.js:964`](js/game.js#L964)<br>[`js/game.js:973`](js/game.js#L973) |
 | `TIMING.board.ghostFade` | 450 | a removed mark fading out | [`js/timing.js:259`](js/timing.js#L259) | [`js/render.js:1126`](js/render.js#L1126) |
-| `TIMING.board.toast` | 3200 | how long a message at the bottom stays up | [`js/timing.js:260`](js/timing.js#L260) | [`js/game.js:1560`](js/game.js#L1560) |
+| `TIMING.board.toast` | 3200 | how long a message at the bottom stays up | [`js/timing.js:260`](js/timing.js#L260) | [`js/game.js:1558`](js/game.js#L1558) |
 
 `markImpact` is not a plain number. It is calculated from `markDrop`: it is the moment the bouncing mark first touches the board (36.4% of the way through the drop). Sparks, ripples and the landing sound happen then. Change `markDrop` and the impact effects stay in sync. Only edit the `0.364` if you change the bounce easing (`Ease.outBounce` in `js/render.js`).
 
@@ -333,24 +333,24 @@ After each move, `postMove()` in `js/game.js` runs the active game type's automa
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.board.gravitySettle` | 450 | Gravity: after the marks finish falling, before the next turn | [`js/timing.js:262`](js/timing.js#L262) | [`js/game.js:749`](js/game.js#L749) |
+| `TIMING.board.gravitySettle` | 450 | Gravity: after the marks finish falling, before the next turn | [`js/timing.js:262`](js/timing.js#L262) | [`js/game.js:750`](js/game.js#L750) |
 | `TIMING.board.gravityRaise` | 1700 | Gravity: the board tilting upright (hydraulic push) | [`js/timing.js:263`](js/timing.js#L263) | [`js/render.js:923`](js/render.js#L923) |
 | `TIMING.board.gravityRaiseDelay` | 350 | ... starting this long after the Gravity game begins | [`js/timing.js:264`](js/timing.js#L264) | [`js/render.js:925`](js/render.js#L925) |
 | `TIMING.board.gravityLower` | 700 | ... and tilting back down once the game is over | [`js/timing.js:265`](js/timing.js#L265) | [`js/render.js:939`](js/render.js#L939) |
-| `TIMING.board.shiftBefore` | 420 | Shifting Squares: pause before a row or column shifts | [`js/timing.js:266`](js/timing.js#L266) | [`js/game.js:752`](js/game.js#L752) |
-| `TIMING.board.shiftAfter` | 650 | ... and after it, before the next turn | [`js/timing.js:267`](js/timing.js#L267) | [`js/game.js:754`](js/game.js#L754) |
+| `TIMING.board.shiftBefore` | 420 | Shifting Squares: pause before a row or column shifts | [`js/timing.js:266`](js/timing.js#L266) | [`js/game.js:753`](js/game.js#L753) |
+| `TIMING.board.shiftAfter` | 650 | ... and after it, before the next turn | [`js/timing.js:267`](js/timing.js#L267) | [`js/game.js:755`](js/game.js#L755) |
 | `TIMING.board.slide` | 420 | a mark sliding to its new space (Shifting Squares, Ring Spin) | [`js/timing.js:268`](js/timing.js#L268) | [`js/render.js:1091`](js/render.js#L1091) |
-| `TIMING.board.turnBefore` | 420 | Ring Spin / Crossfire: pause before the marks move | [`js/timing.js:269`](js/timing.js#L269) | [`js/game.js:758`](js/game.js#L758) |
-| `TIMING.board.ringAfter` | 700 | Ring Spin: after the marks move, before the next turn | [`js/timing.js:270`](js/timing.js#L270) | [`js/game.js:760`](js/game.js#L760) |
-| `TIMING.board.crossAfter` | 800 | Crossfire: after the corners swap, before the next turn | [`js/timing.js:271`](js/timing.js#L271) | [`js/game.js:760`](js/game.js#L760) |
-| `TIMING.board.crossHop` | 700 | Crossfire: each corner mark's hop over the centre | [`js/timing.js:272`](js/timing.js#L272) | [`js/game.js:826`](js/game.js#L826) |
+| `TIMING.board.turnBefore` | 420 | Ring Spin / Crossfire: pause before the marks move | [`js/timing.js:269`](js/timing.js#L269) | [`js/game.js:759`](js/game.js#L759) |
+| `TIMING.board.ringAfter` | 700 | Ring Spin: after the marks move, before the next turn | [`js/timing.js:270`](js/timing.js#L270) | [`js/game.js:761`](js/game.js#L761) |
+| `TIMING.board.crossAfter` | 800 | Crossfire: after the corners swap, before the next turn | [`js/timing.js:271`](js/timing.js#L271) | [`js/game.js:761`](js/game.js#L761) |
+| `TIMING.board.crossHop` | 700 | Crossfire: each corner mark's hop over the centre | [`js/timing.js:272`](js/timing.js#L272) | [`js/game.js:827`](js/game.js#L827) |
 | `TIMING.board.fogCover` | 650 | Fog of War: a mark disappearing into the fog | [`js/timing.js:273`](js/timing.js#L273) | [`js/render.js:660`](js/render.js#L660) |
-| `TIMING.board.fogPause` | 500 | ... the pause while it does | [`js/timing.js:274`](js/timing.js#L274) | [`js/game.js:765`](js/game.js#L765) |
-| `TIMING.board.fogLiftPause` | 1500 | Fog of War is over: the fog evaporating before play continues | [`js/timing.js:275`](js/timing.js#L275) | [`js/game.js:815`](js/game.js#L815) |
+| `TIMING.board.fogPause` | 500 | ... the pause while it does | [`js/timing.js:274`](js/timing.js#L274) | [`js/game.js:766`](js/game.js#L766) |
+| `TIMING.board.fogLiftPause` | 1500 | Fog of War is over: the fog evaporating before play continues | [`js/timing.js:275`](js/timing.js#L275) | [`js/game.js:816`](js/game.js#L816) |
 | `TIMING.board.fogLift` | 1300 | ... how long the fog takes to thin away | [`js/timing.js:276`](js/timing.js#L276) | [`js/render.js:661`](js/render.js#L661)<br>[`js/render.js:666`](js/render.js#L666) |
 | `TIMING.board.fogWinFade` | 900 | ... (the fog's fade if a win happens without the lift) | [`js/timing.js:277`](js/timing.js#L277) | [`js/render.js:662`](js/render.js#L662) |
-| `TIMING.board.wildBefore` | 250 | Wild Square: pause before the wild mark jumps | [`js/timing.js:278`](js/timing.js#L278) | [`js/game.js:768`](js/game.js#L768) |
-| `TIMING.board.wildAfter` | 450 | ... and after, before the next turn | [`js/timing.js:279`](js/timing.js#L279) | [`js/game.js:770`](js/game.js#L770) |
+| `TIMING.board.wildBefore` | 250 | Wild Square: pause before the wild mark jumps | [`js/timing.js:278`](js/timing.js#L278) | [`js/game.js:769`](js/game.js#L769) |
+| `TIMING.board.wildAfter` | 450 | ... and after, before the next turn | [`js/timing.js:279`](js/timing.js#L279) | [`js/game.js:771`](js/game.js#L771) |
 
 Keep the `...After` pauses at least as long as the animation they wait for. For example, `crossAfter` should be at least `crossHop`, and `shiftAfter` at least `slide`. Otherwise the next turn starts while marks are still moving.
 
@@ -360,12 +360,12 @@ The spaces light up one after another, slowing down, until the light stops on th
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.board.wildIntroStart` | 2950 | after the rule card appears, before the lights start (lets the card fly away) | [`js/timing.js:282`](js/timing.js#L282) | [`js/game.js:654`](js/game.js#L654) |
-| `TIMING.board.wildIntroSteps` | 17 | how many random spaces light up before the final one (a count, not ms) | [`js/timing.js:283`](js/timing.js#L283) | [`js/game.js:657`](js/game.js#L657) |
-| `TIMING.board.wildStepMin` | 55 | the gap between lights at the start ... | [`js/timing.js:284`](js/timing.js#L284) | [`js/game.js:665`](js/game.js#L665) |
-| `TIMING.board.wildStepGrow` | 260 | ... growing by up to this much (on a curve) as the run slows down | [`js/timing.js:285`](js/timing.js#L285) | [`js/game.js:665`](js/game.js#L665) |
+| `TIMING.board.wildIntroStart` | 2950 | after the rule card appears, before the lights start (lets the card fly away) | [`js/timing.js:282`](js/timing.js#L282) | [`js/game.js:655`](js/game.js#L655) |
+| `TIMING.board.wildIntroSteps` | 17 | how many random spaces light up before the final one (a count, not ms) | [`js/timing.js:283`](js/timing.js#L283) | [`js/game.js:658`](js/game.js#L658) |
+| `TIMING.board.wildStepMin` | 55 | the gap between lights at the start ... | [`js/timing.js:284`](js/timing.js#L284) | [`js/game.js:666`](js/game.js#L666) |
+| `TIMING.board.wildStepGrow` | 260 | ... growing by up to this much (on a curve) as the run slows down | [`js/timing.js:285`](js/timing.js#L285) | [`js/game.js:666`](js/game.js#L666) |
 | `TIMING.board.wildStepTrail` | 120 | the dim trail left by the previous light | [`js/timing.js:286`](js/timing.js#L286) | [`js/render.js:739`](js/render.js#L739) |
-| `TIMING.board.wildDropDelay` | 450 | after the last light, before the wild mark drops | [`js/timing.js:287`](js/timing.js#L287) | [`js/game.js:672`](js/game.js#L672) |
+| `TIMING.board.wildDropDelay` | 450 | after the last light, before the wild mark drops | [`js/timing.js:287`](js/timing.js#L287) | [`js/game.js:673`](js/game.js#L673) |
 | `TIMING.board.wildLightFade` | 500 | after the mark lands, the light under it fading | [`js/timing.js:288`](js/timing.js#L288) | [`js/render.js:735`](js/render.js#L735) |
 
 The gap after light *n* is `wildStepMin + wildStepGrow × q³`, where *q* goes from 0 to 1 over the run. The run therefore starts fast and slows sharply at the end. The whole intro ends at `wildIntroStart + (sum of the gaps) + wildDropDelay + markDrop`, and the game waits for it before play starts.
@@ -376,13 +376,13 @@ The gap after light *n* is `wildStepMin + wildStepGrow × q³`, where *q* goes f
 
 | Setting | Default | What it controls | Defined at | Used at |
 |---|---|---|---|---|
-| `TIMING.replay.firstStep` | 1400 | after the replay starts, before the first move plays | [`js/timing.js:303`](js/timing.js#L303) | [`js/game.js:1303`](js/game.js#L1303) |
-| `TIMING.replay.stepSameBoard` | 950 | gap between moves on the same board | [`js/timing.js:304`](js/timing.js#L304) | [`js/game.js:1340`](js/game.js#L1340) |
-| `TIMING.replay.stepNewBoard` | 1500 | gap after the replay moves to a different board (longer for the camera) | [`js/timing.js:305`](js/timing.js#L305) | [`js/game.js:1340`](js/game.js#L1340) |
-| `TIMING.replay.resume` | 400 | after un-pausing, before the next move | [`js/timing.js:306`](js/timing.js#L306) | [`js/game.js:1358`](js/game.js#L1358) |
-| `TIMING.replay.cameraFirst` | 900 | the camera's move to the starting board | [`js/timing.js:307`](js/timing.js#L307) | [`js/game.js:1324`](js/game.js#L1324) |
-| `TIMING.replay.cameraMove` | 800 | the camera following the replay to a different board | [`js/timing.js:308`](js/timing.js#L308) | [`js/game.js:1324`](js/game.js#L1324) |
-| `TIMING.replay.cameraBack` | 900 | the camera's move back to the live game when the replay ends | [`js/timing.js:309`](js/timing.js#L309) | [`js/game.js:1351`](js/game.js#L1351) |
+| `TIMING.replay.firstStep` | 1400 | after the replay starts, before the first move plays | [`js/timing.js:303`](js/timing.js#L303) | [`js/game.js:1301`](js/game.js#L1301) |
+| `TIMING.replay.stepSameBoard` | 950 | gap between moves on the same board | [`js/timing.js:304`](js/timing.js#L304) | [`js/game.js:1338`](js/game.js#L1338) |
+| `TIMING.replay.stepNewBoard` | 1500 | gap after the replay moves to a different board (longer for the camera) | [`js/timing.js:305`](js/timing.js#L305) | [`js/game.js:1338`](js/game.js#L1338) |
+| `TIMING.replay.resume` | 400 | after un-pausing, before the next move | [`js/timing.js:306`](js/timing.js#L306) | [`js/game.js:1356`](js/game.js#L1356) |
+| `TIMING.replay.cameraFirst` | 900 | the camera's move to the starting board | [`js/timing.js:307`](js/timing.js#L307) | [`js/game.js:1322`](js/game.js#L1322) |
+| `TIMING.replay.cameraMove` | 800 | the camera following the replay to a different board | [`js/timing.js:308`](js/timing.js#L308) | [`js/game.js:1322`](js/game.js#L1322) |
+| `TIMING.replay.cameraBack` | 900 | the camera's move back to the live game when the replay ends | [`js/timing.js:309`](js/timing.js#L309) | [`js/game.js:1349`](js/game.js#L1349) |
 
 Replay speed (the 1×, 2×, 4× button) divides the step gaps. The camera durations are not divided.
 

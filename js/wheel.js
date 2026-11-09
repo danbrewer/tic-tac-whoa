@@ -2,15 +2,15 @@
 // Wheel of games: before each Level 0 game the last winner spins it to pick the game type.
 // 27 spots: the nine game types repeated three times, so equal odds and no two neighbours alike.
 const WHEEL_TYPES = [
-  { k: 'classic', label: 'CLASSIC', col: '#3a86ff', dark: '#1f5fd1' },
-  { k: 'vanish', label: 'VANISH', col: '#8338ec', dark: '#5f1fc2' },
-  { k: 'gravity', label: 'GRAVITY', col: '#0096c7', dark: '#006c94' },
-  { k: 'shift', label: 'SHIFT', col: '#fb8500', dark: '#c95f00' },
-  { k: 'wild', label: 'WILD', col: '#ff006e', dark: '#c4004f' },
-  { k: 'misere', label: 'MISÈRE', col: '#06a77d', dark: '#037a5a' },
-  { k: 'fog', label: 'FOG', col: '#6d7fa8', dark: '#4b5b80' },
-  { k: 'ring', label: 'RING', col: '#ffb703', dark: '#c78a00' },
-  { k: 'cross', label: 'CROSS', col: '#d62828', dark: '#a01b1b' },
+  { k: 'classic', label: STRINGS.rules.classic.wheel, col: '#3a86ff', dark: '#1f5fd1' },
+  { k: 'vanish', label: STRINGS.rules.vanish.wheel, col: '#8338ec', dark: '#5f1fc2' },
+  { k: 'gravity', label: STRINGS.rules.gravity.wheel, col: '#0096c7', dark: '#006c94' },
+  { k: 'shift', label: STRINGS.rules.shift.wheel, col: '#fb8500', dark: '#c95f00' },
+  { k: 'wild', label: STRINGS.rules.wild.wheel, col: '#ff006e', dark: '#c4004f' },
+  { k: 'misere', label: STRINGS.rules.misere.wheel, col: '#06a77d', dark: '#037a5a' },
+  { k: 'fog', label: STRINGS.rules.fog.wheel, col: '#6d7fa8', dark: '#4b5b80' },
+  { k: 'ring', label: STRINGS.rules.ring.wheel, col: '#ffb703', dark: '#c78a00' },
+  { k: 'cross', label: STRINGS.rules.cross.wheel, col: '#d62828', dark: '#a01b1b' },
 ];
 // a slice's icon: drawn marks for Wild Square, Fog of War and Crossfire, the emoji for the rest
 function wheelIcon(ctx, k, x, y, sz) {
@@ -484,14 +484,14 @@ const Wheel = {
       const btn = el.querySelector('.wh-spin');
       const res = el.querySelector('.wh-result');
       const pointer = el.querySelector('.wh-pointer');
-      el.querySelector('.wh-who').innerHTML = `<b class="${player}">${player}</b> ${auto ? '(computer) ' : ''}spins to pick the game type${sub ? ` ${sub}` : ''}`;
+      el.querySelector('.wh-who').innerHTML = STRINGS.wheel.who(player, auto, sub);
       res.className = 'wh-result';
-      res.textContent = auto ? 'The computer spins...' : '';
+      res.textContent = auto ? STRINGS.wheel.computerSpins : '';
       this.hit = -1; this.speed = 0; this.sus = 0; this.under = -1; this.sparks = []; this.lift = null;
       this.angle = ((this.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
       el.classList.remove('landed', 'spinning', 'lifting');
       el.style.setProperty('--sus', 0); el.style.setProperty('--jit', 0);
-      btn.textContent = 'SPIN!';
+      btn.textContent = STRINGS.wheel.spin;
       btn.disabled = auto;
       el.hidden = false;
       requestAnimationFrame(() => el.classList.add('show'));
@@ -506,7 +506,7 @@ const Wheel = {
         spun = true;
         window.removeEventListener('keydown', onKey);
         btn.disabled = true;
-        btn.textContent = '?';
+        btn.textContent = STRINGS.wheel.spinning;
         el.classList.add('spinning');
         res.textContent = '';
         const n = WHEEL_SEGS.length, seg = (Math.PI * 2) / n;
@@ -625,7 +625,7 @@ const Wheel = {
           Renderer.burst(rr.left + px * f, rr.top + py * f, player, 90);
           Renderer.flash(0.35, '255,230,120');
           res.className = 'wh-result is-win';
-          res.innerHTML = `<div class="prize-name">${R.icon} ${R.name.toUpperCase()}!</div>`;
+          res.innerHTML = `<div class="prize-name">${STRINGS.wheel.result(R.icon, R.name)}</div>`;
           // rules with a voice-over (Gravity, Vanishing Marks) announce now; the wheel waits for it before blasting off
           const voiced = Sound.hasRuleVoice(k);
           if (voiced) Sound.ruleVoice(k, 0.15);

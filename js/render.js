@@ -50,7 +50,7 @@ const WILD_ICON = (() => {
     paths.push(`<path d="${X}"><animate attributeName="d" dur="${WILD_CYCLE}ms" repeatCount="indefinite" keyTimes="0;0.15;0.5;0.65;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1" values="${X};${X};${O};${O};${X}"/></path>`);
   }
   const anim = (attr, a, b) => `<animate attributeName="${attr}" dur="${WILD_CYCLE}ms" repeatCount="indefinite" keyTimes="0;0.15;0.5;0.65;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1" values="${a};${a};${b};${b};${a}"/>`;
-  return `<svg class="wild-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="shape-shifting mark" role="img" style="vertical-align:-0.15em;overflow:visible">`
+  return `<svg class="wild-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="${STRINGS.icons.wild}" role="img" style="vertical-align:-0.15em;overflow:visible">`
     + `<g fill="none" stroke="#ff3fb2" stroke-width="17" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(255,255,255,.35))">`
     + anim('stroke', '#ff3fb2', '#0ad4ff') + anim('stroke-width', 17, 13)
     + `<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="${Math.round(2 * Math.PI * WILD_SPIN)}ms" repeatCount="indefinite"/>`
@@ -67,7 +67,7 @@ function drawCrossMark(ctx, x, y, r) {
   ctx.beginPath(); ctx.moveTo(x - a, y - a); ctx.lineTo(x + a, y + a); ctx.moveTo(x + a, y - a); ctx.lineTo(x - a, y + a); ctx.stroke();
   ctx.restore();
 }
-const CROSS_ICON = '<svg class="cross-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="crossfire" role="img" style="vertical-align:-0.15em;overflow:visible">'
+const CROSS_ICON = `<svg class="cross-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="${STRINGS.icons.cross}" role="img" style="vertical-align:-0.15em;overflow:visible">`
   + '<circle r="44" fill="#fff8ec" stroke="#2a0a3d" stroke-width="7"/>'
   + '<path d="M-20 -20L20 20M20 -20L-20 20" stroke="#e0102f" stroke-width="15" stroke-linecap="round"/></svg>';
 
@@ -91,7 +91,7 @@ const FOG_ICON = (() => {
     `<circle cx="${u}" cy="${v}" r="${r}"><animate attributeName="r" dur="${per}ms" repeatCount="indefinite" values="${r};${(r * 1.14).toFixed(1)};${r}" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1" begin="-${(i * 430) % per}ms"/>`
     + `<animate attributeName="cy" dur="${per + 600}ms" repeatCount="indefinite" values="${v};${v - 2.5};${v}" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></circle>`).join('');
   const wisp = (y, d, b) => `<ellipse cx="0" cy="${y}" rx="14" ry="3.2" fill="#e8ebf7" opacity="0"><animate attributeName="cx" dur="${d}ms" begin="${b}ms" repeatCount="indefinite" values="-30;40"/><animate attributeName="opacity" dur="${d}ms" begin="${b}ms" repeatCount="indefinite" values="0;.8;0"/></ellipse>`;
-  return '<svg class="fog-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="fog" role="img" style="vertical-align:-0.15em;overflow:visible">'
+  return `<svg class="fog-svg" viewBox="-50 -50 100 100" width="1em" height="1em" aria-label="${STRINGS.icons.fog}" role="img" style="vertical-align:-0.15em;overflow:visible">`
     + '<defs><radialGradient id="fogPuff" cx="40%" cy="32%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#e2e6f4"/><stop offset="1" stop-color="#b3bcd8"/></radialGradient></defs>'
     + '<g fill="url(#fogPuff)" style="filter:drop-shadow(0 2px 3px rgba(40,30,90,.35))">'
     + '<animateTransform attributeName="transform" type="translate" dur="5200ms" repeatCount="indefinite" values="-4 0;4 -1;-4 0" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/>'

@@ -55,14 +55,14 @@ const MiniMap = {
       ctx.fillStyle = 'rgba(244,240,255,0.5)';
       ctx.font = '600 9px Fredoka, system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('EARLIER LEVELS', 51, this.historyY);
+      ctx.fillText(STRINGS.minimap.earlier, 51, this.historyY);
     }
     for (const it of items) this.board(it, now);
     if (!phone && this.extra > 0) {
       ctx.fillStyle = 'rgba(244,240,255,0.6)';
       ctx.font = '600 11px Fredoka, system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`+${this.extra} more`, 51, this.h - 8);
+      ctx.fillText(STRINGS.minimap.more(this.extra), 51, this.h - 8);
     }
   },
 
