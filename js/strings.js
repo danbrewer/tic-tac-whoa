@@ -35,8 +35,8 @@ const STRINGS = (() => {
       // the nine spaces, in board order 0-8 (0 is drawn at the top of the diamond)
       cellNames: ['top', 'upper-right', 'right', 'upper-left', 'center', 'lower-right', 'left', 'lower-left', 'bottom'],
       // a board's name. level 0 is a Turf Battle; with the=true you get "the Turf Battle"
-      levelName: (level, the = false) => (level === 0 ? `${the ? 'the ' : ''}Turf Battle` : `Level ${level}`),
-      levelShort: (level) => (level === 0 ? 'Turf' : `L${level}`),   // zoom bar buttons
+      levelName: (level, the = false) => (level === 0 ? `${the ? 'the ' : ''}Turf Battle` : `Round ${level}`),
+      levelShort: (level) => (level === 0 ? 'Turf' : `R${level}`),   // zoom bar buttons
       you: 'You',
       computer: 'Computer',
     },
@@ -103,16 +103,16 @@ const STRINGS = (() => {
       title: 'Infinite Tic-Tac-Toe',                         // the browser tab
       brand: 'Infinite<br>Tic-Tac-Toe',                      // top-left logo text
       sceneLabel: 'Isometric tic-tac-toe board',             // screen-reader label for the game board
-      levelBoxTitle: 'The highest level reached in this game',
-      topLevel: 'Top level',
+      levelBoxTitle: 'The highest round reached in this game',
+      topLevel: 'Top round',
       best: (n) => `Best: ${n}`,                             // under the top level number
       pathLabel: 'Where you are',                            // screen-reader label for the trail at the top
-      minimapLabel: 'Mini-map of the live boards and earlier levels',
+      minimapLabel: 'Mini-map of the live boards and earlier rounds',
       // zoom bar
-      zoomBarLabel: 'Level zoom',
+      zoomBarLabel: 'Round zoom',
       zoom: 'Zoom',
-      zoomOutTitle: 'Zoom out a level (− key or scroll down)',
-      zoomInTitle: 'Zoom in a level (+ key or scroll up)',
+      zoomOutTitle: 'Zoom out a round (− key or scroll down)',
+      zoomInTitle: 'Zoom in a round (+ key or scroll up)',
       zoomLiveTitle: 'Back to the live game (Esc)',
       zoomLive: 'Back to game',
       zoomTo: (name) => `Zoom to ${name}`,                   // tooltip on each zoom bar level button
@@ -121,6 +121,7 @@ const STRINGS = (() => {
       newGameConfirm: 'Click again to restart',             // after the first click on New game
       vsComputer: (on) => `vs Computer: ${on ? 'On' : 'Off'}`,
       sound: (on) => `Sound: ${on ? 'On' : 'Off'}`,
+      soundLocked: '🔇 Tap anywhere to turn the sound on',   // chip shown after a page load until the browser lets audio start
       mix: '🎚️ Mix',
       mixTitle: 'Volume mix',
       review: '🎬 Review',
@@ -142,13 +143,13 @@ const STRINGS = (() => {
       title: 'How to play',
       steps: [
         'Every game starts with a <b>Turf Battle</b>: a quick game of tic-tac-toe on the smallest board. <span class="x">X</span> goes first.',
-        'Win the Turf Battle and your mark becomes the <b>center space of Level 1</b>, a brand-new, bigger board. The other player picks first there.',
-        "On Level 1 and above you don't just place a mark. You <b>pick an empty space</b>, the camera zooms in, and a fresh <b>Turf Battle</b> decides who owns it. Whoever picked moves first in that game.",
-        'Win three in a row on Level 1 and your mark becomes the center of Level 2, and so on, forever. Every space on every level is won with one Turf Battle.',
-        '<b>Glowing spaces</b> on the bigger boards would complete a line for that color. The <b>stakes bar</b> at the top tells you what the current game means, and the <b>mini-map</b> on the left shows the live boards and earlier levels. Click a mini board to zoom to it.',
-        '<b>Level zoom:</b> use the zoom bar, the trail at the top, your scroll wheel, or the <b>+</b> / <b>−</b> keys to move between levels. Click any claimed space to zoom into the finished game that won it. Press <b>Esc</b> or <b>Back to game</b> to return.',
+        'Win the Turf Battle and your mark becomes the <b>center space of Round 1</b>, a brand-new, bigger board. The other player picks first there.',
+        "In Round 1 and above you don't just place a mark. You <b>pick an empty space</b>, the camera zooms in, and a fresh <b>Turf Battle</b> decides who owns it. Whoever picked moves first in that game.",
+        'Win three in a row in Round 1 and your mark becomes the center of Round 2, and so on, forever. Every space in every round is won with one Turf Battle.',
+        '<b>Glowing spaces</b> on the bigger boards would complete a line for that color. The <b>stakes bar</b> at the top tells you what the current game means, and the <b>mini-map</b> on the left shows the live boards and earlier rounds. Click a mini board to zoom to it.',
+        '<b>Round zoom:</b> use the zoom bar, the trail at the top, your scroll wheel, or the <b>+</b> / <b>−</b> keys to move between rounds. Click any claimed space to zoom into the finished game that won it. Press <b>Esc</b> or <b>Back to game</b> to return.',
         '<b>Wheel of games:</b> before every Turf Battle, the winner of the last Turf Battle spins the wheel to pick the game type (X spins first). A title card names the rule, and the badge above the turn bar keeps it on screen.{rules}Outside Vanishing Marks, a full board with no line is a stalemate. A 🎲 <b>rule pick</b> from the slot machine lets its winner choose the next game type instead of spinning.',
-        '<b>🎬 Game review:</b> open Review to see every Level and Turf Battle so far, and start an <b>Instant Replay</b> from any of them. It plays forward until you press Stop (or Esc) or it reaches the live game. Space pauses it.',
+        '<b>🎬 Game review:</b> open Review to see every Round and Turf Battle so far, and start an <b>Instant Replay</b> from any of them. It plays forward until you press Stop (or Esc) or it reaches the live game. Space pauses it.',
         '<b>Mystery jackpot:</b> every new board hides a jackpot under one space (watch for a little extra sparkle). Land a mark on it to spin the slot machine: ⚡ extra move, 🎭 steal a mark, 💣 bomb a mark or stone, 🛡️ keep 4 marks (Vanishing Marks only), 🎲 <b>rule pick</b> (choose the next game type), 🎆 <b>INSTANT WIN</b> in a Turf Battle or a free space on big boards... or bust.',
         '<b>Stone spaces:</b> a stalemate turns the space it was deciding into stone, which blocks both players. If a whole big board fills with no line, the edges and stone spaces clear, corners and center stay as a head start, and the other player picks first.',
       ],
@@ -165,9 +166,9 @@ const STRINGS = (() => {
       toMove: (p, who) => `${mark(p)} ${who ? `(${who}) ` : ''}to move`,
       picksSpace: (p, who) => `${mark(p)} ${who ? `(${who}) ` : ''}picks a space to fight for`,
       wins: (p) => `${mark(p)} wins!`,
-      reviewTurf: (level, cell, parentLevel, winner) => `Replay: ${level === 0 ? 'the Turf Battle' : `the Level ${level} game`} for the ${cell} space of Level ${parentLevel}, won by ${mark(winner)}`,
+      reviewTurf: (level, cell, parentLevel, winner) => `Replay: ${level === 0 ? 'the Turf Battle' : `the Round ${level} game`} for the ${cell} space of Round ${parentLevel}, won by ${mark(winner)}`,
       reviewLevel: (name, winner) => `Replay: ${name}, won by ${mark(winner)}`,
-      viewing: (name, curLevel) => `Viewing ${name}. The live game is ${curLevel === 0 ? 'the Turf Battle' : `on Level ${curLevel}`}.`,
+      viewing: (name, curLevel) => `Viewing ${name}. The live game is ${curLevel === 0 ? 'the Turf Battle' : `in Round ${curLevel}`}.`,
       // a slot prize is waiting for a target. verb is one of msg.pickClaim / pickSteal / pickBomb
       selecting: (verb, cpu) => `🎰 ${verb} <span class="hint-dim">(${cpu ? 'computer choosing' : 'click a glowing ring'})</span>`,
       // the rule badge above the turn line
@@ -180,17 +181,17 @@ const STRINGS = (() => {
       pinNextTurf: 'Next Turf Battle',
       pickedBy: (p) => `picked by ${mark(p)}`,
       // the stakes bar at the top
-      stakesFirst: (nextLevel) => `Stakes: the winner takes the center of Level ${nextLevel}`,
+      stakesFirst: (nextLevel) => `Stakes: the winner takes the center of Round ${nextLevel}`,
       stakes: 'Stakes: ',
       matchPoint: '🔥 MATCH POINT: ',
-      stakesDefault: (cell, level) => `whoever wins takes the ${cell} space of Level ${level}`,
-      stakesWins: (p, level) => `${mark(p)} wins Level ${level}`,
+      stakesDefault: (cell, level) => `whoever wins takes the ${cell} space of Round ${level}`,
+      stakesWins: (p, level) => `${mark(p)} wins Round ${level}`,
       stakesBlocks: (opp) => `blocks ${mark(opp)}`,
       stakesDouble: 'sets up a double threat',
-      stakesThreat: (level) => `threatens Level ${level}`,
+      stakesThreat: (level) => `threatens Round ${level}`,
       stakesPlayer: (p, bits) => `${mark(p)} ${bits}`,               // bits are joined with " and "
       bigCanWin: (p, cells) => `${mark(p)} can win at ${cells}`,
-      bigThreats: (bits) => `Glowing spaces win the level: ${bits}`,
+      bigThreats: (bits) => `Glowing spaces win the round: ${bits}`,
       bigNoThreats: 'Pick a space. Glowing spaces mark winning spots.',
       jackpotHere: '<span class="jp">🎰 jackpot hidden here</span>',
       untilStalemate: (n) => `<span class="warn">${n} ${plural(n, 'move', 'moves')} until stalemate</span>`,
@@ -203,14 +204,14 @@ const STRINGS = (() => {
       welcomeBack: (name) => `Welcome back! Picking up at ${name}.`,
       newGame: 'New game! X spins the wheel to pick the first game type.',
       goesFor: (p, cell, childName) => `${mark(p)} goes for the ${cell} space. Win this ${childName} to claim it!`,
-      childGame: (level) => (level === 0 ? 'Turf Battle' : `Level ${level} game`),
+      childGame: (level) => (level === 0 ? 'Turf Battle' : `Round ${level} game`),
       jackpotUnderStone: 'The mystery jackpot was buried under stone!',
       goesAgain: (p) => `${mark(p)} goes again!`,
       wins: (p, name) => `${mark(p)} wins ${name}!`,
-      claims: (p, cell, level) => `${mark(p)} claims the ${cell} space of Level ${level}.`,
-      levelBegins: (level, holder, first) => `Level ${level} begins! ${mark(holder)} holds the center. ${mark(first)} picks first.`,
+      claims: (p, cell, level) => `${mark(p)} claims the ${cell} space of Round ${level}.`,
+      levelBegins: (level, holder, first) => `Round ${level} begins! ${mark(holder)} holds the center. ${mark(first)} picks first.`,
       // stalemates and draws. "18" is MOVE_CAP in game.js and is passed in as moves
-      stalemate: (vanish, moves, cell, level) => `${vanish ? `No winner after ${moves} moves` : 'The board filled up with no winner'}. The ${cell} space of Level ${level} turns to stone.`,
+      stalemate: (vanish, moves, cell, level) => `${vanish ? `No winner after ${moves} moves` : 'The board filled up with no winner'}. The ${cell} space of Round ${level} turns to stone.`,
       bigDraw: (name, first) => `${name} is a draw! Corners and center stay as a head start, edges and stone spaces clear. ${mark(first)} picks first.`,
       turfDraw: (name, first) => `Draw! Replaying ${name} with ${mark(first)} going first.`,
       // slot machine prizes
@@ -238,8 +239,8 @@ const STRINGS = (() => {
       claimed: 'CLAIMED!',
       goAgain: 'GO AGAIN!',
       misereLoses: (p) => `${p} MADE THREE... AND LOSES!`,
-      won: (level) => (level === 0 ? 'TURF WON!' : `LEVEL ${level} WON!`),
-      levelBanner: (level) => `LEVEL ${level}`,                   // the big banner when a new level starts
+      won: (level) => (level === 0 ? 'TURF WON!' : `ROUND ${level} WON!`),
+      levelBanner: (level) => `ROUND ${level}`,                   // the big banner when a new level starts
       shift: 'SHIFT!',
       movers: { shift: 'SHIFT!', ring: 'RING SPIN!', cross: 'CROSSFIRE!' },   // when the board moves itself
       fogLifts: 'THE FOG LIFTS!',
@@ -276,7 +277,7 @@ const STRINGS = (() => {
       spin: 'SPIN!',
       spinning: '?',                                // on the hub while it spins
       who: (p, cpu, sub) => `${mark(p)} ${cpu ? '(computer) ' : ''}spins to pick the game type${sub ? ` ${sub}` : ''}`,
-      forSpace: (cell, level) => `for the ${cell} space of Level ${level}`,   // the "sub" part above
+      forSpace: (cell, level) => `for the ${cell} space of Round ${level}`,   // the "sub" part above
       computerSpins: 'The computer spins...',
       result: (icon, name) => `${icon} ${name.toUpperCase()}!`,
     },
@@ -345,14 +346,14 @@ const STRINGS = (() => {
     // ---------------------------------------------------------------------------------------------
     review: {
       title: '🎬 Game review',
-      hint: 'Pick any earlier Level or Turf Battle. Instant Replay plays the game from that moment and keeps going until you stop it or it catches up with the live game.',
+      hint: 'Pick any earlier Round or Turf Battle. Instant Replay plays the game from that moment and keeps going until you stop it or it catches up with the live game.',
       close: 'Close',
       empty: 'No games yet. Play a Turf Battle first!',
       replayButton: '▶ Instant Replay',               // on each row of the list
       wonBy: (p) => `won by ${mark(p)}`,
       inProgress: '<i>in progress</i>',
       openingTurf: 'Opening Turf Battle',
-      turfFor: (cell, level) => `Turf Battle for the ${cell} space of Level ${level}`,
+      turfFor: (cell, level) => `Turf Battle for the ${cell} space of Round ${level}`,
       // the replay bar
       live: '● INSTANT REPLAY',
       pause: '⏸ Pause',
@@ -375,7 +376,7 @@ const STRINGS = (() => {
     //  MINI-MAP (drawn on its canvas)
     // ---------------------------------------------------------------------------------------------
     minimap: {
-      earlier: 'EARLIER LEVELS',
+      earlier: 'EARLIER ROUNDS',
       more: (n) => `+${n} more`,
     },
 

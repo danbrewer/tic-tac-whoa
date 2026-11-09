@@ -1,6 +1,6 @@
 # Architecture overview
 
-Infinite Tic-Tac-Toe is a browser game with an isometric 3D look. Each space on a board is won by winning a small game of tic-tac-toe, called a Turf Battle. Winning a whole board makes it the centre of a bigger board one level up, so the game can grow forever. Before each Turf Battle a Fortune Wheel picks a game type: Classic, Vanishing Marks, Gravity, Shifting Squares, Wild Square, Misère, Fog of War, Ring Spin or Crossfire. A hidden Mystery Jackpot space opens a slot machine with prizes.
+Infinite Tic-Tac-Toe is a browser game with an isometric 3D look. Each space on a board is won by winning a small game of tic-tac-toe, called a Turf Battle. Winning a whole board makes it the centre of a bigger board one level up, so the game can grow forever. Players see each level above the Turf Battles as a **Round** ("Round 1", "Round 2"); the code still calls them levels (`b.level`), and only the text in `strings.js` says Round. Before each Turf Battle a Fortune Wheel picks a game type: Classic, Vanishing Marks, Gravity, Shifting Squares, Wild Square, Misère, Fog of War, Ring Spin or Crossfire. A hidden Mystery Jackpot space opens a slot machine with prizes.
 
 This document is for a developer who is new to the codebase. It explains how the code is organised, how the pieces talk to each other, and where to look when you want to change something.
 
@@ -93,7 +93,7 @@ Everything is built from one class, `Board` ([`js/game.js`](js/game.js), search 
 
 | Field | Meaning |
 |---|---|
-| `level` | 0 for a Turf Battle, 1 and up for the big boards |
+| `level` | 0 for a Turf Battle, 1 and up for the big boards (shown to players as Round 1, Round 2 and so on) |
 | `cells[9]` | The nine spaces, numbered 0–8 (see below) |
 | `turn`, `starter` | Whose turn it is, and who started |
 | `winner`, `winLine`, `winTime` | Set when the board is won (`'#'` means stalemate) |
@@ -200,11 +200,11 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 ## 7. Sound ([`js/sound.js`](js/sound.js))
 
 - **Effects are synthesised live** with Web Audio (`tone()`, `noise()`, `roar()`, `engine()` and others), so there are no effect files to load.
-- **Voice-overs** are MP3s in `media/soundfx/`. `RULE_VOICES` maps each game type to its file. `Sound.voice()` plays a voice through a "concert hall" chain: compressor, convolution reverb (`hallIR()`) and slap-back echo. Instant Win uses a bigger hall (`style: 'big'`). Each recording is level-matched by loudness when it loads.
+- **Voice-overs** are MP3s in `media/soundfx/`. `RULE_VOICES` maps each game type to its file. `Sound.winVoice(p, level)` plays `x-takes-square` / `o-takes-square` when a Turf Battle is won and `x-wins-round` / `o-wins-round` when a Round's board is won (both from `afterClaim()` in `game.js`); `Sound.matchPointVoice()` plays `match-point` with the MATCH POINT pop. Their volumes are `SOUND.voices` in `sound-config.js`. `Sound.voice()` plays a voice through a "concert hall" chain: compressor, convolution reverb (`hallIR()`) and slap-back echo. Instant Win uses a bigger hall (`style: 'big'`). Each recording is level-matched by loudness when it loads.
 - **Opened from disk (file://)**, Web Audio can't decode the files. `voice()` then plays the ready-made `NAME-hall.mp3` with a plain `Audio` element.
 - **Two volume buses**, sound effects and voice, are set from the mixer (`Sound.setMix`). Their first-visit levels are `SOUND.mix` in `sound-config.js`; after that, the player's own levels are saved.
 - **Every effect has its own volume** in `SOUND.effects` (`sound-config.js`). At load, `sound.js` wraps each named `Sound` method so everything it plays goes through a gain set to that number (`Sound.withGain`), read each time it plays. Nested effects multiply (the Gravity `clunk` includes a `bigBoom`). The music loop runs on a timer, so `startMusic` applies `SOUND.effects.music` itself.
-- **Browsers block audio until the player interacts.** `Sound.ensure()` creates or resumes the audio context on the first click. On Safari it also plays a silent sample to unlock audio.
+- **Browsers block audio until the player interacts, after every page load, a refresh included.** `Sound.ensure()` creates or resumes the audio context; it runs on every click, tap or key press anywhere on the page, so the first one brings the sound back. It only creates the context during a real gesture (where the browser can tell, via `navigator.userActivation`), and keeps playing a silent sample on each gesture until the context is actually running, because Safari can otherwise stay locked. While sound is on but still locked, `Sound.locked()` is true and the game shows a "Tap anywhere to turn the sound on" chip (`Game.syncSoundLock`, text `STRINGS.page.soundLocked`).
 
 ## 8. Saving, review and replay
 

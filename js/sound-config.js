@@ -40,6 +40,9 @@ const SOUND = {
   voices: {
     rules: 1,        // the rule name read out when a Turf Battle rule is chosen (Sound.ruleVoice)
     instantWin: 1,   // "INSTANT WIN!" in the huge hall (Sound.instantWin)
+    turfWin: 1,      // "X / O takes the square" when a Turf Battle is won (Sound.winVoice)
+    roundWin: 1,     // "X / O wins the round" when a Round's board is won (Sound.winVoice)
+    matchPoint: 1,   // "Match point" when the Turf Battle being played would win a Round for someone (Sound.matchPointVoice)
   },
 
   // -- the Fortune Wheel's flapper clack: one per peg, the moment the peg strikes the flapper, and the

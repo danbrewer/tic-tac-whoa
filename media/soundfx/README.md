@@ -1,7 +1,8 @@
 # Sound effects
 
 Sample MP3s for Infinite Tic-Tac-Toe (44.1 kHz mono, 192 kbps, peak about -1 dBFS).
-They are not wired into the game yet. The game still synthesizes its sounds live in `js/sound.js`.
+The voice-overs below are played by the game (see `Sound.voice` in `js/sound.js`, volumes in `js/sound-config.js`).
+The effect files further down are reference renders: the game still synthesizes its effects live in `js/sound.js`.
 
 ## Voice
 - `instant-win.mp3`: Dan's "INSTANT WIN!" voice-over. It plays on a slots INSTANT WIN, run live through a
@@ -25,6 +26,12 @@ They are not wired into the game yet. The game still synthesizes its sounds live
 - `ring-spin.mp3`, `crossfire.mp3`, `fog-of-war.mp3`: Dan's voice-overs for those modes, with the same hall treatment, announced like Gravity.
 - `ring-spin-hall.mp3`, `crossfire-hall.mp3`, `fog-of-war-hall.mp3`: their pre-mixed hall versions, used when the game is opened from disk.
 - The mode voices use a toned-down hall (a 2.8 s reverb, about half the wet level, lighter slap-back echoes). Only INSTANT WIN keeps the original huge 4.2 s hall.
+- `x-takes-square.mp3`, `o-takes-square.mp3`: Dan's voice-overs for X or O winning a Turf Battle (their mark takes the
+  space on the board above). `x-wins-round.mp3`, `o-wins-round.mp3`: Dan's voice-overs for X or O winning a Round's board.
+  `match-point.mp3`: Dan's "MATCH POINT" voice-over, played with the MATCH POINT pop. All five use the same lighter hall
+  as the mode voices (`Sound.winVoice`, `Sound.matchPointVoice`).
+- `x-takes-square-hall.mp3`, `o-takes-square-hall.mp3`, `x-wins-round-hall.mp3`, `o-wins-round-hall.mp3`, `match-point-hall.mp3`:
+  their pre-mixed hall versions, rendered offline through the game's own hall chain, used when the game is opened from disk.
 - `gravity-pa.mp3`: an earlier stadium-PA take, no longer used and safe to delete.
 
 ## Effects
@@ -34,7 +41,7 @@ Each one is rendered offline from the game's own Web Audio code, so it matches w
 |---|---|
 | place_x, land | placing a mark and its landing thump |
 | win, draw, fanfare | game outcomes |
-| ascend, zoom_in, zoom_out | moving between levels |
+| ascend, zoom_in, zoom_out | moving between Rounds |
 | poof, stone, steal, shift, wild | rule effects |
 | card_flip, card_pick | Rule Pick cards |
 | jackpot_found, slot_lever, slot_reel_stop, slot_win_big, slot_bust | Mystery Jackpot slots |

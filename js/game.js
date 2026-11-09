@@ -574,6 +574,7 @@ const Game = {
       }
       b.waveT = b.winTime + 150; b.waveAmp = 0.3;
       Sound.win();
+      Sound.winVoice(res.p, b.level);   // "X takes the square!" / "X wins the round!"
       const [sx, sy] = Renderer.boardScreenCenter(b);
       Renderer.burst(sx, sy, res.p, 60 + b.level * 30);
       Renderer.flash(0.35, res.p === 'X' ? '255,60,200' : '0,230,255');
@@ -1407,6 +1408,9 @@ const Game = {
     $('rvList').innerHTML = rows || `<li class="rv-empty">${STRINGS.review.empty}</li>`;
     el.hidden = false;
   },
+  // show the "tap to turn the sound on" chip while sound is on but the browser hasn't started it yet
+  syncSoundLock() { $('soundLock').hidden = !Sound.locked(); },
+
   loadPrefs() {
     try {
       const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
@@ -1562,6 +1566,7 @@ const Game = {
       setTimeout(() => {
         if (this.current() !== cur || this.view) return;
         Sound.heartbeat();
+        Sound.matchPointVoice();
         Renderer.floatText(Renderer.W / 2, Renderer.centerY() - 60, STRINGS.pop.matchPoint, null, 52);
         Renderer.shake(8);
       }, 1100);
@@ -1673,7 +1678,13 @@ const Game = {
     Sound.ensure();
     Game.savePrefs();
     Game.updateHUD();
+    Game.syncSoundLock();
   });
+  // after a page load the browser keeps audio locked until the first click, tap or key press; the chip
+  // says so, and any gesture (the chip included) unlocks it
+  $('soundLock').addEventListener('click', () => Sound.ensure());
+  window.addEventListener('soundstate', () => Game.syncSoundLock());
+  Game.syncSoundLock();
   // level zoom controls
   const jump = (e) => {
     const el = e.target.closest('[data-i]');

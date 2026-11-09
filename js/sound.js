@@ -32,25 +32,42 @@ const Sound = {
     if (this._voxBus && this._voxBus.context === this.ctx) this._voxBus.gain.setTargetAtTime(this.voiceVol, now, 0.03);
   },
 
+  // Browsers keep audio locked after every page load (a refresh included) until the player clicks, taps or
+  // presses a key. ensure() starts (or wakes) the audio, and is called on every such gesture (see the bottom
+  // of this file), so the first one anywhere brings the sound back. Until then Sound.locked() is true and
+  // the game shows a "tap to turn the sound on" chip (Game.syncSoundLock).
   ensure() {
+    // only create the audio context during a gesture where the browser can tell us: one made outside a
+    // gesture can stay locked for good in Safari
+    const ua = navigator.userActivation;
+    if (!this.ctx && ua && !ua.isActive && !this.autoplayAllowed()) return;
     if (!this.ctx) {
       try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; }
+      if (this.ctx) this.ctx.onstatechange = () => this.notify();
     }
+    if (!this.ctx) return;
     // resume from any non-running state ('suspended', or Safari's 'interrupted')
-    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
-      const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {});
-    }
-    // Safari only truly unlocks audio once a sound starts inside a user gesture: play one silent sample
-    if (this.ctx) { this.loadVoice('instant-win'); Object.values(this.RULE_VOICES).forEach(n => this.loadVoice(n)); }
-    if (this.ctx && !this._unlocked) {
+    if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
+      const p = this.ctx.resume(); if (p && p.then) p.then(() => this.notify(), () => {});
+      // Safari only truly unlocks audio once a sound starts inside a gesture: play one silent sample,
+      // on every gesture until the context is actually running
       try {
         const src = this.ctx.createBufferSource();
         src.buffer = this.ctx.createBuffer(1, 1, 22050);
         src.connect(this.ctx.destination); src.start(0);
-        this._unlocked = true;
       } catch (e) { /* ignore */ }
     }
+    this.loadVoice('instant-win'); this.loadVoice('match-point');
+    Object.values(this.RULE_VOICES).forEach(n => this.loadVoice(n));
+    for (const p of ['x', 'o']) { this.loadVoice(`${p}-takes-square`); this.loadVoice(`${p}-wins-round`); }
+    this.notify();
   },
+  // true while sound is switched on but the browser hasn't let it start yet
+  locked() { return this.on && (!this.ctx || this.ctx.state !== 'running'); },
+  // the browser says it will let audio start without a gesture (Firefox can tell us; others can't)
+  autoplayAllowed() { try { return navigator.getAutoplayPolicy && navigator.getAutoplayPolicy('audiocontext') === 'allowed'; } catch (e) { return false; } },
+  // tell the page the audio's state may have changed (it updates the chip)
+  notify() { window.dispatchEvent(new Event('soundstate')); },
 
   tone(freq, dur, { type = 'sine', vol = 0.12, when = 0, slideTo = null } = {}) {
     if (!this.on || !this.ctx) return;
@@ -507,7 +524,14 @@ const Sound = {
     play([`${name}-${style === 'big' ? 'hall' : style}`, name]);
   },
   // SOUND.voices: how loud this recording plays, on top of the voice slider
-  voiceGain(name) { return name === 'instant-win' ? SOUND.voices.instantWin : SOUND.voices.rules; },
+  voiceGain(name) {
+    const V = SOUND.voices;
+    if (name === 'instant-win') return V.instantWin;
+    if (name === 'match-point') return V.matchPoint;
+    if (/-takes-square$/.test(name)) return V.turfWin;
+    if (/-wins-round$/.test(name)) return V.roundWin;
+    return V.rules;
+  },
   // a booming announcer over a stadium PA: horn-speaker band-limiting, a little amp grit, and
   // discrete echoes bouncing back off the far stands, all feeding a big hall
   paVoice(buf, when = 0) {
@@ -552,6 +576,10 @@ const Sound = {
   },
   gravityVoice(when) { this.ruleVoice('gravity', when); },   // same big-hall treatment as INSTANT WIN
   instantWin() { this.voice('instant-win', { when: 0.15, style: 'big' }); },
+  // who won: "X takes the square!" when a Turf Battle is won, "X wins the round!" when a Round's board is
+  // won (any board above the Turf Battles). Same lighter hall as the rule names.
+  winVoice(p, level, when = 0.25) { this.voice(`${p === 'X' ? 'x' : 'o'}-${level === 0 ? 'takes-square' : 'wins-round'}`, { when }); },
+  matchPointVoice(when = 0.1) { this.voice('match-point', { when }); },
 
   // the board locking upright: a heavy metal CLUNK, a latch click and a ringing echo
   clunk() {
@@ -627,6 +655,7 @@ for (const name of Object.keys(SOUND.effects)) {
 // board, and again whenever the page comes back into view, so sound that is toggled on stays on.
 (() => {
   const wake = () => { if (Sound.on) Sound.ensure(); };
+  if (Sound.autoplayAllowed()) wake();
   for (const ev of ['pointerdown', 'touchend', 'mousedown', 'keydown', 'click']) window.addEventListener(ev, wake, { capture: true, passive: true });
   const rewake = () => { if (Sound.ctx && Sound.ctx.state !== 'running' && Sound.ctx.state !== 'closed') { const p = Sound.ctx.resume(); if (p && p.catch) p.catch(() => {}); } };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) rewake(); });

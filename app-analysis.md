@@ -48,7 +48,7 @@ Ranked from most to least important. Severity reflects the impact on players or 
 
 ### Finding 1. The replay log is rewritten in full on every move (medium)
 
-**Where:** `snapshot()` and `saveLog()`, [`js/game.js:1267`](js/game.js#L1267) and [`js/game.js:1294`](js/game.js#L1294). The cap `LOG_CAP = 600` is at [`js/game.js:13`](js/game.js#L13).
+**Where:** `snapshot()` and `saveLog()`, [`js/game.js:1268`](js/game.js#L1268) and [`js/game.js:1295`](js/game.js#L1295). The cap `LOG_CAP = 600` is at [`js/game.js:13`](js/game.js#L13).
 
 Every settled move adds a snapshot of the *entire* board tree to `Game.log`. Then the whole log, up to 600 snapshots, is turned into one JSON string and written to `localStorage`. Each snapshot is already a JSON string, so it is escaped a second time inside the log.
 
@@ -138,13 +138,13 @@ The board is drawn on a `<canvas>` with only an `aria-label` ([`index.html`](ind
 
 ### Finding 7. Work done every frame that could be done once (low)
 
-`Game.layoutAll()` re-lays-out the whole board tree every frame ([`js/game.js:1727`](js/game.js#L1727)), although layout only changes when the tree changes. `drawBoard()` also creates many gradients per frame. Neither is a problem on current hardware at current game sizes, but both grow with the size of the tree.
+`Game.layoutAll()` re-lays-out the whole board tree every frame ([`js/game.js:1738`](js/game.js#L1738)), although layout only changes when the tree changes. `drawBoard()` also creates many gradients per frame. Neither is a problem on current hardware at current game sizes, but both grow with the size of the tree.
 
 **Recommendation:** only call `layoutAll()` when a board is added, removed or zoomed (the code already calls it at those moments), and cache gradients that don't depend on time.
 
 ### Finding 8. Developer Mode is open to players and its settings persist (low)
 
-Shift+D opens the developer panel for anyone ([`js/game.js:1700`](js/game.js#L1700)). Its settings are saved with the preferences (`savePrefs`, [`js/game.js:1421`](js/game.js#L1421)). A player who discovers it can force jackpots. If "jackpot everywhere" or "force prize" is left on, it carries over into later sessions.
+Shift+D opens the developer panel for anyone ([`js/game.js:1711`](js/game.js#L1711)). Its settings are saved with the preferences (`savePrefs`, [`js/game.js:1425`](js/game.js#L1425)). A player who discovers it can force jackpots. If "jackpot everywhere" or "force prize" is left on, it carries over into later sessions.
 
 **Recommendation:** if that is intended, show a small "DEV" badge in the HUD whenever Developer Mode is on, so nobody is surprised. Otherwise, only enable it with a URL flag such as `?dev`.
 
