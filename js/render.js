@@ -136,6 +136,10 @@ const Tweens = {
   },
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// Timings are counted from an epoch (see the top of timing.js): these wait for, or schedule at, `at` ms
+// after the epoch `t0` (a performance.now() time). If that moment has passed they run right away.
+const waitUntil = (t0, at) => wait(Math.max(0, t0 + at - performance.now()));
+const atTime = (t0, at, fn) => setTimeout(fn, Math.max(0, t0 + at - performance.now()));
 
 const KEEP_MARKS_R = 3; // must match KEEP_MARKS in game.js
 const hash01 = (n) => fract(Math.sin(n * 12.9898) * 43758.5453);

@@ -56,7 +56,7 @@ const SOUND = {
   },
 
   // -- the heartbeat under the wheel's spin (Sound.heartPulse). It gets louder as it races: quiet at the
-  //    slowest beat in TIMING.wheel.heartbeat.heartbeats, loud at the fastest. (How fast it races, and the gap
+  //    widest gap in TIMING.wheel.heartbeat.beatsAt, loud at the fastest. (How fast it races, and the gap
   //    between "lub" and "dub", are timings: see TIMING.wheel in js/timing.js.)
   heartbeat: {
     quiet: 0.37,     // loudness of the slowest beats

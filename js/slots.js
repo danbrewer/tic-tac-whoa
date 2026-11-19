@@ -189,16 +189,16 @@ const Slots = {
         // Four INSTANT WINs already on a payline: the deciding last reel spins much longer.
         const SR = REELS - 1;                                         // the suspense reel
         const fourUp = windup && this.streakRows(grid, SR - 1).size > 0;
+        // Every reel stop below counts from this moment, the pull (TIMING.slots.reels / instantWin).
         const TS = TIMING.slots;
-        let stops = TS.reels.reelStops.map((t, i) => t + (teaser && i >= 2 ? (i - 1) * TS.reels.teaserExtra : 0));
+        let stops = (teaser ? TS.reels.teaserStops : TS.reels.reelStops).slice(0, REELS);
         if (windup) {
-          stops = [TS.instantWin.windupFirstStop];
-          for (let i = 1; i < REELS; i++) {
-            let gap = TS.instantWin.windupGap;
-            if (i >= 2 && this.streakRows(grid, i - 1).size === 0) gap = TS.instantWin.windupBrokenGap;   // streak already broken: wrap up quickly
-            if (i === SR && fourUp) gap = TS.instantWin.suspenseGap;                                  // the suspense reel
-            stops.push(stops[i - 1] + gap);
-          }
+          stops = TS.instantWin.windupStops.slice(0, REELS);
+          if (fourUp) stops[SR] = TS.instantWin.suspenseStop;                                       // the suspense reel
+          // the streak already broken on reel b: the reels after it stop quickly, counted from reel b's stop
+          let b = -1;
+          for (let i = 1; i < REELS - 1 && b < 0; i++) if (this.streakRows(grid, i).size === 0) b = i;
+          if (b >= 0) for (let i = b + 1; i < REELS; i++) stops[i] = stops[b] + TS.instantWin.brokenStops[i - b - 1];
         }
         this.suspense = fourUp ? { reel: SR, dur: stops[SR] - stops[SR - 1] } : null;
         el.classList.toggle('calm', windup && !isIW);
@@ -212,7 +212,7 @@ const Slots = {
             res.innerHTML = STRINGS.slots.teaseReel1;
             Sound.windup((stops[REELS - 1] - stops[0]) / 1000);
             Sound.musicIntensity(1);
-          }, stops[0] + TS.instantWin.windupTeaseDelay);
+          }, TS.instantWin.teaseTextAt);
         }
         strips.forEach((strip, i) => {
           // Each reel spins at a steady spinSpeed, then slows to a stop over the last reelSlowdown ms
@@ -248,13 +248,13 @@ const Slots = {
               if (isIW) rs.classList.add('tension');
               Sound.musicMute(true);
               Sound.drumroll((stops[SR] - stops[SR - 1]) / 1000);
-              setTimeout(() => { res.innerHTML = STRINGS.slots.oneMore; }, TS.instantWin.oneMoreTextDelay);
             }
             if (i === SR && fourUp) Sound.musicMute(false);
             if (i === REELS - 1) { Sound.stopMusic(); el.classList.remove('windup'); }
             if (i === 1 && teaser) { strips.slice(2).forEach((s) => s.parentElement.classList.add('tension')); Sound.tension(); }
           }, stops[i]);
         });
+        if (fourUp) setTimeout(() => { res.innerHTML = STRINGS.slots.oneMore; }, TS.instantWin.oneMoreTextAt);
         let t = 0;
         const last = stops[REELS - 1];
         const tick = () => { if (t > last - TS.reels.tickStopGuard) return; Sound.reelTick(); const gap = TS.reels.tickGapStart + (t / last) * TS.reels.tickGapGrow; t += gap; setTimeout(tick, gap); };
@@ -262,7 +262,7 @@ const Slots = {
         setTimeout(() => this.reveal(el, res, player, level, prize, grid, wins, resolve), last + TS.result.revealDelay);
       };
       spinBtn.onclick = pull;
-      if (auto) setTimeout(pull, TIMING.slots.opening.autoPullDelay);
+      if (auto) setTimeout(pull, TIMING.slots.opening.autoPullAt);
       else window.addEventListener('keydown', onKey);
     });
   },
@@ -306,9 +306,10 @@ const Slots = {
       el.classList.remove('show');
       setTimeout(() => { el.hidden = true; resolve(prize); }, TIMING.slots.result.hide);
     };
+    // counted from the reveal (TIMING.slots.result)
     const TS = TIMING.slots;
-    setTimeout(() => el.addEventListener('click', finish), TS.result.clickSkip);
-    setTimeout(finish, prize === 'bust' ? TS.result.autoFinishBust : prize === 'jackpot' ? TS.instantWin.autoFinishJackpot : TS.result.autoFinishPrize);
+    setTimeout(() => { if (!done) el.addEventListener('click', finish); }, TS.result.clickSkipAt);
+    setTimeout(finish, prize === 'bust' ? TS.result.autoFinishBustAt : prize === 'jackpot' ? TS.instantWin.autoFinishJackpotAt : TS.result.autoFinishPrizeAt);
   },
 
   // Rows of reel i that continue an unbroken INSTANT WIN run from reel 1 along some payline.
@@ -394,7 +395,7 @@ const Slots = {
       this.domBurst(machine, r.left - mr2.left + r.width / 2 + machine.scrollLeft, r.top - mr2.top + r.height / 2 + machine.scrollTop, 26, 140);
     }, k * TIMING.slots.instantWin.bannerCellBurstGap));
     this.iwBanner = b;
-    setTimeout(() => { if (this.iwBanner === b) this.explodeBanner(); }, TIMING.slots.instantWin.bannerFailsafe);   // failsafe
+    setTimeout(() => { if (this.iwBanner === b) this.explodeBanner(); }, TIMING.slots.instantWin.bannerFailsafeAt);   // failsafe
   },
 
   // The machine is leaving: blow the INSTANT WIN! letters apart, one after another.
@@ -572,6 +573,7 @@ const RulePick = {
           { transform: 'scale(1.26) rotate(-6deg)', filter: 'brightness(1.7)', opacity: 1, offset: 0.75 },
           { transform: 'scale(1.34) rotate(0)', filter: 'brightness(2.4)', opacity: 1 },
         ], { duration: TP.swell, easing: 'ease-in', fill: 'forwards' });
+        // every time below counts from this moment, the card being chosen (TIMING.rulePick)
         // 2) BOOM: it shatters, and the blast knocks the rest of the hand off the screen
         setTimeout(() => {
           const r = card.getBoundingClientRect();
@@ -601,11 +603,9 @@ const RulePick = {
               { transform: `translate(${ux * far}px, ${uy * far * 0.5 + window.innerHeight * 0.55}px) rotate(${spin}deg) scale(0.8)`, opacity: 1 },
             ], { duration: TP.cardsFly + Math.random() * 250, delay: d * 0.35, easing: 'cubic-bezier(.25,.6,.55,1)', fill: 'forwards' });
           });
-        }, TP.swell);
-        setTimeout(() => {
-          el.classList.remove('show');
-          setTimeout(() => { el.hidden = true; el.querySelectorAll('.rp-shard').forEach((n) => n.remove()); resolve(k); }, TP.hide);
-        }, TP.exitDelay);
+        }, TP.shatterAt);
+        setTimeout(() => el.classList.remove('show'), TP.fadeAt);
+        setTimeout(() => { el.hidden = true; el.querySelectorAll('.rp-shard').forEach((n) => n.remove()); resolve(k); }, TP.doneAt);
       };
       if (auto) {
         // the computer "thinks": a highlight runs across the hand and slows down onto its pick
@@ -613,15 +613,18 @@ const RulePick = {
         el.querySelector('.rp-hint').textContent = STRINGS.rulePick.cpuHint;
         const target = RULE_KEYS.indexOf(pick);
         const steps = 2 * RULE_KEYS.length + target;
-        let n = 0;
+        // hop n lands at cpuStart + the hops before it, all counted from the deal (t0)
+        const t0 = performance.now();
+        let n = 0, at = TP.cpuStart;
         const hop = () => {
           cards.forEach((c, i) => c.classList.toggle('lit', i === n % cards.length));
           Sound.reelTick();
           if (n >= steps) { setTimeout(() => choose(pick), TP.cpuChoose); return; }
           n++;
-          setTimeout(hop, TP.cpuHopBase + n * n * TP.cpuHopGrow);
+          at += TP.cpuHopBase + n * n * TP.cpuHopGrow;
+          atTime(t0, at, hop);
         };
-        setTimeout(hop, TP.cpuStart);
+        atTime(t0, at, hop);
       } else {
         el.querySelector('.rp-hint').textContent = STRINGS.rulePick.clickHint;
         cards.forEach((c) => c.addEventListener('click', () => choose(c.dataset.k)));

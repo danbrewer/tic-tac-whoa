@@ -583,7 +583,7 @@ const Wheel = {
       { transform: 'translateY(0) rotate(0) scale(0.92, 1.08)' },
     ], { duration: FALL, easing: 'cubic-bezier(.5,0,1,1)', fill: 'backwards' });
     ui.forEach((u, i) => u.animate([{ opacity: 0, transform: 'translateY(-30px) scale(0.8)' }, { opacity: 1, transform: 'none' }],
-      { duration: T.drop.dropTitleIn, delay: FALL + T.drop.dropTitleGap + i * T.drop.dropTitleStagger, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
+      { duration: T.drop.dropTitleIn, delay: T.drop.titleAt + i * T.drop.dropTitleStagger, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
     fall.onfinish = () => {
       const f = this.footprint(stage);
       stage.animate([
@@ -597,11 +597,13 @@ const Wheel = {
       document.body.animate(sh, { duration: T.drop.dropShake });
     };
   },
-  // when the game type is picked the wheel rumbles, ignites, and blasts off like a rocket
-  blastOff(el, done) {
+  // when the game type is picked the wheel rumbles, ignites, and blasts off like a rocket.
+  // Every time here counts from this call (TIMING.wheel.blastOff): fade() at fadeAt, done() at doneAt.
+  blastOff(el, fade, done) {
     const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
-    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: TIMING.wheel.blastOff.blastUiFade, fill: 'forwards' }));
-    const RUMBLE = TIMING.wheel.blastOff.blastRumble, FLY = TIMING.wheel.blastOff.blastFly;
+    const TB = TIMING.wheel.blastOff;
+    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: TB.blastUiFade, fill: 'forwards' }));
+    const RUMBLE = TB.liftoffAt, FLY = TB.blastFly;
     Sound.rocketRumble && Sound.rocketRumble(RUMBLE / 1000);
     const sh = []; for (let k = 0; k < 10; k++) sh.push({ transform: `translate(${(Math.random() - 0.5) * 8}px, ${(Math.random() - 0.5) * 5}px)` });
     sh.push({ transform: 'none' });
@@ -618,7 +620,7 @@ const Wheel = {
         Fx.add({ x, y: f.y, vx: (Math.random() - 0.5) * 140, vy: 380 + Math.random() * 380, r0: f.w * 0.05, r1: f.w * 0.11, c: Math.random() < 0.5 ? '255,200,80' : '255,110,40', a: 0.9, life: 260 + Math.random() * 200, drag: 0.9, add: true });
         Fx.add({ x, y: f.y + 20, vx: (Math.random() - 0.5) * 220, vy: 120 + Math.random() * 200, r0: f.w * 0.06, r1: f.w * (0.16 + Math.random() * 0.1), c: '200,190,205', a: 0.45, life: 1400 + Math.random() * 800, drag: 0.95, g: -20 });
       }
-    }, RUMBLE + FLY);
+    }, TB.fadeAt);
     setTimeout(() => {
       Sound.liftoff && Sound.liftoff();
       Fx.dust(f0, 0.8);
@@ -628,11 +630,10 @@ const Wheel = {
         { transform: 'translateY(-4%) scale(0.95, 1.08)', offset: 0.12 },
         { transform: 'translateY(-140vh) scale(0.85, 1.18) rotate(3deg)' },
       ], { duration: FLY, easing: 'cubic-bezier(.6,0,.9,.6)', fill: 'forwards' });
-    }, RUMBLE);
-    setTimeout(() => {
-      done();
-      setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, TIMING.wheel.blastOff.blastCleanup);
-    }, RUMBLE + FLY);
+    }, TB.liftoffAt);
+    setTimeout(fade, TB.fadeAt);
+    setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, TB.cleanupAt);
+    setTimeout(done, TB.doneAt);
   },
 
   spin(player, auto, sub) {
@@ -703,8 +704,11 @@ const Wheel = {
         };
         const velAt = (t) => (t <= TA ? vB + (v0 - vB) * Math.pow(1 - t / TA, 3) : Math.max(0, vB - aB * (t - TA)));
         const t0 = performance.now();
-        let launched = 0, lastSeg = segAt(a0), rolled = false, nextBeat = 0, beatN = 0;
-        const BEATS = TIMING.wheel.heartbeat.heartbeats;
+        let launched = 0, lastSeg = segAt(a0), rolled = false, beatN = 0;
+        // heartbeat n starts at beatAt(n) after the launch (TIMING.wheel.heartbeat)
+        const HB = TIMING.wheel.heartbeat, BEATS = HB.beatsAt, LASTB = BEATS.length - 1;
+        const beatAt = (n) => (n <= LASTB ? BEATS[n] : BEATS[LASTB] + (n - LASTB) * HB.heartbeatFast);
+        const beatGap = (n) => beatAt(n + 1) - beatAt(n);
         const live = (i) => {
           const sg = WHEEL_SEGS[i];
           res.innerHTML = `<span class="wh-live" style="color:${sg.col};font-size:${Math.round(18 + this.sus * 22)}px">${RULES[sg.k].icon} ${sg.label}</span>`;
@@ -731,20 +735,19 @@ const Wheel = {
           el.style.setProperty('--hubrate', `${(0.5 - this.sus * 0.38).toFixed(2)}s`);
           if (this.sus > 0 && !rolled) { rolled = true; Sound.drumroll(((1 - q) * T) / 1000); }
           // heartbeat: a slow resting pulse while the wheel slows, racing hardest as the last few spokes pass the
-          // pointer (the gaps are TIMING.wheel.heartbeat.heartbeats, then heartbeatFast); it stops the moment the wheel stops
-          if (q < 1) {
-            if (!nextBeat) nextBeat = launched;
-            if (now >= nextBeat) {
-              // stepped pairs (TIMING.wheel.heartbeat.heartbeats), then TIMING.wheel.heartbeat.heartbeatFast until the wheel stops
-              const gap = BEATS[beatN] || TIMING.wheel.heartbeat.heartbeatFast; beatN++;
-              nextBeat += gap;
-              if (nextBeat > launched + T - TIMING.wheel.heartbeat.heartbeatStopGuard) nextBeat = Infinity; // no beat right on (or after) the stop
+          // pointer (TIMING.wheel.heartbeat.beatsAt, then every heartbeatFast); it stops the moment the wheel stops
+          // (the first beat always plays; no later beat starts within heartbeatStopGuard of the stop)
+          if (q < 1 && now - launched >= beatAt(beatN) && (beatN === 0 || beatAt(beatN) <= T - HB.heartbeatStopGuard)) {
+            {
+              // the gap to the next beat sets how hard this one hits
+              const gap = beatGap(beatN); beatN++;
               // hk: 0 at the slowest gap in the list .. 1 at heartbeatFast; louder and a tighter lub-dub as it races
-              const slow = Math.max(...BEATS), hk = Math.max(0, Math.min(1, (slow - gap) / Math.max(1, slow - TIMING.wheel.heartbeat.heartbeatFast)));
-              const lubSlow = TIMING.wheel.heartbeat.heartbeatLubDubSlow, lubFast = TIMING.wheel.heartbeat.heartbeatLubDubFast;
+              let slow = HB.heartbeatFast; for (let n = 0; n < LASTB; n++) slow = Math.max(slow, beatGap(n));
+              const hk = Math.max(0, Math.min(1, (slow - gap) / Math.max(1, slow - HB.heartbeatFast)));
+              const lubSlow = HB.heartbeatLubDubSlow, lubFast = HB.heartbeatLubDubFast;
               Sound.heartPulse(hk, (lubSlow + (lubFast - lubSlow) * hk) / 1000);
               const stage = el.querySelector('.wh-stage');
-              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: TIMING.wheel.heartbeat.heartbeatPulse, easing: 'ease-out', composite: 'add' });
+              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: HB.heartbeatPulse, easing: 'ease-out', composite: 'add' });
             }
           }
           const cur = segAt(this.angle);
@@ -769,22 +772,21 @@ const Wheel = {
         el.classList.add('landed');
         Sound.slotWin(false);
         Renderer.flash(0.3, '255,210,63');
+        // every time below counts from this moment, the wheel stopping (TIMING.wheel.landing)
+        const TL = TIMING.wheel.landing, voiced = Sound.hasRuleVoice(k);
         let done = false;
         const finish = () => {
           if (done) return; done = true;
           el.removeEventListener('click', finish);
-          this.blastOff(el, () => {
-            el.classList.remove('show');
-            setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, TIMING.wheel.blastOff.hide);
-          });
+          this.blastOff(el, () => el.classList.remove('show'), () => { el.hidden = true; this.lift = null; resolve(k); });
         };
         // the winning wedge pops out of the wheel, flips up to face the player and hovers, glowing
         setTimeout(() => {
-          this.lift = { t0: performance.now(), dur: TIMING.wheel.landing.wedgeLift };
+          this.lift = { t0: performance.now(), dur: TL.wedgeLift };
           el.classList.add('lifting');
           Sound.wheelLaunch();
           this.spark(30, true, [this.geo(this.canvas().width).cx, this.geo(this.canvas().width).cy + this.geo(this.canvas().width).r * WHEEL_K * 0.5]);
-        }, TIMING.wheel.landing.wedgeLiftDelay);
+        }, TL.wedgeLiftAt);
         setTimeout(() => {
           const cv = this.canvas(), g = this.geo(cv.width);
           const px = g.cx, py = g.cy + g.R * 0.2 - g.r * 0.6;
@@ -796,15 +798,14 @@ const Wheel = {
           res.className = 'wh-result is-win';
           res.innerHTML = `<div class="prize-name">${STRINGS.wheel.result(R.icon, R.name)}</div>`;
           // rules with a voice-over (Gravity, Vanishing Marks) announce now; the wheel waits for it before blasting off
-          const voiced = Sound.hasRuleVoice(k);
           if (voiced) Sound.ruleVoice(k, 0.15);
-          setTimeout(() => el.addEventListener('click', finish), voiced ? TIMING.wheel.landing.clickSkipVoiced : TIMING.wheel.landing.clickSkip);
-        }, TIMING.wheel.landing.announceDelay);
-        setTimeout(finish, Sound.hasRuleVoice(k) ? TIMING.wheel.landing.autoFinishVoiced : TIMING.wheel.landing.autoFinish);
+        }, TL.announceAt);
+        setTimeout(() => { if (!done) el.addEventListener('click', finish); }, voiced ? TL.clickSkipVoicedAt : TL.clickSkipAt);
+        setTimeout(finish, voiced ? TL.autoFinishVoicedAt : TL.autoFinishAt);
       };
       btn.onclick = go;
       el.querySelector('.wh-stage').onclick = (e) => { if (!auto && e.target !== btn) go(); };
-      if (auto) setTimeout(go, TIMING.wheel.autoSpinDelay);
+      if (auto) setTimeout(go, TIMING.wheel.drop.autoSpinAt);
       else window.addEventListener('keydown', onKey);
     });
   },

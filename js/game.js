@@ -414,7 +414,7 @@ const Game = {
     this.updateHUD();
     this.showRuleCard(b, how);
     this.save();
-    await this.step(wait(b.wildIntro ? Math.max(TIMING.ruleCard.afterCard, b.wildIntro.end - performance.now()) : TIMING.ruleCard.afterCard));
+    await this.step(wait(b.wildIntro ? Math.max(TIMING.ruleCard.playAt, b.wildIntro.end - performance.now()) : TIMING.ruleCard.playAt));
   },
 
   newGame() {
@@ -571,6 +571,8 @@ const Game = {
       }
 
       b.winner = res.p; b.winLine = res.line; b.winTime = performance.now();
+      // every time below counts from this win (TIMING.camera.turf)
+      const TT = TIMING.camera.turf, won = b.winTime;
       if (b.level === 0) this.lastWinner = res.p;
       if (res.loser) {
         const [mx, my] = Renderer.boardScreenCenter(b);
@@ -589,25 +591,25 @@ const Game = {
         Renderer.sparks(x, y, res.p, 26, 9);
         Renderer.ripple(b, k, res.p, 1.3);
         Sound.pop(i);
-      }, TIMING.camera.turf.winLineFirst + i * TIMING.camera.turf.winLineGap));
+      }, TT.winLineFirst + i * TT.winLineGap));
       Renderer.floatText(sx, sy - 40, STRINGS.pop.won(b.level), res.p, 46);
       this.toast(STRINGS.msg.wins(res.p, lvName(b.level, true)));
       this.updateHUD();
-      await this.step(wait(TIMING.camera.turf.winPause));
+      await this.step(waitUntil(won, TT.zoomOutAt));
 
       if (!b.parent) { await this.ascend(b); return; }
 
       // Zoom back out and drop the winner's mark into the parent square.
       const P = b.parent, k = b.parentIndex;
       Sound.zoomOut();
-      Tweens.add(TIMING.camera.turf.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.turf.wonFadeDelay);
-      await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.turf.zoomOutToParent));
+      Tweens.add(TT.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, Math.max(0, won + TT.wonFadeAt - performance.now()));
+      await this.step(Renderer.flyTo(viewOf(P), TT.zoomOutToParent));
       P.cells[k].child = null;
       P.cells[k].record = b;
       P.pending = null;
       this.claim(P, k, b.winner);
       this.toast(STRINGS.msg.claims(b.winner, CELL_NAMES[k], P.level));
-      await this.step(wait(TIMING.camera.turf.afterClaim));
+      await this.step(waitUntil(won, TT.continueAt));
       ck = k;
       b = P;
     }
@@ -634,18 +636,19 @@ const Game = {
     Renderer.fireworks(b.winner, 5);
     this.best = Math.max(this.best, N.level);
     this.savePrefs();
-    const TC = TIMING.camera;
-    Tweens.add(TC.ascend.ascendNewFadeIn, (e) => { N.alpha = e; }, Ease.outCubic, TC.ascend.ascendNewFadeDelay);
-    Tweens.add(TC.ascend.ascendOldFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TC.ascend.ascendOldFadeDelay);
-    await this.step(Renderer.flyTo(viewOf(N), TC.ascend.ascendZoom));
+    // every time below counts from this moment, the new level appearing (TIMING.camera.ascend)
+    const TA = TIMING.camera.ascend, t0 = performance.now();
+    Tweens.add(TA.ascendNewFadeIn, (e) => { N.alpha = e; }, Ease.outCubic, TA.ascendNewFadeAt);
+    Tweens.add(TA.ascendOldFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TA.ascendOldFadeAt);
+    await this.step(Renderer.flyTo(viewOf(N), TA.ascendZoom));
     N.cells[4].child = null;
     N.cells[4].record = b;
     N.pending = null;
     this.claim(N, 4, b.winner);
     Renderer.kick(0.12);
-    N.waveT = performance.now() + TC.ascend.ascendWaveDelay; N.waveAmp = 0.45;
+    N.waveT = t0 + TA.ascendWaveAt; N.waveAmp = 0.45;
     this.toast(STRINGS.msg.levelBegins(N.level, b.winner, N.turn));
-    await this.step(wait(TC.ascend.ascendSettle));
+    await this.step(waitUntil(t0, TA.ascendContinueAt));
   },
 
   // ---------- Level 0 rules ----------
@@ -668,7 +671,8 @@ const Game = {
   // Wild Square intro: the squares light up in a quick random run that slows down and ends on the
   // wild square, then the mark drops onto it (render.js puffs dust when it hits).
   wildRoulette(b, w) {
-    const TB = TIMING.board, t0 = performance.now() + TB.wildIntro.wildIntroStart;   // starts once the rule card has flown up out of the way
+    // every time here counts from the rule title card appearing, right after this (TIMING.board.wildIntro)
+    const TB = TIMING.board, card = performance.now(), t0 = card + TB.wildIntro.wildIntroStart;   // starts once the rule card has flown up out of the way
     const seq = [];
     let prev = -1;
     const N = TB.wildIntro.wildIntroSteps;
@@ -686,7 +690,10 @@ const Game = {
       if (gen !== this.gen) return;
       if (n === steps.length - 1) Sound.wild(); else Sound.reelTick();
     }, st - performance.now()));
-    return { steps, drop: last + TB.wildIntro.wildDropDelay, end: last + TB.wildIntro.wildDropDelay + TB.marks.markDrop };
+    if (TB.wildIntro.wildIntroStart < TIMING.ruleCard.flyAt + TIMING.ruleCard.fly) console.warn('TIMING.board.wildIntro.wildIntroStart comes before the rule card has flown away (ruleCard.flyAt + fly): raise it');
+    const drop = card + TB.wildIntro.wildDropAt;
+    if (drop < last) console.warn(`TIMING.board.wildIntro.wildDropAt (${TB.wildIntro.wildDropAt}) comes before the last light (${Math.round(last - card)}): raise it`);
+    return { steps, drop, end: drop + TB.marks.markDrop };
   },
   takeNextRule() {
     const r = this.nextRule || 'vanish';
@@ -734,9 +741,9 @@ const Game = {
         { transform: `translate(${dx}px, ${dy}px) scale(${sc})`, opacity: 0.85, offset: 1 },
       ], { duration: TIMING.ruleCard.fly, easing: 'cubic-bezier(.55,0,.6,1)', fill: 'forwards' });
       this.ruleFly.onfinish = () => { settle(); Sound.cardPick(); };
-    }, TIMING.ruleCard.hold);
+    }, TIMING.ruleCard.flyAt);
     // failsafe: never leave the card stuck on screen
-    this.ruleCardTimer = setTimeout(() => { if (this.pinState && this.pinState.waiting) settle(); else el.classList.remove('play'); }, TIMING.ruleCard.failsafe);
+    this.ruleCardTimer = setTimeout(() => { if (this.pinState && this.pinState.waiting) settle(); else el.classList.remove('play'); }, TIMING.ruleCard.failsafeAt);
   },
 
   // The rule plate pinned at the top of the screen for the whole Level 0 game,
@@ -766,15 +773,17 @@ const Game = {
     if (b.rule === 'gravity' && this.settleGravity(b)) await this.step(wait(T.gravity.gravitySettle));
     if (b.rule === 'shift' && b.shift && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
       b.shiftedAt = b.moves;
-      await this.step(wait(T.shift.shiftBefore));
+      const t0 = performance.now();
+      await this.step(waitUntil(t0, T.shift.shiftAt));
       this.doShift(b);
-      await this.step(wait(T.shift.shiftAfter));
+      await this.step(waitUntil(t0, T.shift.shiftContinueAt));
     }
     if ((b.rule === 'ring' || b.rule === 'cross') && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
       b.shiftedAt = b.moves;
-      await this.step(wait(T.ringCross.turnBefore));
+      const t0 = performance.now();
+      await this.step(waitUntil(t0, T.ringCross.turnAt));
       this.doTurn(b);
-      await this.step(wait(b.rule === 'cross' ? T.ringCross.crossAfter : T.ringCross.ringAfter));
+      await this.step(waitUntil(t0, b.rule === 'cross' ? T.ringCross.crossContinueAt : T.ringCross.ringContinueAt));
     }
     if (b.rule === 'fog' && b.moves > 1) {
       // the previous mark disappears into the fog once this move lands
@@ -782,9 +791,10 @@ const Game = {
       if (k >= 0 && b.cells[k].owner) { Sound.fog(); await this.step(wait(T.fog.fogPause)); }
     }
     if (b.rule === 'wild') {
-      await this.step(wait(T.wild.wildBefore));
+      const t0 = performance.now();
+      await this.step(waitUntil(t0, T.wild.wildJumpAt));
       this.moveWild(b);
-      await this.step(wait(T.wild.wildAfter));
+      await this.step(waitUntil(t0, T.wild.wildContinueAt));
     }
     if (gen !== this.gen) throw new Error('cancelled');
   },
@@ -1103,7 +1113,7 @@ const Game = {
         this.initRule(b, this.labRule()); b.ruled = true; b.born = performance.now();
         this.updateHUD();
         this.showRuleCard(b, STRINGS.ruleCard.spunBy('O'));
-        await this.step(wait(TIMING.ruleCard.hold + TIMING.ruleCard.fly + (b.wildIntro ? Math.max(0, b.wildIntro.end - performance.now() - TIMING.ruleCard.hold - TIMING.ruleCard.fly) : 0)));
+        await this.step(wait(TIMING.ruleCard.flyAt + TIMING.ruleCard.fly + (b.wildIntro ? Math.max(0, b.wildIntro.end - performance.now() - TIMING.ruleCard.flyAt - TIMING.ruleCard.fly) : 0)));
       },
       rulePick: async () => {
         const b = this.labTurf(); await before();
@@ -1132,8 +1142,9 @@ const Game = {
         this.mpBoard = b;
         this.updateHUD();
         await before();
-        this.matchPointMoment(b);
-        await this.step(wait(TIMING.matchPoint.riseLead + TIMING.matchPoint.banner + TIMING.matchPoint.glowPulse * 2));
+        const MPT = TIMING.matchPoint;
+        this.matchPointMoment(b, performance.now() - MPT.riseAt);   // start right at the riser
+        await this.step(wait(MPT.slamAt - MPT.riseAt + MPT.banner + MPT.glowPulse * 2));
       },
       turfWin: async () => {
         const b = this.labTurf('classic', 5);
@@ -1159,7 +1170,7 @@ const Game = {
         await before();
         this.busy = false;
         await this.play(2, true);
-        await this.step(wait(TIMING.ruleCard.hold + TIMING.ruleCard.fly - TIMING.ruleCard.afterCard));   // let the rule card land
+        await this.step(wait(TIMING.ruleCard.flyAt + TIMING.ruleCard.fly - TIMING.ruleCard.playAt));   // let the rule card land
       },
       roundBanner: async () => {
         this.labTurf(); await before();
@@ -1456,7 +1467,9 @@ const Game = {
   // ---------- mystery jackpot ----------
   async jackpotSpin(b, k, p) {
     const [x, y] = Renderer.cellScreen(b, k);
-    await this.step(wait(TIMING.slots.opening.jackpotFoundDelay));
+    // counted from the mark landing on the jackpot (TIMING.slots.opening)
+    const TO = TIMING.slots.opening, t0 = performance.now();
+    await this.step(waitUntil(t0, TO.jackpotAt));
     Sound.jackpotFound();
     Renderer.flash(0.45, '255,210,63');
     Renderer.shake(12);
@@ -1464,7 +1477,7 @@ const Game = {
     Renderer.coins(x, y, 70);
     Renderer.ripple(b, k, p, 1.6);
     Renderer.floatText(x, y - 30, STRINGS.pop.jackpot, null, 54);
-    await this.step(wait(TIMING.slots.opening.jackpotToMachine));
+    await this.step(waitUntil(t0, TO.machineAt));
     const spin = Slots.spin(p, b.level, this.vsCPU && p === 'O', { shield: b.level === 0 && b.rule === 'vanish' });
     await this.step(spin);
     const prize = await spin;
@@ -1499,6 +1512,8 @@ const Game = {
     if (prize === 'bomb') { cands = cellsOf((c) => c.owner === opp || (b.level > 0 && c.owner === DEAD)); verb = STRINGS.msg.pickBomb(opp, b.level > 0); }
     if (!cands.length) { this.toast(STRINGS.msg.noTarget); return { extra: true }; }
     const t = await this.step(this.chooseTarget(b, p, cands, prize, verb));
+    // every time below counts from the prize landing on the board, right now (TIMING.slots.prizes)
+    const TP = TIMING.slots.prizes, landed = performance.now();
     const c = b.cells[t];
     const [x, y] = Renderer.cellScreen(b, t);
     if (prize === 'jackpot') {
@@ -1532,10 +1547,11 @@ const Game = {
     // Gravity: a bombed mark leaves a gap, and a claimed square may be hanging in mid-air, so once the
     // blast has cleared every mark above an empty square falls down into it
     if (b.level === 0 && b.rule === 'gravity' && (prize === 'bomb' || prize === 'jackpot')) {
-      await this.step(wait(TIMING.slots.prizes.gravityDropDelay));
-      if (this.settleGravity(b)) await this.step(wait(TIMING.board.gravity.gravitySettle));
+      await this.step(waitUntil(landed, TP.gravityDropAt));
+      await this.step(waitUntil(landed, this.settleGravity(b) ? TP.gravitySettleAt : TP.gravityNoFallAt));
+    } else {
+      await this.step(waitUntil(landed, TP.prizeSettleAt));
     }
-    await this.step(wait(TIMING.slots.prizes.prizeSettle));
     return {};
   },
 
@@ -1560,14 +1576,16 @@ const Game = {
 
   // A Level 0 game with no winner: its square on the board above becomes a dead square.
   async deadSquare(b) {
+    // every time here counts from the stalemate move (TIMING.camera.stalemate)
+    const TS = TIMING.camera.stalemate, t0 = performance.now();
     Sound.draw();
     Renderer.shake(8);
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, STRINGS.pop.stalemate, null, 46); }
     const P = b.parent, k = b.parentIndex;
     this.toast(STRINGS.msg.stalemate(b.rule === 'vanish', MOVE_CAP, CELL_NAMES[k], P.level));
-    await this.step(wait(TIMING.camera.stalemate.stalematePause));
+    await this.step(waitUntil(t0, TS.zoomOutAt));
     Sound.zoomOut();
-    Tweens.add(TIMING.camera.turf.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.turf.wonFadeDelay);
+    Tweens.add(TIMING.camera.turf.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, Math.max(0, t0 + TS.fadeAt - performance.now()));
     await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.turf.zoomOutToParent));
     P.cells[k].child = null;
     P.cells[k].record = b;
@@ -1585,17 +1603,19 @@ const Game = {
       Renderer.kick(0.05);
       Renderer.floatText(x, y - 20, STRINGS.pop.blocked, null, 34);
     }, TIMING.board.marks.markImpact);
-    await this.step(wait(TIMING.camera.stalemate.stalemateSettle));
+    await this.step(waitUntil(t0, TS.continueAt));
     return P;
   },
 
   async replay(b) {
+    // every time here counts from the drawing move (TIMING.camera.draw)
+    const TD = TIMING.camera.draw, t0 = performance.now();
     Sound.draw();
     Renderer.shake(8);
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, STRINGS.pop.draw, null, 50); }
     const big = b.level >= 1;
     this.toast(big ? STRINGS.msg.bigDraw(lvName(b.level), other(b.starter)) : STRINGS.msg.turfDraw(lvName(b.level, true), other(b.starter)));
-    await this.step(wait(TIMING.camera.draw.drawPause));
+    await this.step(waitUntil(t0, TD.clearAt));
     const keep = (k, c) => big ? ([0, 2, 4, 6, 8].includes(k) && c.owner !== DEAD) : (b.seeded && k === 4);
     b.cells.forEach((c, k) => {
       if (keep(k, c)) return;
@@ -1611,7 +1631,7 @@ const Game = {
     b.starter = other(b.starter);
     b.turn = b.starter;
     b.born = performance.now();
-    await this.step(wait(TIMING.camera.draw.drawSettle));
+    await this.step(waitUntil(t0, TD.continueAt));
     if (!big) await this.startRule(b);
   },
 
@@ -2061,7 +2081,7 @@ const Game = {
   matchPointSoon(cur) {
     if (this.current() !== cur || this.view) return;
     if (this.pinState && this.pinState.waiting) { setTimeout(() => this.matchPointSoon(cur), 100); return; }
-    setTimeout(() => this.matchPointMoment(cur), TIMING.matchPoint.delay);
+    this.matchPointMoment(cur, performance.now());   // the card has landed: the epoch for TIMING.matchPoint
   },
 
   // The spaces on a Match Point board that would win it right now for a player who would then win the Round
@@ -2074,18 +2094,18 @@ const Game = {
 
   // MATCH POINT: riser, then the title slams down with a flash, a shake, a burst of light on the
   // deciding spaces and the announcer; the heartbeat follows (all timings in TIMING.matchPoint)
-  matchPointMoment(cur) {
+  // Every time counts from t0, the moment the rule card landed (TIMING.matchPoint).
+  matchPointMoment(cur, t0) {
     const MPT = TIMING.matchPoint;
     const alive = () => this.current() === cur && !this.view && !cur.winner && this.mp && this.mp.board === cur;
-    if (!alive()) return;
-    Sound.matchPointRise(MPT.riseLead / 1000);
-    setTimeout(() => {
+    atTime(t0, MPT.riseAt, () => { if (alive()) Sound.matchPointRise((MPT.slamAt - MPT.riseAt) / 1000); });
+    atTime(t0, MPT.heartbeatAt, () => { if (alive()) Sound.heartbeat(); });
+    atTime(t0, MPT.slamAt, () => {
       if (!alive()) return;
       const mp = this.mp;
       this.matchPointBanner(mp.who, mp.level);
       Sound.matchPointSlam();
-      Sound.matchPointVoice(MPT.voiceAfter / 1000);
-      setTimeout(() => { if (alive()) Sound.heartbeat(); }, MPT.heartbeatAfter);
+      Sound.matchPointVoice((MPT.voiceAt - MPT.slamAt) / 1000);
       Renderer.flash(0.6, '255,40,70');
       Renderer.shake(18);
       Renderer.kick(0.05);
@@ -2103,7 +2123,7 @@ const Game = {
         const [x, y] = Renderer.cellScreen(cur, k);
         Renderer.sparks(x, y, p, 30, 9);
       }, i * MPT.sparkGap));
-    }, MPT.riseLead);
+    });
   },
 
   matchPointBanner(who, level) {

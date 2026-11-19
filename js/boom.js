@@ -209,7 +209,7 @@ const IconFly = {
     };
   },
   // fly the big icon onto the title card's icon once the card has popped in
-  land(target, wait = TIMING.ruleCard.iconLandDelay) {
+  land(target, wait = TIMING.ruleCard.iconLandAt) {
     const el = this.el; if (!el) return;
     if (target) target.style.visibility = 'hidden';
     setTimeout(() => {

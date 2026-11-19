@@ -7,21 +7,31 @@
 //  * All values are in MILLISECONDS unless the comment says otherwise.
 //  * Change a number here, reload the page, and the game uses it. Nothing else needs editing.
 //  * transitions-technical-overview.md (in the project root) explains every entry, lists every place
-//    in the code that reads it, and says which values depend on each other.
+//    in the code that reads it, and has a timeline of every group.
 //  * This file loads first (see index.html), so every other script can read TIMING.
+//
+//  EPOCHS: HOW THE TIMES ARE COUNTED
+//  * Every group of settings that belong together is counted from ONE moment, its EPOCH, named in the
+//    group's "EPOCH:" line (for example "the lever is pulled" for the slot reels, or "the wheel stops"
+//    for the wheel's landing). A setting never counts from another setting's moment.
+//  * A setting whose name ends in "At" is a START TIME: how long after the epoch the thing happens.
+//    For example TIMING.wheel.landing.announceAt = 800 means the announcement happens 800 ms after the
+//    wheel stops, whatever the other settings say. Moving one "At" value moves only that event.
+//  * Any other setting is a DURATION (how long an animation or sound lasts) or a GAP of a repeating
+//    beat. A beat n happens at `first + n * gap` after the epoch, which is still counted from the epoch.
+//  * A new epoch starts only at a moment that is not fixed in advance: a player's click, the end of a
+//    spin whose length is random, or the moment a slot prize shows (the reels run longer or shorter
+//    depending on what they land on). The comment on the epoch says what starts it.
+//  * Because nothing is chained, some values must be kept in order by hand. Those are marked "KEEP:".
 //
 //  HOW TO READ THIS FILE
 //  * TIMING is a plain object, not a class. Each group (wheel, slots, ...) is one sequence.
 //  * Each group starts with a header that says what the sequence is, the order things happen in, and
 //    "Read by": the functions that use the group's settings and what each function does.
-//  * Big groups are split into smaller groups, one for each stage of the sequence. For example, every
-//    setting of the slot machine's INSTANT WIN drama is in TIMING.slots.instantWin, and the wheel's
-//    heartbeat is in TIMING.wheel.heartbeat. The setting names stay the same as before; only the path
-//    to them is longer.
-//  * Each setting's comment says what you see on screen when it runs. "after X, before Y" means the
-//    setting is a pause that starts when X happens.
+//  * Big groups are split into smaller groups, one for each stage (and epoch) of the sequence.
+//  * Each setting's comment says what you see on screen when it runs.
 //  * Code reads a setting when it is about to use it, so you can also try a value live from the browser
-//    console (for example `TIMING.wheel.landing.autoFinish = 1500`) and copy it here once you like it.
+//    console (for example `TIMING.wheel.landing.autoFinishAt = 1500`) and copy it here once you like it.
 //  * board.marks.markImpact is a getter (a value calculated when read). It follows markDrop automatically.
 // =====================================================================================================
 const TIMING = {
@@ -29,6 +39,8 @@ const TIMING = {
   // ---------------------------------------------------------------------------------------------
   //  FORTUNE WHEEL (js/wheel.js): picks the game type for each new Turf Battle
   //  Order: drop in -> (wait for SPIN) -> wind back -> spin -> land -> wedge lifts -> announce -> blast off
+  //  Epochs: the wheel appears (drop) / it is launched (spin, heartbeat) / it stops (landing) /
+  //          blast-off starts (blastOff)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Wheel.spin()       opens the wheel, waits for SPIN (or presses it for the computer), runs the spin,
@@ -40,33 +52,32 @@ const TIMING = {
   //    Called from Game.startRule() in js/game.js, which then shows the rule title card.
   // ---------------------------------------------------------------------------------------------
   wheel: {
-    autoSpinDelay: 900,        // computer's turn: how long the wheel sits before the computer presses SPIN
-
-    // -- drop-in: the wheel falls from above the screen and slams down --
+    // -- drop-in. EPOCH: the wheel appears (Wheel.spin() opens it) --
     drop: {
-      dropFall: 620,             // the fall itself; the BOOM, dust and squash happen when it ends
-      dropTitleGap: 120,         // after the slam, before the title text starts popping in
-      dropTitleIn: 450,          // each title line's pop-in animation
+      dropFall: 620,             // the fall itself; the slam (BOOM, dust, squash, shake) happens when it ends, at 620
+      titleAt: 740,              // the first title line starts popping in (the others follow, dropTitleStagger apart)
       dropTitleStagger: 90,      // extra delay between one title line and the next
-      dropSquash: 380,           // the squash-and-stretch bounce on impact
-      dropShake: 700,            // the screen shake on impact
+      dropTitleIn: 450,          // each title line's pop-in animation
+      dropSquash: 380,           // the squash-and-stretch bounce at the slam
+      dropShake: 700,            // the screen shake at the slam
+      autoSpinAt: 900,           // computer's turn: the computer presses SPIN
     },
 
-    // -- the spin --
+    // -- the spin. EPOCH: SPIN is pressed --
     spin: {
-      windBack: 520,             // the wheel is dragged backwards before it is let go
-      spinFast: 6800,            // phase A: the long slow-down from full speed ...
+      windBack: 520,             // the wheel is dragged backwards; it is let go (launched) when this ends
+      spinFast: 6800,            // phase A, counted from the launch: the long slow-down from full speed ...
       spinFastRandom: 400,       // ... plus up to this much extra, so no two spins last exactly the same
       spinCrawl: 3400,           // phase B: the final crawl over the last ~3 spokes to the stop
     },
 
-    // -- the heartbeat under the spin: it races as the wheel slows --
+    // -- the heartbeat under the spin: it races as the wheel slows. EPOCH: the wheel is launched --
     heartbeat: {
-      heartbeats: [1200, 1200, 1000, 1000, 800, 800, 600, 600],  // gap before each heartbeat during the spin:
-                                 // this list is the speed-up curve (loudness follows it, see SOUND.heartbeat)
-      heartbeatFast: 400,        // gap between heartbeats once the list above runs out
-      heartbeatPulse: 420,       // how long each heartbeat's "throb" of the wheel lasts
+      beatsAt: [0, 1200, 2400, 3400, 4400, 5200, 6000, 6600, 7200],  // when each heartbeat starts: the
+                                 // shrinking gaps are the speed-up curve (loudness follows it, see SOUND.heartbeat)
+      heartbeatFast: 400,        // after the last beat in the list, a beat every this often until the wheel stops
       heartbeatStopGuard: 120,   // no heartbeat starts this close to the moment the wheel stops
+      heartbeatPulse: 420,       // how long each heartbeat's "throb" of the wheel lasts
       heartbeatLubDubSlow: 240,  // gap between the "lub" and the "dub" of the slowest heartbeat ...
       heartbeatLubDubFast: 110,  // ... and of the fastest (in between, it tightens as the heart races)
     },
@@ -79,30 +90,37 @@ const TIMING = {
       flapperBounce: 0.35,       // 0..1: how much of its speed it keeps when it slaps into a peg
     },
 
-    // -- landing and the announcement --
+    // -- landing and the announcement. EPOCH: the wheel stops --
     landing: {
-      wedgeLiftDelay: 450,       // after the wheel stops, before the winning wedge pops out
-      wedgeLift: 800,            // the wedge rising up and flipping to face the player
-      announceDelay: 800,       // after the wheel stops: big burst, the game's name, and its voice-over
-      clickSkipVoiced: 2600,     // after the announcement, how soon a click can skip ahead (game has a voice-over)
-      clickSkip: 0,              // the same, for a game without a voice-over
-      autoFinishVoiced: 3000,    // after the wheel stops, blast off on its own (game has a voice-over)
-      autoFinish: 1300,          // the same, for a game without a voice-over
+      wedgeLiftAt: 450,          // the winning wedge pops out ...
+      wedgeLift: 800,            // ... rising up and flipping to face the player for this long
+      announceAt: 800,           // big burst, the game's name, and its voice-over
+      clickSkipVoicedAt: 2400,   // from here a click blasts off early (game has a voice-over): 1.6 s into the
+                                 // announcement, once the game's name has been said (KEEP: before autoFinishVoicedAt)
+      clickSkipAt: 800,          // the same, for a game without a voice-over (KEEP: not before announceAt)
+      autoFinishVoicedAt: 3000,  // blast off on its own (game has a voice-over)
+      autoFinishAt: 1300,        // the same, for a game without a voice-over
     },
 
-    // -- blast-off: the wheel leaves like a rocket --
+    // -- blast-off: the wheel leaves like a rocket. EPOCH: blast-off starts (a click, or autoFinish*At) --
     blastOff: {
-      blastUiFade: 300,          // the title and result text fade away
-      blastRumble: 200,          // rumbling and fire on the ground before lift-off
-      blastFly: 400,            // the flight up and off the screen
-      blastCleanup: 400,         // after the flight, before leftover animations are cleared
-      hide: 1000,                 // the overlay's fade-out before the game continues (matches --t-overlay-fade)
+      blastUiFade: 300,          // the title and result text fade away (from the epoch)
+      liftoffAt: 200,            // rumbling and fire on the ground until lift-off, here
+      blastFly: 400,             // the flight up and off the screen, from lift-off
+      fadeAt: 600,               // the overlay starts fading out (the flight is over at liftoffAt + blastFly)
+      cleanupAt: 1000,           // leftover animations are cleared
+      doneAt: 1600,              // the wheel is hidden and the game continues. The fade itself is --t-overlay-fade
+                                 // (250), so the screen rests on the board for a moment before the title card
     },
   },
 
   // ---------------------------------------------------------------------------------------------
   //  SLOT MACHINE / MYSTERY JACKPOT (js/slots.js)
   //  Order: (jackpot found) -> machine appears -> pull -> reels stop one by one -> reveal -> leave
+  //  Epochs: the mark lands on the jackpot (opening) / the machine appears (autoPullAt) /
+  //          the lever is pulled (reels, instantWin stops) / an INSTANT WIN streak breaks (brokenStops) /
+  //          the prize shows (result, instantWin glow and title) / the machine closes (letters, hide, boom) /
+  //          the prize lands on the board (prizes)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Game.jackpotSpin()   (game.js) the "JACKPOT!" moment, then opens the machine with Slots.spin()
@@ -117,100 +135,118 @@ const TIMING = {
   //    Game.chooseTarget()  (game.js) waits for a target to steal/bomb; the computer picks after a delay
   // ---------------------------------------------------------------------------------------------
   slots: {
-    // -- the jackpot is found and the machine opens --
+    // -- the jackpot is found and the machine opens. EPOCH: the mark lands on the jackpot space --
     opening: {
-      jackpotFoundDelay: 300,    // game.js: after the mark lands on the jackpot space, before "JACKPOT!"
-      jackpotToMachine: 900,     // game.js: after "JACKPOT!", before the slot machine appears
-      autoPullDelay: 900,        // computer's turn: how long before the computer pulls the lever
+      jackpotAt: 300,            // game.js: "JACKPOT!" (coins, flash, shake)
+      machineAt: 1200,           // game.js: the slot machine appears
+      autoPullAt: 900,           // computer's turn: counted from when the MACHINE APPEARS, the computer pulls the lever
     },
 
-    // -- reels: how fast they spin, and when each one stops (reelStops: counted from the pull) --
+    // -- reels: how fast they spin, and when each one stops. EPOCH: the lever is pulled --
     reels: {
-      reelStops: [1500, 1900, 2300, 2500, 2900],
+      reelStops: [1500, 1900, 2300, 2500, 2900],      // when each reel stops
+      teaserStops: [1500, 1900, 2750, 3400, 4250],    // the same when reels 1+2 already lead a line (a likely win):
+                                                      // the last three slow down for suspense
       spinSpeed: 35,             // how fast the reels spin, in SYMBOLS PER SECOND (higher = faster); every reel
                                  // spins this fast whatever its stop time, so longer spins just pass more symbols
       reelSlowdown: 1200,        // the last part of each reel's spin, where it visibly slows from spinSpeed to a stop
-      teaserExtra: 450,          // a likely win on reels 1+2: reels 3, 4, 5 stop 450, 900, 1350 later
-      tickGapStart: 50,          // the reel ticking sound: gap between ticks at the start ...
+      tickGapStart: 50,          // the reel ticking sound, from the pull: gap between ticks at the start ...
       tickGapGrow: 150,          // ... growing by up to this much as the reels slow down
       tickStopGuard: 120,        // the ticking stops this long before the last reel stops
     },
 
     // -- INSTANT WIN: an INSTANT WIN on reel 1 winds up the other reels; five in a row wins --
     instantWin: {
-      windupFirstStop: 2000,     // INSTANT WIN on reel 1: when reel 1 stops ...
-      windupGap: 2100,           // ... and the gap before each later reel stops
-      windupBrokenGap: 380,      // ... but only this gap once the INSTANT WIN streak is broken
-      suspenseGap: 3200,         // four INSTANT WINs lined up: the gap before the deciding fifth reel stops
+      // EPOCH: the lever is pulled
+      windupStops: [2000, 4100, 6200, 8300, 10400],   // INSTANT WIN on reel 1: when each reel stops
+      suspenseStop: 11500,       // four INSTANT WINs lined up: when the deciding fifth reel stops instead
       suspenseSlowdown: 2800,    // ... and the last part of that reel's spin, where it slowly crawls to a stop (see reels.reelSlowdown)
-      windupTeaseDelay: 30,      // after reel 1 stops, before "INSTANT WIN on reel 1..." appears
-      oneMoreTextDelay: 650,     // after reel 4 stops, before "ONE MORE FOR AN INSTANT WIN..." appears
+      teaseTextAt: 2030,         // "INSTANT WIN on reel 1..." appears (KEEP: just after windupStops[0])
+      oneMoreTextAt: 8950,       // four lined up: "ONE MORE FOR AN INSTANT WIN..." appears (KEEP: after windupStops[3])
+      // EPOCH: the reel that breaks the INSTANT WIN streak stops
+      brokenStops: [380, 760, 1140],  // the reels after it stop quickly, at these times (as many as are left)
+      // EPOCH: that reel stops (one flash per reel)
       lockFlash: 600,            // the white flash each time an INSTANT WIN locks into place on a reel
-      autoFinishJackpot: 5600,   // after an INSTANT WIN is revealed, the machine closes on its own
+      // EPOCH: the prize shows (Slots.reveal)
+      autoFinishJackpotAt: 5600, // the machine closes on its own after an INSTANT WIN
       instantGlow: 5200,         // how long the machine glows after an INSTANT WIN
-      bannerBoomFirst: 150,      // the first explosion around the title
-      bannerBoomGap: 260,        // gap between those explosions (6 of them)
-      bannerCellBurstGap: 90,    // gap between the bursts on each winning symbol
-      bannerFailsafe: 9000,      // the title blows itself up after this long if the machine is still open
-      letterGap: 45,             // the title blowing apart: delay between one letter and the next
-      letterFly: 720,            // each letter flying away
-      letterBoom: 130,           // after a letter starts flying, its little explosion
-      letterCleanup: 1500,       // after the last letter starts, before the leftovers are removed
+      bannerBoomFirst: 150,      // the first explosion around the title ...
+      bannerBoomGap: 260,        // ... and the gap between those explosions (6 of them)
+      bannerCellBurstGap: 90,    // gap between the bursts on each winning symbol (the first at the reveal)
+      bannerFailsafeAt: 9000,    // the title blows itself up if the machine is still open
+      // EPOCH: the machine closes (Slots.explodeBanner)
+      letterGap: 45,             // the title blowing apart: letter n starts flying at n * letterGap ...
+      letterFly: 720,            // ... each letter flying away for this long ...
+      letterBoom: 130,           // ... and its little explosion at n * letterGap + letterBoom
+      letterCleanup: 1500,       // the leftovers are removed at (number of letters) * letterGap + letterCleanup
     },
 
-    // -- the result --
+    // -- the result. EPOCH: the prize shows --
     result: {
-      revealDelay: 200,          // after the last reel stops, before the prize is shown
-      clickSkip: 400,            // after the reveal, how soon a click closes the machine
-      autoFinishBust: 2200,      // after the reveal, the machine closes on its own: no prize
-      autoFinishPrize: 3600,     // ... any other prize
-      hide: 250,                 // the overlay's fade-out before the game continues (matches --t-overlay-fade)
+      revealDelay: 200,          // the prize shows this long after the LAST reel stops: this moment is the epoch
+                                 // for the settings below (the last stop depends on what the reels land on)
+      clickSkipAt: 400,          // from here a click closes the machine
+      autoFinishBustAt: 2200,    // the machine closes on its own: no prize
+      autoFinishPrizeAt: 3600,   // ... any other prize (INSTANT WIN: instantWin.autoFinishJackpotAt)
+      hide: 250,                 // EPOCH: the machine closes. The overlay's fade-out before the game continues
+                                 // (matches --t-overlay-fade)
     },
 
     // -- prize follow-ups (game.js) --
     prizes: {
-      prizeSettle: 700,          // after a STEAL or a BOMB lands, before play continues
-      gravityDropDelay: 450,     // Gravity: after a BOMB or a claimed square, before the marks above a gap fall in
-      cpuTargetDelay: 1000,      // computer's turn: how long before it picks which mark to steal or bomb
-      rulePickSettle: 3000,      // after a RULE PICK, how long the "next game" card is on screen
+      // EPOCH: the STEAL, BOMB or claimed square lands on the board
+      prizeSettleAt: 700,        // play continues
+      gravityDropAt: 450,        // Gravity, after a BOMB or a claimed square: the marks above a gap fall in
+      gravitySettleAt: 1600,     // ... and play continues (KEEP: after gravityDropAt + board.shift.slide)
+      gravityNoFallAt: 1150,     // ... or here, if nothing had to fall
+      // EPOCH: the player is asked to pick a target
+      cpuTargetDelay: 1000,      // computer's turn: it picks which mark to steal or bomb
+      // EPOCH: the "next game" title card appears after a RULE PICK
+      rulePickSettle: 3000,      // play continues (the card is on screen until then)
     },
   },
 
   // ---------------------------------------------------------------------------------------------
   //  EXPLOSION when the slot machine leaves (js/boom.js, Boom.run)
+  //  EPOCH: the machine closes (the centre blast goes off at once)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Boom.run()   the chain of fireballs, flash and screen shake drawn on a temporary canvas
   // ---------------------------------------------------------------------------------------------
   boom: {
-    blastFirst: 140,           // the first ring blast after the centre one
-    blastGap: 95,              // gap between the ring blasts (7 of them, plus up to 60 random)
+    blastFirst: 140,           // the first ring blast after the centre one ...
+    blastGap: 95,              // ... and the gap between the ring blasts (7 of them, plus up to 60 random each)
     shake: 900,                // the screen shake
   },
 
   // ---------------------------------------------------------------------------------------------
   //  RULE PICK (js/slots.js, RulePick): the prize that lets a player choose the next game type
+  //  Epochs: the cards appear (deal, computer's highlight) / a card is chosen (swell, shatter, close)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    RulePick.open()  deals the cards, waits for a choice (or runs the computer's highlight), shatters
   //                     the chosen card, blows the rest away and closes. Called from Game.applyPrize().
   // ---------------------------------------------------------------------------------------------
   rulePick: {
+    // EPOCH: the cards appear
     cardFlipFirst: 250,        // the deal: the first card's flip sound ...
     cardFlipGap: 110,          // ... and the gap between cards
-    swell: 420,                // the chosen card swells and trembles, then shatters
-    shake: 420,                // the panel shake when it shatters
-    cardsFly: 1000,            // the other cards being blown off the screen (plus up to 250 random)
-    exitDelay: 2000,           // after a card is chosen, before the overlay fades away
-    hide: 260,                 // the overlay's fade-out (matches --t-overlay-fade)
-    cpuStart: 1100,            // computer's turn: before the highlight starts running over the cards
+    cpuStart: 1100,            // computer's turn: the highlight starts running over the cards
     cpuHopBase: 70,            // the highlight's first hop ...
-    cpuHopGrow: 1.6,           // ... each hop n waits cpuHopBase + n * n * cpuHopGrow (NOT ms: a multiplier)
-    cpuChoose: 350,            // after the highlight stops, before the card is chosen
+    cpuHopGrow: 1.6,           // ... each hop n lasts cpuHopBase + n * n * cpuHopGrow (NOT ms: a multiplier)
+    cpuChoose: 350,            // after the highlight stops, the card is chosen (the hop count depends on the pick)
+    // EPOCH: a card is chosen
+    swell: 420,                // the chosen card swells and trembles ...
+    shatterAt: 420,            // ... and shatters here (KEEP: equal to swell, or the swell freezes before the blast)
+    shake: 420,                // the panel shake at the shatter
+    cardsFly: 1000,            // the other cards being blown off the screen (plus up to 250 random)
+    fadeAt: 2000,              // the overlay starts fading away
+    doneAt: 2260,              // the overlay is gone and the game continues (fadeAt + about --t-overlay-fade)
   },
 
   // ---------------------------------------------------------------------------------------------
   //  RULE TITLE CARD (js/game.js showRuleCard, js/boom.js IconFly): the card naming the game type
+  //  EPOCH: the title card appears (except iconLift/iconIdle: a RULE PICK card is chosen)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Game.showRuleCard() shows the card, then flies it up into the plate at the top of the screen
@@ -219,15 +255,15 @@ const TIMING = {
   //    IconFly.land()      (boom.js) flies that icon onto the title card
   // ---------------------------------------------------------------------------------------------
   ruleCard: {
-    hold: 2200,                // how long the card stays in the middle before flying up to the top plate
-    fly: 720,                  // the flight up into the plate at the top of the screen
-    failsafe: 4200,            // the card is removed after this long no matter what
-    afterCard: 900,            // after the card appears, before the Turf Battle can be played
-    iconLift: 900,             // RULE PICK: the chosen card's icon leaping to centre stage
-    iconIdle: 520,             // ... then bobbing there (one swing)
-    iconLandDelay: 470,        // after the title card appears, before the icon flies onto it
-    iconLand: 560,             // the icon's flight onto the card
+    flyAt: 2200,               // the card leaves the middle and flies up into the plate at the top of the screen ...
+    fly: 720,                  // ... taking this long (it lands at flyAt + fly)
+    failsafeAt: 4200,          // the card is removed no matter what
+    playAt: 900,               // the Turf Battle can be played (later with a Wild Square intro: when it ends)
+    iconLandAt: 470,           // RULE PICK: the chosen card's icon flies onto the title card ...
+    iconLand: 560,             // ... taking this long
     iconBounce: 380,           // the card's icon bouncing when the flying icon lands on it
+    iconLift: 900,             // EPOCH: a RULE PICK card is chosen. Its icon leaping to centre stage ...
+    iconIdle: 520,             // ... then bobbing there (one swing) until iconLandAt
   },
 
   // ---------------------------------------------------------------------------------------------
@@ -243,47 +279,51 @@ const TIMING = {
   //    Renderer.drawBoard() (render.js) re-frames the camera when a Gravity board tilts upright
   // ---------------------------------------------------------------------------------------------
   camera: {
-    // -- into a Turf Battle, and back out when a board is won --
     turf: {
-      zoomIntoChild: 1200,       // a player picks a space: zoom down into its new Turf Battle (or lower level)
-      childFadeIn: 700,          // ... the new board fading in during that zoom
-      winPause: 1400,            // a board is won: celebrate before zooming out
-      zoomOutToParent: 1200,     // zoom out from the won board to the board above it
-      wonFade: 800,              // ... the won board fading away during that zoom ...
-      wonFadeDelay: 250,         // ... starting this long after the zoom starts
-      afterClaim: 800,           // after the winner's mark drops into the board above, before play continues
+      // EPOCH: a player picks a space (both start at once)
+      zoomIntoChild: 1200,       // zoom down into its new Turf Battle (or lower level)
+      childFadeIn: 700,          // the new board fading in during that zoom
+      // EPOCH: the winning move (each board up the chain that is won by it starts again from its own win)
       winLineFirst: 120,         // the winning line's sparkles: the first space ...
       winLineGap: 110,           // ... and the gap between spaces
+      zoomOutAt: 1400,           // celebrate until here, then zoom out to the board above ...
+      zoomOutToParent: 1200,     // ... taking this long; the winner's mark drops in when it ends (at 2600)
+      wonFadeAt: 1650,           // the won board starts fading away ...
+      wonFade: 800,              // ... over this long
+      continueAt: 3400,          // play continues (KEEP: after zoomOutAt + zoomOutToParent)
     },
 
     // -- a whole level is won: the board shrinks into the centre of a new, bigger board --
+    // EPOCH: the new level appears (after turf.zoomOutAt's celebration on the top board)
     ascend: {
-      ascendZoom: 1900,          // the zoom out to the new level
-      ascendNewFadeIn: 1000,     // the new board fading in ...
-      ascendNewFadeDelay: 200,   // ... starting this long after the zoom starts
-      ascendOldFade: 900,        // the old board fading out ...
-      ascendOldFadeDelay: 900,   // ... starting this long after the zoom starts
-      ascendWaveDelay: 250,      // after the zoom, before the ripple across the new board
-      ascendSettle: 700,         // after the zoom, before play continues
+      ascendZoom: 1900,          // the zoom out to the new level; the centre mark drops in when it ends
+      ascendNewFadeAt: 200,      // the new board starts fading in ...
+      ascendNewFadeIn: 1000,     // ... over this long
+      ascendOldFadeAt: 900,      // the old board starts fading out ...
+      ascendOldFade: 900,        // ... over this long
+      ascendWaveAt: 2150,        // the ripple across the new board (KEEP: after ascendZoom)
+      ascendContinueAt: 2600,    // play continues (KEEP: after ascendZoom)
     },
 
     // -- a Turf Battle ends in a stalemate: its space on the board above turns to stone --
+    // EPOCH: the stalemate move (uses turf.zoomOutToParent and turf.wonFade for the zoom and fade)
     stalemate: {
-      stalematePause: 1300,      // "STALEMATE!" before zooming out
-      stalemateSettle: 900,      // after the stone lands, before play continues
+      zoomOutAt: 1300,           // "STALEMATE!" until here, then zoom out; the stone lands when the zoom ends (2500)
+      fadeAt: 1550,              // the board starts fading away
+      continueAt: 3400,          // play continues (KEEP: after zoomOutAt + turf.zoomOutToParent)
     },
 
-    // -- a draw that is replayed --
+    // -- a draw that is replayed. EPOCH: the drawing move --
     draw: {
-      drawPause: 1500,           // "DRAW!" before the board clears
-      drawSettle: 600,           // after the board clears, before play (or the wheel) continues
+      clearAt: 1500,             // "DRAW!" until here, then the board clears
+      continueAt: 2100,          // play (or the wheel) continues
     },
 
-    // -- looking around with the zoom buttons / minimap --
+    // -- looking around with the zoom buttons / minimap. EPOCH: the click --
     browse: {
       browseZoom: 1000,          // flying to the board you clicked
       browseFade: 650,           // finished boards fading in or out as you browse ...
-      browseFadeDelay: 250,      // ... fading out starts this long after the move starts
+      browseFadeDelay: 250,      // ... fading out starts here
     },
 
     gravityTilt: 1300,         // Gravity: the camera re-framing while the board tilts upright
@@ -291,6 +331,7 @@ const TIMING = {
 
   // ---------------------------------------------------------------------------------------------
   //  THE BOARD'S OWN MOVES (js/game.js postMove and friends; the drawing is in js/render.js)
+  //  EPOCH unless a group says otherwise: the move has landed (Game.postMove starts)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Game.postMove()       after each Turf Battle move: runs the game type's automatic action with pauses
@@ -307,10 +348,10 @@ const TIMING = {
   //    MiniMap.board()       (minimap.js) hides the wild mark on the minimap until it lands
   // ---------------------------------------------------------------------------------------------
   board: {
-    cpuMoveDelay: 750,         // computer's turn: "thinking" time before it plays
-    toast: 3200,               // how long a message at the bottom stays up
+    cpuMoveDelay: 750,         // EPOCH: the computer's turn starts. "Thinking" time before it plays
+    toast: 3200,               // EPOCH: a message appears. How long it stays up
 
-    // -- marks landing and leaving --
+    // -- marks landing and leaving. EPOCH: the mark is placed (or removed) --
     marks: {
       markDrop: 750,             // a mark falling onto a space and bouncing (the impact is markImpact)
       get markImpact() { return Math.round(this.markDrop * 0.364); },  // when a falling mark first hits (273 ms): sparks, ripple, sound
@@ -320,81 +361,87 @@ const TIMING = {
 
     // -- Gravity --
     gravity: {
-      gravitySettle: 450,        // Gravity: after the marks finish falling, before the next turn
-      gravityRaise: 1700,        // Gravity: the board tilting upright (hydraulic push)
-      gravityRaiseDelay: 350,    // ... starting this long after the Gravity game begins
+      gravitySettle: 450,        // Gravity: the marks fall at once; play continues here
+      gravityRaise: 1700,        // EPOCH: the Gravity game begins. The board tilting upright (hydraulic push) ...
+      gravityRaiseDelay: 350,    // ... starting here
       gravityLower: 700,         // ... and tilting back down once the game is over
     },
 
     // -- Shifting Squares (slide is also used by Ring Spin) --
     shift: {
-      shiftBefore: 420,          // Shifting Squares: pause before a row or column shifts
-      shiftAfter: 650,           // ... and after it, before the next turn
-      slide: 420,                // a mark sliding to its new space (Shifting Squares, Ring Spin)
+      shiftAt: 420,              // Shifting Squares: a row or column shifts
+      shiftContinueAt: 1070,     // ... and play continues
+      slide: 420,                // a mark sliding to its new space (Shifting Squares, Ring Spin, Gravity)
     },
 
     // -- Ring Spin and Crossfire --
     ringCross: {
-      turnBefore: 420,           // Ring Spin / Crossfire: pause before the marks move
-      ringAfter: 700,            // Ring Spin: after the marks move, before the next turn
-      crossAfter: 800,           // Crossfire: after the corners swap, before the next turn
+      turnAt: 420,               // Ring Spin / Crossfire: the marks move
+      ringContinueAt: 1120,      // Ring Spin: play continues
+      crossContinueAt: 1220,     // Crossfire: play continues
       crossHop: 700,             // Crossfire: each corner mark's hop over the centre
     },
 
     // -- Fog of War --
     fog: {
       fogCover: 650,             // Fog of War: a mark disappearing into the fog
-      fogPause: 500,             // ... the pause while it does
-      fogLiftPause: 1500,        // Fog of War is over: the fog evaporating before play continues
-      fogLift: 1300,             // ... how long the fog takes to thin away
+      fogPause: 500,             // ... play continues here
+      fogLiftPause: 1500,        // EPOCH: Fog of War is over. Play continues here ...
+      fogLift: 1300,             // ... while the fog thins away over this long
       fogWinFade: 900,           // ... (the fog's fade if a win happens without the lift)
     },
 
     // -- Wild Square --
     wild: {
-      wildBefore: 250,           // Wild Square: pause before the wild mark jumps
-      wildAfter: 450,            // ... and after, before the next turn
+      wildJumpAt: 250,           // Wild Square: the wild mark jumps
+      wildContinueAt: 700,       // ... and play continues
     },
 
     // -- Wild Square intro: the spaces light up one after another, then the wild mark drops --
+    // EPOCH: the rule title card appears
     wildIntro: {
-      wildIntroStart: 2950,      // after the rule card appears, before the lights start (lets the card fly away)
+      wildIntroStart: 2950,      // the first light (KEEP: after the card has flown away, ruleCard.flyAt + fly)
       wildIntroSteps: 17,        // how many random spaces light up before the final one (a count, not ms)
       wildStepMin: 55,           // the gap between lights at the start ...
       wildStepGrow: 260,         // ... growing by up to this much (on a curve) as the run slows down
       wildStepTrail: 120,        // the dim trail left by the previous light
-      wildDropDelay: 450,        // after the last light, before the wild mark drops
+      wildDropAt: 5314,          // the wild mark drops (KEEP: after the last light, which comes at about 4864
+                                 // with the values above; the console warns if it does not)
       wildLightFade: 500,        // after the mark lands, the light under it fading
     },
   },
 
   // ---------------------------------------------------------------------------------------------
   //  MATCH POINT (js/game.js): the big moment when the Turf Battle being played would win a Round
-  //  Order: rule card lands in its plate -> (delay) -> riser -> title slams down (flash, shake,
+  //  Order: rule card lands in its plate -> riser -> title slams down (flash, shake,
   //  deciding spaces light up, voice) -> heartbeat -> title flies off; the deciding spaces keep
   //  glowing until the battle ends
+  //  EPOCH: the rule title card lands in its plate at the top (or the board becomes Match Point, if later)
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Game.updateStakes()       spots Match Point once the board is playable
-  //    Game.matchPointSoon()     waits for the rule title card to land, then starts the moment after `delay`
+  //    Game.matchPointSoon()     waits for the rule title card to land, then plans the moment from there
   //    Game.matchPointMoment()   the riser, the slam, the voice and the heartbeat
   //    Game.matchPointBanner()   shows the big title for `banner` (style.css .mp-banner animation)
   //    Renderer.drawBoard()      (render.js) the burst of light on the deciding spaces (`lightUp`)
   //                              and their steady pulse (`glowPulse`) afterwards
   // ---------------------------------------------------------------------------------------------
   matchPoint: {
-    delay: 300,                // after the rule title card lands in its plate at the top, before the moment starts
-    riseLead: 450,             // the rising whoosh starts this long before the title slams down
-    banner: 2800,              // the title on screen: slam, hold, fly off (the letterbox bars too)
-    voiceAfter: 120,           // after the slam, before "Match point" is announced
-    heartbeatAfter: 1000,      // after the slam, before the double heartbeat
-    sparkGap: 70,              // gap between the spark bursts from each deciding space at the slam
-    lightUp: 1400,             // the burst of light on the deciding spaces fading to a steady glow
+    riseAt: 300,               // the rising whoosh starts
+    slamAt: 750,               // the title slams down: flash, shake, sparks
+    voiceAt: 870,              // "Match point" is announced
+    heartbeatAt: 1750,         // the double heartbeat
+    sparkGap: 70,              // the deciding spaces erupt one after another from slamAt, this far apart
+    banner: 2800,              // from slamAt, the title on screen: slam, hold, fly off (the letterbox bars too)
+    lightUp: 1400,             // from slamAt, the burst of light on the deciding spaces fading to a steady glow
     glowPulse: 1100,           // one pulse of that steady glow (matches the red vignette's heartbeat)
   },
 
   // ---------------------------------------------------------------------------------------------
   //  INSTANT REPLAY (js/game.js)
+  //  Each step is its own epoch: the gaps below count from the step before (the player can pause,
+  //  and the step gaps are divided by the replay speed 1x, 2x, 4x; the camera times and the Gravity
+  //  stand-up are not).
   //
   //  Read by (the functions that use these settings, and what each one does):
   //    Game.startReplay()    jumps to the chosen moment and schedules the first step
@@ -403,8 +450,6 @@ const TIMING = {
   //    Game.toggleReplayPause() pauses or resumes; resuming waits `resume` before the next step
   //    Game.stopReplay()     returns to the live game and flies the camera back
   //    Game.replayTiltWait() holds the next step until a Gravity board has stood up (afterGravityRaise)
-  //    The step gaps are divided by the replay speed (1x, 2x, 4x); the camera times and the Gravity
-  //    stand-up are not.
   // ---------------------------------------------------------------------------------------------
   replay: {
     firstStep: 1400,           // after the replay starts, before the first move plays
@@ -436,7 +481,8 @@ const TIMING = {
 
   // ---------------------------------------------------------------------------------------------
   //  CSS: the fade of the Wheel, Slots and RULE PICK overlays (style.css reads this as
-  //  var(--t-overlay-fade)). Keep wheel.hide, slots.hide and rulePick.hide close to it.
+  //  var(--t-overlay-fade)). Keep slots.result.hide and rulePick.doneAt - fadeAt close to it.
+  //  (wheel.blastOff waits longer on purpose: doneAt - fadeAt is 1000.)
   //  (TIMING.matchPoint.glowPulse and .banner are handed to style.css the same way, below.)
   //
   //  Read by: the setProperty() call at the bottom of this file, which hands it to style.css.
