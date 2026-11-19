@@ -1,6 +1,6 @@
 'use strict';
 // Mystery-jackpot slot machine: 5 reels x 3 rows, 9 paylines.
-// Line up 3, 4 or 5 matching prize symbols from the leftmost reel along a payline to win that prize.
+// Line up 5 matching prize symbols (one on every reel) along a payline to win that prize.
 
 const SLOT_SYMS = {
   // labels under the prize symbols come from STRINGS.slots.symbols (js/strings.js)
@@ -33,6 +33,9 @@ const PAYLINES = [
   { name: STRINGS.slots.paylines[8], rows: [2, 2, 1, 0, 0] },
 ];
 const REELS = 5, ROWS = 3;
+// How a reel slows to a stop (CSS easing), and the starting slope of that curve (y1 / x1), so the slowdown
+// starts at exactly the reel's spinning speed. Change both together.
+const STOP_EASE = 'cubic-bezier(.25,.75,.45,1.03)', STOP_EASE_SLOPE = 3;
 
 const Slots = {
   roll(level) {
@@ -61,7 +64,7 @@ const Slots = {
       const first = grid[0][pl.rows[0]];
       let n = 1;
       while (n < REELS && grid[n][pl.rows[n]] === first) n++;
-      if (n >= 3) wins.push({ li, sym: first, n });
+      if (n === REELS) wins.push({ li, sym: first, n });   // a win needs all 5 reels
     });
     return wins;
   },
@@ -80,17 +83,16 @@ const Slots = {
       let win = null;
       if (prize !== 'bust') {
         const li = (Math.random() * PAYLINES.length) | 0;
-        const r = Math.random();
-        const n = r < 0.62 ? 3 : r < 0.9 ? 4 : 5;
         const rows = PAYLINES[li].rows;
-        for (let i = 0; i < n; i++) grid[i][rows[i]] = prize;
-        win = { li, n };
+        for (let i = 0; i < REELS; i++) grid[i][rows[i]] = prize;
+        win = { li, n: REELS };
       } else if (Math.random() < 0.6) {
-        // near miss: two prize symbols lead a line, the third lands one row off
+        // near miss: 2 to 4 prize symbols lead a line, the next one lands one row off
         const pl = PAYLINES[(Math.random() * PAYLINES.length) | 0].rows;
         const s = rnd(prizeSyms);
-        grid[0][pl[0]] = s; grid[1][pl[1]] = s;
-        grid[2][pl[2] === 1 ? 0 : 1] = s;
+        const lead = 2 + ((Math.random() * (REELS - 2)) | 0);
+        for (let i = 0; i < lead; i++) grid[i][pl[i]] = s;
+        grid[lead][pl[lead] === 1 ? 0 : 1] = s;
       }
       const wins = this.lineWins(grid);
       if (prize === 'bust' ? wins.length === 0 : wins.length >= 1 && wins.every((w) => w.sym === prize)) return { grid, wins };
@@ -161,7 +163,7 @@ const Slots = {
       el.querySelector('svg.winlines').innerHTML = '';
       const strips = [...el.querySelectorAll('.strip')];
       const rnd = () => pool[(Math.random() * pool.length) | 0];
-      strips.forEach((s) => { s.style.transition = 'none'; s.style.transform = 'translateY(0)'; s.innerHTML = [rnd(), rnd(), rnd()].map((k) => this.cellHtml(k)).join(''); });
+      strips.forEach((s) => { s.getAnimations().forEach((a) => a.cancel()); s.style.transition = 'none'; s.style.transform = 'translateY(0)'; s.innerHTML = [rnd(), rnd(), rnd()].map((k) => this.cellHtml(k)).join(''); });
       el.hidden = false;
       requestAnimationFrame(() => el.classList.add('show'));
       Crew.start(el);
@@ -184,20 +186,21 @@ const Slots = {
         // Small drama: the first two reels already lead a line, so the later reels slow down a bit.
         const teaser = !windup && PAYLINES.some((pl) => grid[0][pl.rows[0]] === grid[1][pl.rows[1]] && SLOT_SYMS[grid[0][pl.rows[0]]].prize);
         const isIW = prize === 'jackpot';          // shaking is reserved for a real INSTANT WIN
-        // Two INSTANT WINs already on a payline: the deciding third reel spins much longer.
-        const twoUp = windup && this.streakRows(grid, 1).size > 0;
+        // Four INSTANT WINs already on a payline: the deciding last reel spins much longer.
+        const SR = REELS - 1;                                         // the suspense reel
+        const fourUp = windup && this.streakRows(grid, SR - 1).size > 0;
         const TS = TIMING.slots;
-        let stops = TS.reelStops.map((t, i) => t + (teaser && i >= 2 ? (i - 1) * TS.teaserExtra : 0));
+        let stops = TS.reels.reelStops.map((t, i) => t + (teaser && i >= 2 ? (i - 1) * TS.reels.teaserExtra : 0));
         if (windup) {
-          stops = [TS.windupFirstStop];
+          stops = [TS.instantWin.windupFirstStop];
           for (let i = 1; i < REELS; i++) {
-            let gap = TS.windupGap;
-            if (i >= 2 && this.streakRows(grid, i - 1).size === 0) gap = TS.windupBrokenGap;   // streak already broken: wrap up quickly
-            if (i === 2 && twoUp) gap = TS.suspenseGap;                                    // the suspense reel
+            let gap = TS.instantWin.windupGap;
+            if (i >= 2 && this.streakRows(grid, i - 1).size === 0) gap = TS.instantWin.windupBrokenGap;   // streak already broken: wrap up quickly
+            if (i === SR && fourUp) gap = TS.instantWin.suspenseGap;                                  // the suspense reel
             stops.push(stops[i - 1] + gap);
           }
         }
-        this.suspense = twoUp ? { reel: 2, dur: stops[2] - stops[1] } : null;
+        this.suspense = fourUp ? { reel: SR, dur: stops[SR] - stops[SR - 1] } : null;
         el.classList.toggle('calm', windup && !isIW);
         if (windup) {
           setTimeout(() => {
@@ -207,49 +210,59 @@ const Slots = {
             el.classList.add('windup');
             el.classList.toggle('shaky', isIW);
             res.innerHTML = STRINGS.slots.teaseReel1;
-            Sound.windup((stops[twoUp ? 2 : REELS - 1] - stops[0]) / 1000);
+            Sound.windup((stops[REELS - 1] - stops[0]) / 1000);
             Sound.musicIntensity(1);
-          }, stops[0] + TS.windupTeaseDelay);
+          }, stops[0] + TS.instantWin.windupTeaseDelay);
         }
         strips.forEach((strip, i) => {
-          const n = Math.round(18 + i * 6 + (teaser && i >= 2 ? i * 4 : 0) + (windup && i >= 1 ? (stops[i] - 1000) / 75 : 0));
+          // Each reel spins at a steady spinSpeed, then slows to a stop over the last reelSlowdown ms
+          // (suspenseSlowdown for the deciding last reel when four INSTANT WINs are lined up).
+          // The strip is just long enough for that: a later stop time means a longer strip, not a slower reel.
+          const dur = stops[i];
+          const slow = Math.min(i === SR && fourUp ? TS.instantWin.suspenseSlowdown : TS.reels.reelSlowdown, dur * 0.8);
+          const v = TS.reels.spinSpeed / 1000;                         // symbols per ms
+          const n = Math.max(ROWS * 2, Math.round(v * (dur - slow) + (v * slow) / STOP_EASE_SLOPE));
+          const steady = n - (v * slow) / STOP_EASE_SLOPE;             // symbols passed before the slowdown starts
           let html = '';
           for (let j = 0; j < n; j++) html += this.cellHtml(rnd());
           html += grid[i].map((k) => this.cellHtml(k)).join('');
           strip.innerHTML = html;
+          strip.getAnimations().forEach((a) => a.cancel());
           strip.style.transition = 'none';
-          strip.style.transform = 'translateY(0)';
-          void strip.offsetHeight;
-          strip.style.transition = `transform ${stops[i]}ms cubic-bezier(.12,.8,.25,1.04)`;
-          strip.style.transform = `translateY(${-n * cell}px)`;
+          strip.style.transform = `translateY(${-n * cell}px)`;   // where the reel ends up once the animation finishes
+          strip.animate([
+            { transform: 'translateY(0)', easing: 'linear' },
+            { transform: `translateY(${-Math.max(0, steady) * cell}px)`, offset: (dur - slow) / dur, easing: STOP_EASE },
+            { transform: `translateY(${-n * cell}px)` },
+          ], { duration: dur });
           strip.parentElement.classList.remove('tension');
           setTimeout(() => {
-            Sound.reelStop(i);
+            if (isIW && i === SR) Sound.reelStopBig(); else Sound.reelStop(i);
             if (!windup || isIW) Renderer.shake(2);
             strip.parentElement.classList.remove('tension', 'suspense');
             if (i >= 1 && windup) this.streakStop(el, strips, grid, i, isIW);
-            if (i === 1 && twoUp) {
-              // one more INSTANT WIN wins it: the music drops out, a drum roll builds, reel 3 keeps spinning
-              const r3 = strips[2].parentElement;
-              r3.classList.add('suspense');
-              if (isIW) r3.classList.add('tension');
+            if (i === SR - 1 && fourUp) {
+              // one more INSTANT WIN wins it: the music drops out, a drum roll builds, the last reel keeps spinning
+              const rs = strips[SR].parentElement;
+              rs.classList.add('suspense');
+              if (isIW) rs.classList.add('tension');
               Sound.musicMute(true);
-              Sound.drumroll((stops[2] - stops[1]) / 1000);
-              setTimeout(() => { res.innerHTML = STRINGS.slots.oneMore; }, TS.oneMoreTextDelay);
+              Sound.drumroll((stops[SR] - stops[SR - 1]) / 1000);
+              setTimeout(() => { res.innerHTML = STRINGS.slots.oneMore; }, TS.instantWin.oneMoreTextDelay);
             }
-            if (i === 2 && twoUp) Sound.musicMute(false);
+            if (i === SR && fourUp) Sound.musicMute(false);
             if (i === REELS - 1) { Sound.stopMusic(); el.classList.remove('windup'); }
             if (i === 1 && teaser) { strips.slice(2).forEach((s) => s.parentElement.classList.add('tension')); Sound.tension(); }
           }, stops[i]);
         });
         let t = 0;
         const last = stops[REELS - 1];
-        const tick = () => { if (t > last - TS.tickStopGuard) return; Sound.reelTick(); const gap = TS.tickGapStart + (t / last) * TS.tickGapGrow; t += gap; setTimeout(tick, gap); };
+        const tick = () => { if (t > last - TS.reels.tickStopGuard) return; Sound.reelTick(); const gap = TS.reels.tickGapStart + (t / last) * TS.reels.tickGapGrow; t += gap; setTimeout(tick, gap); };
         tick();
-        setTimeout(() => this.reveal(el, res, player, level, prize, grid, wins, resolve), last + TS.revealDelay);
+        setTimeout(() => this.reveal(el, res, player, level, prize, grid, wins, resolve), last + TS.result.revealDelay);
       };
       spinBtn.onclick = pull;
-      if (auto) setTimeout(pull, TIMING.slots.autoPullDelay);
+      if (auto) setTimeout(pull, TIMING.slots.opening.autoPullDelay);
       else window.addEventListener('keydown', onKey);
     });
   },
@@ -269,14 +282,14 @@ const Slots = {
     }
     res.classList.add(prize === 'bust' ? 'is-bust' : 'is-win');
     el.classList.add(prize === 'bust' ? 'bust' : 'win');
-    if (prize === 'bust') Sound.slotBust(); else Sound.slotWin(prize === 'jackpot' || wins[0].n === 5);
+    if (prize === 'bust') Sound.slotBust(); else Sound.slotWin(true);   // every win is a full line of 5 now
     if (prize === 'jackpot') {
       Renderer.fireworks(player, 9);
       Sound.fireworks();
       Sound.fanfare();
       Sound.instantWin();                       // booming "INSTANT WIN!" voice-over in a big hall
       el.classList.add('instant');
-      setTimeout(() => el.classList.remove('instant'), TIMING.slots.instantGlow);
+      setTimeout(() => el.classList.remove('instant'), TIMING.slots.instantWin.instantGlow);
       this.instantBanner(el, wins);
     }
     if (prize !== 'bust') {
@@ -291,11 +304,11 @@ const Slots = {
       this.explodeBanner();
       Boom.run(el.querySelector('.slot-machine').getBoundingClientRect());
       el.classList.remove('show');
-      setTimeout(() => { el.hidden = true; resolve(prize); }, TIMING.slots.hide);
+      setTimeout(() => { el.hidden = true; resolve(prize); }, TIMING.slots.result.hide);
     };
     const TS = TIMING.slots;
-    setTimeout(() => el.addEventListener('click', finish), TS.clickSkip);
-    setTimeout(finish, prize === 'bust' ? TS.autoFinishBust : prize === 'jackpot' ? TS.autoFinishJackpot : TS.autoFinishPrize);
+    setTimeout(() => el.addEventListener('click', finish), TS.result.clickSkip);
+    setTimeout(finish, prize === 'bust' ? TS.result.autoFinishBust : prize === 'jackpot' ? TS.instantWin.autoFinishJackpot : TS.result.autoFinishPrize);
   },
 
   // Rows of reel i that continue an unbroken INSTANT WIN run from reel 1 along some payline.
@@ -349,7 +362,7 @@ const Slots = {
     fl.className = 'jflash';
     fl.style.opacity = 0.15 + s * 0.12;
     machine.appendChild(fl);
-    setTimeout(() => fl.remove(), TIMING.slots.lockFlash);
+    setTimeout(() => fl.remove(), TIMING.slots.instantWin.lockFlash);
     if (isIW) Renderer.shake(3 + s * 3);
     Sound.lockIn(s);
     const res = el.querySelector('.slot-result');
@@ -374,14 +387,14 @@ const Slots = {
     for (let k = 0; k < 6; k++) setTimeout(() => {
       const x = br.left + Math.random() * br.width, y = br.top + Math.random() * br.height;
       this.boom(host, x, y, 34, 170);
-    }, TIMING.slots.bannerBoomFirst + k * TIMING.slots.bannerBoomGap);
+    }, TIMING.slots.instantWin.bannerBoomFirst + k * TIMING.slots.instantWin.bannerBoomGap);
     const mr2 = machine.getBoundingClientRect();
     machine.querySelectorAll('.cell.hit, .cell.lock').forEach((c, k) => setTimeout(() => {
       const r = c.getBoundingClientRect();
       this.domBurst(machine, r.left - mr2.left + r.width / 2 + machine.scrollLeft, r.top - mr2.top + r.height / 2 + machine.scrollTop, 26, 140);
-    }, k * TIMING.slots.bannerCellBurstGap));
+    }, k * TIMING.slots.instantWin.bannerCellBurstGap));
     this.iwBanner = b;
-    setTimeout(() => { if (this.iwBanner === b) this.explodeBanner(); }, TIMING.slots.bannerFailsafe);   // failsafe
+    setTimeout(() => { if (this.iwBanner === b) this.explodeBanner(); }, TIMING.slots.instantWin.bannerFailsafe);   // failsafe
   },
 
   // The machine is leaving: blow the INSTANT WIN! letters apart, one after another.
@@ -395,7 +408,7 @@ const Slots = {
     const letters = [...b.querySelectorAll('span:not(.sp)')];
     const cx = window.innerWidth / 2;
     letters.forEach((sp, i) => {
-      const delay = i * TIMING.slots.letterGap;
+      const delay = i * TIMING.slots.instantWin.letterGap;
       const r = sp.getBoundingClientRect();
       const x = r.left + r.width / 2, y = r.top + r.height / 2;
       const away = (x - cx) / (window.innerWidth / 2);
@@ -404,7 +417,7 @@ const Slots = {
         { transform: 'translate(0,0) scale(1) rotate(0)', opacity: 1, filter: 'brightness(1)' },
         { transform: 'translate(0,0) scale(1.45) rotate(0)', opacity: 1, filter: 'brightness(2.2)', offset: 0.18 },
         { transform: `translate(${dx}px, ${dy}px) scale(0.15) rotate(${(Math.random() - 0.5) * 900}deg)`, opacity: 0, filter: 'brightness(1)' },
-      ], { duration: TIMING.slots.letterFly, delay, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+      ], { duration: TIMING.slots.instantWin.letterFly, delay, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
       setTimeout(() => {
         const col = getComputedStyle(sp).color;
         const ring = document.createElement('div');
@@ -414,10 +427,10 @@ const Slots = {
         ring.animate([{ transform: 'translate(-50%,-50%) scale(0.1)', opacity: 1 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }], { duration: 500, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => ring.remove();
         this.domBurst(wrap, x, y, 16, 120 + r.height, col);
         if (i % 2 === 0) Sound.boomSmall();
-      }, delay + TIMING.slots.letterBoom);
+      }, delay + TIMING.slots.instantWin.letterBoom);
     });
     Sound.pop(3);
-    setTimeout(() => { b.remove(); wrap.remove(); }, letters.length * TIMING.slots.letterGap + TIMING.slots.letterCleanup);
+    setTimeout(() => { b.remove(); wrap.remove(); }, letters.length * TIMING.slots.instantWin.letterGap + TIMING.slots.instantWin.letterCleanup);
   },
 
   // A screen-space explosion: a flash ring plus sparks (fixed position on the page).

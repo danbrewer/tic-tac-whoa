@@ -34,18 +34,18 @@ The only external resource is the fonts, loaded from Google Fonts in [`index.htm
 | File | Lines | What it is responsible for |
 |---|---|---|
 | [`index.html`](index.html) | ~170 | The page structure: the game canvas, the HUD, the overlays (wheel, slots, RULE PICK, rule card, help, review, mixer, developer panel) and the script tags. It holds no text: `data-str` attributes name the strings that fill it |
-| [`style.css`](style.css) | ~1100 | All styling: HUD, overlays, the slot machine, cards, animations, phone layout |
-| [`js/timing.js`](js/timing.js) | ~330 | `TIMING`: every duration and pause of the automatic sequences (see the transitions doc) |
-| [`js/strings.js`](js/strings.js) | ~440 | `STRINGS`: every piece of player-facing text, plus `applyPageStrings()`, which fills the page's text on load (see the strings reference) |
+| [`style.css`](style.css) | ~1240 | All styling: HUD, overlays, the slot machine, cards, animations, phone layout |
+| [`js/timing.js`](js/timing.js) | ~455 | `TIMING`: every duration and pause of the automatic sequences (see the transitions doc) |
+| [`js/strings.js`](js/strings.js) | ~495 | `STRINGS`: every piece of player-facing text, plus `applyPageStrings()`, which fills the page's text on load (see the strings reference) |
 | [`js/sound-config.js`](js/sound-config.js) | ~130 | `SOUND`: every volume worth tuning: the mixer's starting levels, the announcer, one multiplier per sound effect, the flapper clack and the heartbeat |
-| [`js/sound.js`](js/sound.js) | ~630 | `Sound`: synthesised sound effects, music, voice-over playback with reverb, the volume mixer |
-| [`js/render.js`](js/render.js) | ~1430 | The isometric renderer (`Renderer`), animation helpers (`Ease`, `Tweens`, `wait`), board layout, the game-type icons |
+| [`js/sound.js`](js/sound.js) | ~680 | `Sound`: synthesised sound effects, music, voice-over playback with reverb, the volume mixer |
+| [`js/render.js`](js/render.js) | ~1450 | The isometric renderer (`Renderer`), animation helpers (`Ease`, `Tweens`, `wait`), board layout, the game-type icons |
 | [`js/minimap.js`](js/minimap.js) | ~150 | `MiniMap`: the small overview of the live boards in the corner |
 | [`js/crew.js`](js/crew.js) | ~230 | `Crew`: the animated SVG characters around the slot machine |
 | [`js/boom.js`](js/boom.js) | ~235 | `Boom` (the big explosion when an overlay closes), `Fx` (a screen-space particle layer), `IconFly` (the icon that flies from a RULE PICK card to the title card) |
 | [`js/slots.js`](js/slots.js) | ~625 | `Slots` (the Mystery Jackpot slot machine) and `RulePick` (choosing the next game type from cards) |
-| [`js/wheel.js`](js/wheel.js) | ~640 | `Wheel`: the Fortune Wheel, drawn on its own canvas |
-| [`js/game.js`](js/game.js) | ~1725 | The game itself: rules, the computer player (`AI`), saving and loading, the `Game` controller, the HUD, Instant Replay, the developer panel, input handling and the main loop |
+| [`js/wheel.js`](js/wheel.js) | ~810 | `Wheel`: the Fortune Wheel, drawn on its own canvas |
+| [`js/game.js`](js/game.js) | ~2280 | The game itself: rules, the computer player (`AI`), saving and loading, the `Game` controller, the HUD, Instant Replay, the developer panel, input handling and the main loop |
 | [`media/soundfx/`](media/soundfx/) | 55 files | Voice-overs (`*.mp3`) and their pre-mixed hall versions (`*-hall.mp3`) |
 
 ## 3. How the scripts fit together
@@ -200,7 +200,7 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 ## 7. Sound ([`js/sound.js`](js/sound.js))
 
 - **Effects are synthesised live** with Web Audio (`tone()`, `noise()`, `roar()`, `engine()` and others), so there are no effect files to load.
-- **Voice-overs** are MP3s in `media/soundfx/`. `RULE_VOICES` maps each game type to its file. `Sound.winVoice(p, level)` plays `x-takes-square` / `o-takes-square` when a Turf Battle is won and `x-wins-round` / `o-wins-round` when a Round's board is won (both from `afterClaim()` in `game.js`); `Sound.matchPointVoice()` plays `match-point` with the MATCH POINT pop. Their volumes are `SOUND.voices` in `sound-config.js`. `Sound.voice()` plays a voice through a "concert hall" chain: compressor, convolution reverb (`hallIR()`) and slap-back echo. Instant Win uses a bigger hall (`style: 'big'`). Each recording is level-matched by loudness when it loads.
+- **Voice-overs** are MP3s in `media/soundfx/`. `RULE_VOICES` maps each game type to its file. `Sound.winVoice(p, level)` plays `x-takes-square` / `o-takes-square` when a Turf Battle is won and `x-wins-round` / `o-wins-round` when a Round's board is won (both from `afterClaim()` in `game.js`); `Sound.matchPointVoice()` plays `match-point` as the big MATCH POINT title slams down (`Game.matchPointMoment()`, timed by `TIMING.matchPoint`). Their volumes are `SOUND.voices` in `sound-config.js`. `Sound.voice()` plays a voice through a "concert hall" chain: compressor, convolution reverb (`hallIR()`) and slap-back echo. Instant Win uses a bigger hall (`style: 'big'`). Each recording is level-matched by loudness when it loads.
 - **Opened from disk (file://)**, Web Audio can't decode the files. `voice()` then plays the ready-made `NAME-hall.mp3` with a plain `Audio` element.
 - **Two volume buses**, sound effects and voice, are set from the mixer (`Sound.setMix`). Their first-visit levels are `SOUND.mix` in `sound-config.js`; after that, the player's own levels are saved.
 - **Every effect has its own volume** in `SOUND.effects` (`sound-config.js`). At load, `sound.js` wraps each named `Sound` method so everything it plays goes through a gain set to that number (`Sound.withGain`), read each time it plays. Nested effects multiply (the Gravity `clunk` includes a `bigBoom`). The music loop runs on a timer, so `startMusic` applies `SOUND.effects.music` itself.
@@ -213,6 +213,7 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 | `infinite-ttt-save-v1` (`SAVE_KEY`) | The current game: `serialize(Game.root)` plus the next rule and the last winner |
 | `infinite-ttt-prefs-v1` (`PREFS_KEY`) | Preferences: sound on/off, mix levels, vs-computer, best level, Developer Mode settings |
 | `infinite-ttt-log-v1` (`LOG_KEY`) | Game review: up to `LOG_CAP` (600) snapshots of the whole game |
+| `infinite-ttt-before-sample-v1` (`SAMPLE_STASH_KEY`) | Developer Mode only: the player's own game and review log, set aside while a sample game is loaded |
 
 - `serialize()` and `deserialize()` turn the board tree into compact JSON and back. Field names are shortened, for example `l` for level and `c` for cells.
 - `Game.save()` runs after every settled move. It also pushes a snapshot onto `Game.log` (`snapshot()`) and records where each game started in `Game.games`. The **Review** window lists those games.
@@ -232,6 +233,8 @@ The wheel, the slot machine, RULE PICK, the rule title card, help and review are
 | Change any text the player sees | `js/strings.js` (see the strings reference) |
 | Change how the HUD is laid out | `index.html`, `style.css`, and `Game.updateHUD()` and its helpers in `game.js` |
 | Test a specific game type or prize | Developer Mode: press **Shift+D**. It can force the wheel's result, force a slot prize, put a jackpot under every space, reveal the jackpot, or make every wheel spin a near miss |
+| Try zoom, the mini-map, Review or Instant Replay on a long game | Developer Mode → **🏆 Sample game**: choose how many Rounds are already won, who wins them and the game types, then **📥 Load sample game**. It plays the whole game out in a quick silent simulation (`Game.loadSample()` in `game.js`), saving a snapshot for every move, so Review and Instant Replay work on it. **↩ Back to my game** brings the real game back |
+| Watch one transition on its own | Developer Mode → **🎬 Transitions**: each button plays one sequence (the wheel, the slot machine, Match Point, a Turf Battle or Round being won, each game type's move, the Gravity stand-up...) on a throwaway board, then puts the real game back (`Game.labRun()` in `game.js`). **🔄 Reload timing.js + sound-config.js** picks up edits to those two files without reloading the page |
 
 ### Adding a new game type: checklist
 

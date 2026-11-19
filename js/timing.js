@@ -14,11 +14,15 @@
 //  * TIMING is a plain object, not a class. Each group (wheel, slots, ...) is one sequence.
 //  * Each group starts with a header that says what the sequence is, the order things happen in, and
 //    "Read by": the functions that use the group's settings and what each function does.
+//  * Big groups are split into smaller groups, one for each stage of the sequence. For example, every
+//    setting of the slot machine's INSTANT WIN drama is in TIMING.slots.instantWin, and the wheel's
+//    heartbeat is in TIMING.wheel.heartbeat. The setting names stay the same as before; only the path
+//    to them is longer.
 //  * Each setting's comment says what you see on screen when it runs. "after X, before Y" means the
 //    setting is a pause that starts when X happens.
 //  * Code reads a setting when it is about to use it, so you can also try a value live from the browser
-//    console (for example `TIMING.wheel.autoFinish = 1500`) and copy it here once you like it.
-//  * board.markImpact is a getter (a value calculated when read). It follows markDrop automatically.
+//    console (for example `TIMING.wheel.landing.autoFinish = 1500`) and copy it here once you like it.
+//  * board.marks.markImpact is a getter (a value calculated when read). It follows markDrop automatically.
 // =====================================================================================================
 const TIMING = {
 
@@ -39,46 +43,61 @@ const TIMING = {
     autoSpinDelay: 900,        // computer's turn: how long the wheel sits before the computer presses SPIN
 
     // -- drop-in: the wheel falls from above the screen and slams down --
-    dropFall: 620,             // the fall itself; the BOOM, dust and squash happen when it ends
-    dropTitleGap: 120,         // after the slam, before the title text starts popping in
-    dropTitleIn: 450,          // each title line's pop-in animation
-    dropTitleStagger: 90,      // extra delay between one title line and the next
-    dropSquash: 380,           // the squash-and-stretch bounce on impact
-    dropShake: 700,            // the screen shake on impact
+    drop: {
+      dropFall: 620,             // the fall itself; the BOOM, dust and squash happen when it ends
+      dropTitleGap: 120,         // after the slam, before the title text starts popping in
+      dropTitleIn: 450,          // each title line's pop-in animation
+      dropTitleStagger: 90,      // extra delay between one title line and the next
+      dropSquash: 380,           // the squash-and-stretch bounce on impact
+      dropShake: 700,            // the screen shake on impact
+    },
 
     // -- the spin --
-    windBack: 520,             // the wheel is dragged backwards before it is let go
-    spinFast: 6800,            // phase A: the long slow-down from full speed ...
-    spinFastRandom: 400,       // ... plus up to this much extra, so no two spins last exactly the same
-    spinCrawl: 3400,           // phase B: the final crawl over the last ~3 spokes to the stop
-    heartbeats: [1200, 1200, 1000, 1000, 800, 800, 600, 600],  // gap before each heartbeat during the spin:
-                               // this list is the speed-up curve (loudness follows it, see SOUND.heartbeat)
-    heartbeatFast: 400,        // gap between heartbeats once the list above runs out
-    heartbeatPulse: 420,       // how long each heartbeat's "throb" of the wheel lasts
-    heartbeatStopGuard: 120,   // no heartbeat starts this close to the moment the wheel stops
-    heartbeatLubDubSlow: 240,  // gap between the "lub" and the "dub" of the slowest heartbeat ...
-    heartbeatLubDubFast: 110,  // ... and of the fastest (in between, it tightens as the heart races)
-    // the flapper (the red pointer) is a little spring; these three are NOT milliseconds.
-    // Its clack plays once per peg, the moment that peg strikes it (Wheel.flapperStep).
-    flapperFreq: 9,            // Hz: how fast it springs back and forth (higher = stiffer, quicker slaps)
-    flapperDamping: 0.1,       // 0..1: how quickly its wobble dies away (0 = forever, 1 = no overshoot at all)
-    flapperBounce: 0.35,       // 0..1: how much of its speed it keeps when it slaps into a peg
+    spin: {
+      windBack: 520,             // the wheel is dragged backwards before it is let go
+      spinFast: 6800,            // phase A: the long slow-down from full speed ...
+      spinFastRandom: 400,       // ... plus up to this much extra, so no two spins last exactly the same
+      spinCrawl: 3400,           // phase B: the final crawl over the last ~3 spokes to the stop
+    },
+
+    // -- the heartbeat under the spin: it races as the wheel slows --
+    heartbeat: {
+      heartbeats: [1200, 1200, 1000, 1000, 800, 800, 600, 600],  // gap before each heartbeat during the spin:
+                                 // this list is the speed-up curve (loudness follows it, see SOUND.heartbeat)
+      heartbeatFast: 400,        // gap between heartbeats once the list above runs out
+      heartbeatPulse: 420,       // how long each heartbeat's "throb" of the wheel lasts
+      heartbeatStopGuard: 120,   // no heartbeat starts this close to the moment the wheel stops
+      heartbeatLubDubSlow: 240,  // gap between the "lub" and the "dub" of the slowest heartbeat ...
+      heartbeatLubDubFast: 110,  // ... and of the fastest (in between, it tightens as the heart races)
+    },
+
+    flapper: {
+      // the flapper (the red pointer) is a little spring; these three are NOT milliseconds.
+      // Its clack plays once per peg, the moment that peg strikes it (Wheel.flapperStep).
+      flapperFreq: 9,            // Hz: how fast it springs back and forth (higher = stiffer, quicker slaps)
+      flapperDamping: 0.1,       // 0..1: how quickly its wobble dies away (0 = forever, 1 = no overshoot at all)
+      flapperBounce: 0.35,       // 0..1: how much of its speed it keeps when it slaps into a peg
+    },
 
     // -- landing and the announcement --
-    wedgeLiftDelay: 450,       // after the wheel stops, before the winning wedge pops out
-    wedgeLift: 950,            // the wedge rising up and flipping to face the player
-    announceDelay: 1400,       // after the wheel stops: big burst, the game's name, and its voice-over
-    clickSkipVoiced: 2600,     // after the announcement, how soon a click can skip ahead (game has a voice-over)
-    clickSkip: 0,              // the same, for a game without a voice-over
-    autoFinishVoiced: 5000,    // after the wheel stops, blast off on its own (game has a voice-over)
-    autoFinish: 3300,          // the same, for a game without a voice-over
+    landing: {
+      wedgeLiftDelay: 450,       // after the wheel stops, before the winning wedge pops out
+      wedgeLift: 800,            // the wedge rising up and flipping to face the player
+      announceDelay: 800,       // after the wheel stops: big burst, the game's name, and its voice-over
+      clickSkipVoiced: 2600,     // after the announcement, how soon a click can skip ahead (game has a voice-over)
+      clickSkip: 0,              // the same, for a game without a voice-over
+      autoFinishVoiced: 3000,    // after the wheel stops, blast off on its own (game has a voice-over)
+      autoFinish: 1300,          // the same, for a game without a voice-over
+    },
 
     // -- blast-off: the wheel leaves like a rocket --
-    blastUiFade: 300,          // the title and result text fade away
-    blastRumble: 800,          // rumbling and fire on the ground before lift-off
-    blastFly: 1000,            // the flight up and off the screen
-    blastCleanup: 400,         // after the flight, before leftover animations are cleared
-    hide: 260,                 // the overlay's fade-out before the game continues (matches --t-overlay-fade)
+    blastOff: {
+      blastUiFade: 300,          // the title and result text fade away
+      blastRumble: 200,          // rumbling and fire on the ground before lift-off
+      blastFly: 400,            // the flight up and off the screen
+      blastCleanup: 400,         // after the flight, before leftover animations are cleared
+      hide: 1000,                 // the overlay's fade-out before the game continues (matches --t-overlay-fade)
+    },
   },
 
   // ---------------------------------------------------------------------------------------------
@@ -90,7 +109,7 @@ const TIMING = {
   //    Slots.spin()         shows the machine, waits for the lever (or pulls it for the computer), spins and
   //                         stops the reels, plays the tick sound, then calls reveal()
   //    Slots.reveal()       shows the prize, decides when a click may close the machine and when it closes itself
-  //    Slots.streakStop()   the flash and "x2! / INSTANT WIN!" pop when an INSTANT WIN locks in on a reel
+  //    Slots.streakStop()   the flash and "x2! ... INSTANT WIN!" pop when an INSTANT WIN locks in on a reel
   //    Slots.instantBanner() the big INSTANT WIN! title and its explosions
   //    Slots.explodeBanner() blows the title apart letter by letter when the machine closes
   //    Game.applyPrize()    (game.js) carries out the prize (in Gravity, lets the marks above a gap fall),
@@ -98,48 +117,63 @@ const TIMING = {
   //    Game.chooseTarget()  (game.js) waits for a target to steal/bomb; the computer picks after a delay
   // ---------------------------------------------------------------------------------------------
   slots: {
-    jackpotFoundDelay: 300,    // game.js: after the mark lands on the jackpot space, before "JACKPOT!"
-    jackpotToMachine: 900,     // game.js: after "JACKPOT!", before the slot machine appears
-    autoPullDelay: 900,        // computer's turn: how long before the computer pulls the lever
+    // -- the jackpot is found and the machine opens --
+    opening: {
+      jackpotFoundDelay: 300,    // game.js: after the mark lands on the jackpot space, before "JACKPOT!"
+      jackpotToMachine: 900,     // game.js: after "JACKPOT!", before the slot machine appears
+      autoPullDelay: 900,        // computer's turn: how long before the computer pulls the lever
+    },
 
-    // -- reels: each number is when that reel stops, counted from the pull --
-    reelStops: [1000, 1400, 1800, 2200, 2600],
-    teaserExtra: 450,          // a likely win on reels 1+2: reels 3, 4, 5 stop 450, 900, 1350 later
-    windupFirstStop: 1000,     // INSTANT WIN on reel 1: when reel 1 stops ...
-    windupGap: 1100,           // ... and the gap before each later reel stops
-    windupBrokenGap: 380,      // ... but only this gap once the INSTANT WIN streak is broken
-    suspenseGap: 3200,         // two INSTANT WINs lined up: the gap before the deciding third reel stops
-    windupTeaseDelay: 30,      // after reel 1 stops, before "INSTANT WIN on reel 1..." appears
-    oneMoreTextDelay: 650,     // after reel 2 stops, before "ONE MORE FOR AN INSTANT WIN..." appears
-    tickGapStart: 50,          // the reel ticking sound: gap between ticks at the start ...
-    tickGapGrow: 150,          // ... growing by up to this much as the reels slow down
-    tickStopGuard: 120,        // the ticking stops this long before the last reel stops
+    // -- reels: how fast they spin, and when each one stops (reelStops: counted from the pull) --
+    reels: {
+      reelStops: [1500, 1900, 2300, 2500, 2900],
+      spinSpeed: 35,             // how fast the reels spin, in SYMBOLS PER SECOND (higher = faster); every reel
+                                 // spins this fast whatever its stop time, so longer spins just pass more symbols
+      reelSlowdown: 1200,        // the last part of each reel's spin, where it visibly slows from spinSpeed to a stop
+      teaserExtra: 450,          // a likely win on reels 1+2: reels 3, 4, 5 stop 450, 900, 1350 later
+      tickGapStart: 50,          // the reel ticking sound: gap between ticks at the start ...
+      tickGapGrow: 150,          // ... growing by up to this much as the reels slow down
+      tickStopGuard: 120,        // the ticking stops this long before the last reel stops
+    },
+
+    // -- INSTANT WIN: an INSTANT WIN on reel 1 winds up the other reels; five in a row wins --
+    instantWin: {
+      windupFirstStop: 2000,     // INSTANT WIN on reel 1: when reel 1 stops ...
+      windupGap: 2100,           // ... and the gap before each later reel stops
+      windupBrokenGap: 380,      // ... but only this gap once the INSTANT WIN streak is broken
+      suspenseGap: 3200,         // four INSTANT WINs lined up: the gap before the deciding fifth reel stops
+      suspenseSlowdown: 2800,    // ... and the last part of that reel's spin, where it slowly crawls to a stop (see reels.reelSlowdown)
+      windupTeaseDelay: 30,      // after reel 1 stops, before "INSTANT WIN on reel 1..." appears
+      oneMoreTextDelay: 650,     // after reel 4 stops, before "ONE MORE FOR AN INSTANT WIN..." appears
+      lockFlash: 600,            // the white flash each time an INSTANT WIN locks into place on a reel
+      autoFinishJackpot: 5600,   // after an INSTANT WIN is revealed, the machine closes on its own
+      instantGlow: 5200,         // how long the machine glows after an INSTANT WIN
+      bannerBoomFirst: 150,      // the first explosion around the title
+      bannerBoomGap: 260,        // gap between those explosions (6 of them)
+      bannerCellBurstGap: 90,    // gap between the bursts on each winning symbol
+      bannerFailsafe: 9000,      // the title blows itself up after this long if the machine is still open
+      letterGap: 45,             // the title blowing apart: delay between one letter and the next
+      letterFly: 720,            // each letter flying away
+      letterBoom: 130,           // after a letter starts flying, its little explosion
+      letterCleanup: 1500,       // after the last letter starts, before the leftovers are removed
+    },
 
     // -- the result --
-    revealDelay: 200,          // after the last reel stops, before the prize is shown
-    clickSkip: 400,            // after the reveal, how soon a click closes the machine
-    autoFinishBust: 2200,      // after the reveal, the machine closes on its own: no prize
-    autoFinishJackpot: 5600,   // ... INSTANT WIN
-    autoFinishPrize: 3600,     // ... any other prize
-    instantGlow: 5200,         // how long the machine glows after an INSTANT WIN
-    hide: 250,                 // the overlay's fade-out before the game continues (matches --t-overlay-fade)
-
-    // -- the big INSTANT WIN! title above the machine --
-    bannerBoomFirst: 150,      // the first explosion around the title
-    bannerBoomGap: 260,        // gap between those explosions (6 of them)
-    bannerCellBurstGap: 90,    // gap between the bursts on each winning symbol
-    bannerFailsafe: 9000,      // the title blows itself up after this long if the machine is still open
-    lockFlash: 600,            // the white flash each time an INSTANT WIN locks into place on a reel
-    letterGap: 45,             // the title blowing apart: delay between one letter and the next
-    letterFly: 720,            // each letter flying away
-    letterBoom: 130,           // after a letter starts flying, its little explosion
-    letterCleanup: 1500,       // after the last letter starts, before the leftovers are removed
+    result: {
+      revealDelay: 200,          // after the last reel stops, before the prize is shown
+      clickSkip: 400,            // after the reveal, how soon a click closes the machine
+      autoFinishBust: 2200,      // after the reveal, the machine closes on its own: no prize
+      autoFinishPrize: 3600,     // ... any other prize
+      hide: 250,                 // the overlay's fade-out before the game continues (matches --t-overlay-fade)
+    },
 
     // -- prize follow-ups (game.js) --
-    prizeSettle: 700,          // after a STEAL or a BOMB lands, before play continues
-    gravityDropDelay: 450,     // Gravity: after a BOMB or a claimed square, before the marks above a gap fall in
-    cpuTargetDelay: 1000,      // computer's turn: how long before it picks which mark to steal or bomb
-    rulePickSettle: 3000,      // after a RULE PICK, how long the "next game" card is on screen
+    prizes: {
+      prizeSettle: 700,          // after a STEAL or a BOMB lands, before play continues
+      gravityDropDelay: 450,     // Gravity: after a BOMB or a claimed square, before the marks above a gap fall in
+      cpuTargetDelay: 1000,      // computer's turn: how long before it picks which mark to steal or bomb
+      rulePickSettle: 3000,      // after a RULE PICK, how long the "next game" card is on screen
+    },
   },
 
   // ---------------------------------------------------------------------------------------------
@@ -209,37 +243,48 @@ const TIMING = {
   //    Renderer.drawBoard() (render.js) re-frames the camera when a Gravity board tilts upright
   // ---------------------------------------------------------------------------------------------
   camera: {
-    zoomIntoChild: 1200,       // a player picks a space: zoom down into its new Turf Battle (or lower level)
-    childFadeIn: 700,          // ... the new board fading in during that zoom
-    winPause: 1400,            // a board is won: celebrate before zooming out
-    zoomOutToParent: 1200,     // zoom out from the won board to the board above it
-    wonFade: 800,              // ... the won board fading away during that zoom ...
-    wonFadeDelay: 250,         // ... starting this long after the zoom starts
-    afterClaim: 800,           // after the winner's mark drops into the board above, before play continues
-    winLineFirst: 120,         // the winning line's sparkles: the first space ...
-    winLineGap: 110,           // ... and the gap between spaces
+    // -- into a Turf Battle, and back out when a board is won --
+    turf: {
+      zoomIntoChild: 1200,       // a player picks a space: zoom down into its new Turf Battle (or lower level)
+      childFadeIn: 700,          // ... the new board fading in during that zoom
+      winPause: 1400,            // a board is won: celebrate before zooming out
+      zoomOutToParent: 1200,     // zoom out from the won board to the board above it
+      wonFade: 800,              // ... the won board fading away during that zoom ...
+      wonFadeDelay: 250,         // ... starting this long after the zoom starts
+      afterClaim: 800,           // after the winner's mark drops into the board above, before play continues
+      winLineFirst: 120,         // the winning line's sparkles: the first space ...
+      winLineGap: 110,           // ... and the gap between spaces
+    },
 
     // -- a whole level is won: the board shrinks into the centre of a new, bigger board --
-    ascendZoom: 1900,          // the zoom out to the new level
-    ascendNewFadeIn: 1000,     // the new board fading in ...
-    ascendNewFadeDelay: 200,   // ... starting this long after the zoom starts
-    ascendOldFade: 900,        // the old board fading out ...
-    ascendOldFadeDelay: 900,   // ... starting this long after the zoom starts
-    ascendWaveDelay: 250,      // after the zoom, before the ripple across the new board
-    ascendSettle: 700,         // after the zoom, before play continues
+    ascend: {
+      ascendZoom: 1900,          // the zoom out to the new level
+      ascendNewFadeIn: 1000,     // the new board fading in ...
+      ascendNewFadeDelay: 200,   // ... starting this long after the zoom starts
+      ascendOldFade: 900,        // the old board fading out ...
+      ascendOldFadeDelay: 900,   // ... starting this long after the zoom starts
+      ascendWaveDelay: 250,      // after the zoom, before the ripple across the new board
+      ascendSettle: 700,         // after the zoom, before play continues
+    },
 
     // -- a Turf Battle ends in a stalemate: its space on the board above turns to stone --
-    stalematePause: 1300,      // "STALEMATE!" before zooming out
-    stalemateSettle: 900,      // after the stone lands, before play continues
+    stalemate: {
+      stalematePause: 1300,      // "STALEMATE!" before zooming out
+      stalemateSettle: 900,      // after the stone lands, before play continues
+    },
 
     // -- a draw that is replayed --
-    drawPause: 1500,           // "DRAW!" before the board clears
-    drawSettle: 600,           // after the board clears, before play (or the wheel) continues
+    draw: {
+      drawPause: 1500,           // "DRAW!" before the board clears
+      drawSettle: 600,           // after the board clears, before play (or the wheel) continues
+    },
 
     // -- looking around with the zoom buttons / minimap --
-    browseZoom: 1000,          // flying to the board you clicked
-    browseFade: 650,           // finished boards fading in or out as you browse ...
-    browseFadeDelay: 250,      // ... fading out starts this long after the move starts
+    browse: {
+      browseZoom: 1000,          // flying to the board you clicked
+      browseFade: 650,           // finished boards fading in or out as you browse ...
+      browseFadeDelay: 250,      // ... fading out starts this long after the move starts
+    },
 
     gravityTilt: 1300,         // Gravity: the camera re-framing while the board tilts upright
   },
@@ -263,39 +308,89 @@ const TIMING = {
   // ---------------------------------------------------------------------------------------------
   board: {
     cpuMoveDelay: 750,         // computer's turn: "thinking" time before it plays
-    markDrop: 750,             // a mark falling onto a space and bouncing (the impact is markImpact)
-    get markImpact() { return Math.round(this.markDrop * 0.364); },  // when a falling mark first hits (273 ms): sparks, ripple, sound
-    vanishPoof: 240,           // Vanishing Marks: the oldest mark's "POOF!" after a fourth mark is placed
-    ghostFade: 450,            // a removed mark fading out
     toast: 3200,               // how long a message at the bottom stays up
 
-    gravitySettle: 450,        // Gravity: after the marks finish falling, before the next turn
-    gravityRaise: 1700,        // Gravity: the board tilting upright (hydraulic push)
-    gravityRaiseDelay: 350,    // ... starting this long after the Gravity game begins
-    gravityLower: 700,         // ... and tilting back down once the game is over
-    shiftBefore: 420,          // Shifting Squares: pause before a row or column shifts
-    shiftAfter: 650,           // ... and after it, before the next turn
-    slide: 420,                // a mark sliding to its new space (Shifting Squares, Ring Spin)
-    turnBefore: 420,           // Ring Spin / Crossfire: pause before the marks move
-    ringAfter: 700,            // Ring Spin: after the marks move, before the next turn
-    crossAfter: 800,           // Crossfire: after the corners swap, before the next turn
-    crossHop: 700,             // Crossfire: each corner mark's hop over the centre
-    fogCover: 650,             // Fog of War: a mark disappearing into the fog
-    fogPause: 500,             // ... the pause while it does
-    fogLiftPause: 1500,        // Fog of War is over: the fog evaporating before play continues
-    fogLift: 1300,             // ... how long the fog takes to thin away
-    fogWinFade: 900,           // ... (the fog's fade if a win happens without the lift)
-    wildBefore: 250,           // Wild Square: pause before the wild mark jumps
-    wildAfter: 450,            // ... and after, before the next turn
+    // -- marks landing and leaving --
+    marks: {
+      markDrop: 750,             // a mark falling onto a space and bouncing (the impact is markImpact)
+      get markImpact() { return Math.round(this.markDrop * 0.364); },  // when a falling mark first hits (273 ms): sparks, ripple, sound
+      vanishPoof: 240,           // Vanishing Marks: the oldest mark's "POOF!" after a fourth mark is placed
+      ghostFade: 450,            // a removed mark fading out
+    },
+
+    // -- Gravity --
+    gravity: {
+      gravitySettle: 450,        // Gravity: after the marks finish falling, before the next turn
+      gravityRaise: 1700,        // Gravity: the board tilting upright (hydraulic push)
+      gravityRaiseDelay: 350,    // ... starting this long after the Gravity game begins
+      gravityLower: 700,         // ... and tilting back down once the game is over
+    },
+
+    // -- Shifting Squares (slide is also used by Ring Spin) --
+    shift: {
+      shiftBefore: 420,          // Shifting Squares: pause before a row or column shifts
+      shiftAfter: 650,           // ... and after it, before the next turn
+      slide: 420,                // a mark sliding to its new space (Shifting Squares, Ring Spin)
+    },
+
+    // -- Ring Spin and Crossfire --
+    ringCross: {
+      turnBefore: 420,           // Ring Spin / Crossfire: pause before the marks move
+      ringAfter: 700,            // Ring Spin: after the marks move, before the next turn
+      crossAfter: 800,           // Crossfire: after the corners swap, before the next turn
+      crossHop: 700,             // Crossfire: each corner mark's hop over the centre
+    },
+
+    // -- Fog of War --
+    fog: {
+      fogCover: 650,             // Fog of War: a mark disappearing into the fog
+      fogPause: 500,             // ... the pause while it does
+      fogLiftPause: 1500,        // Fog of War is over: the fog evaporating before play continues
+      fogLift: 1300,             // ... how long the fog takes to thin away
+      fogWinFade: 900,           // ... (the fog's fade if a win happens without the lift)
+    },
+
+    // -- Wild Square --
+    wild: {
+      wildBefore: 250,           // Wild Square: pause before the wild mark jumps
+      wildAfter: 450,            // ... and after, before the next turn
+    },
 
     // -- Wild Square intro: the spaces light up one after another, then the wild mark drops --
-    wildIntroStart: 2950,      // after the rule card appears, before the lights start (lets the card fly away)
-    wildIntroSteps: 17,        // how many random spaces light up before the final one (a count, not ms)
-    wildStepMin: 55,           // the gap between lights at the start ...
-    wildStepGrow: 260,         // ... growing by up to this much (on a curve) as the run slows down
-    wildStepTrail: 120,        // the dim trail left by the previous light
-    wildDropDelay: 450,        // after the last light, before the wild mark drops
-    wildLightFade: 500,        // after the mark lands, the light under it fading
+    wildIntro: {
+      wildIntroStart: 2950,      // after the rule card appears, before the lights start (lets the card fly away)
+      wildIntroSteps: 17,        // how many random spaces light up before the final one (a count, not ms)
+      wildStepMin: 55,           // the gap between lights at the start ...
+      wildStepGrow: 260,         // ... growing by up to this much (on a curve) as the run slows down
+      wildStepTrail: 120,        // the dim trail left by the previous light
+      wildDropDelay: 450,        // after the last light, before the wild mark drops
+      wildLightFade: 500,        // after the mark lands, the light under it fading
+    },
+  },
+
+  // ---------------------------------------------------------------------------------------------
+  //  MATCH POINT (js/game.js): the big moment when the Turf Battle being played would win a Round
+  //  Order: rule card lands in its plate -> (delay) -> riser -> title slams down (flash, shake,
+  //  deciding spaces light up, voice) -> heartbeat -> title flies off; the deciding spaces keep
+  //  glowing until the battle ends
+  //
+  //  Read by (the functions that use these settings, and what each one does):
+  //    Game.updateStakes()       spots Match Point once the board is playable
+  //    Game.matchPointSoon()     waits for the rule title card to land, then starts the moment after `delay`
+  //    Game.matchPointMoment()   the riser, the slam, the voice and the heartbeat
+  //    Game.matchPointBanner()   shows the big title for `banner` (style.css .mp-banner animation)
+  //    Renderer.drawBoard()      (render.js) the burst of light on the deciding spaces (`lightUp`)
+  //                              and their steady pulse (`glowPulse`) afterwards
+  // ---------------------------------------------------------------------------------------------
+  matchPoint: {
+    delay: 300,                // after the rule title card lands in its plate at the top, before the moment starts
+    riseLead: 450,             // the rising whoosh starts this long before the title slams down
+    banner: 2800,              // the title on screen: slam, hold, fly off (the letterbox bars too)
+    voiceAfter: 120,           // after the slam, before "Match point" is announced
+    heartbeatAfter: 1000,      // after the slam, before the double heartbeat
+    sparkGap: 70,              // gap between the spark bursts from each deciding space at the slam
+    lightUp: 1400,             // the burst of light on the deciding spaces fading to a steady glow
+    glowPulse: 1100,           // one pulse of that steady glow (matches the red vignette's heartbeat)
   },
 
   // ---------------------------------------------------------------------------------------------
@@ -320,12 +415,29 @@ const TIMING = {
     cameraMove: 800,           // the camera following the replay to a different board
     cameraBack: 900,           // the camera's move back to the live game when the replay ends
     afterGravityRaise: 300,    // Gravity: after the board locks upright, before the first replayed move drops
-                               // (the stand-up itself is TIMING.board.gravityRaiseDelay + gravityRaise)
+                               // (the stand-up itself is TIMING.board.gravity.gravityRaiseDelay + gravityRaise)
+  },
+
+  // ---------------------------------------------------------------------------------------------
+  //  DEVELOPER MODE TRANSITIONS (js/game.js): the buttons that play one sequence on a throwaway board.
+  //  These are only the lab's own pauses; the sequences themselves use the groups above.
+  //
+  //  Read by (the functions that use these settings, and what each one does):
+  //    Game.labRun()     plays the chosen sequence, waits `after`, then puts the real game back (labEnd)
+  //    Game.labScene()   builds the throwaway board, waits `before`, then starts the sequence;
+  //                      the explosion and ROUND banner have no end of their own to wait for
+  // ---------------------------------------------------------------------------------------------
+  lab: {
+    before: 500,               // the throwaway board on screen, before the sequence starts
+    after: 1200,               // after the sequence ends, before the real game comes back
+    boomWatch: 2200,           // the Explosion button: how long to watch it
+    bannerWatch: 2400,         // the ROUND banner button: how long to watch it (its animation is 2.2s in style.css)
   },
 
   // ---------------------------------------------------------------------------------------------
   //  CSS: the fade of the Wheel, Slots and RULE PICK overlays (style.css reads this as
   //  var(--t-overlay-fade)). Keep wheel.hide, slots.hide and rulePick.hide close to it.
+  //  (TIMING.matchPoint.glowPulse and .banner are handed to style.css the same way, below.)
   //
   //  Read by: the setProperty() call at the bottom of this file, which hands it to style.css.
   // ---------------------------------------------------------------------------------------------
@@ -340,3 +452,6 @@ const TIMING = {
 // line has not run). To add one: put the value in TIMING.css, add a line like this one, and use
 // var(--your-name, fallback) in style.css.
 document.documentElement.style.setProperty('--t-overlay-fade', `${TIMING.css.overlayFade}ms`);
+// Match Point: the heartbeat of the red vignette and the stakes bar, and the big title's animation
+document.documentElement.style.setProperty('--t-mp-pulse', `${TIMING.matchPoint.glowPulse}ms`);
+document.documentElement.style.setProperty('--t-mp-banner', `${TIMING.matchPoint.banner}ms`);

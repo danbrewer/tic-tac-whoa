@@ -251,7 +251,9 @@ const STRINGS = (() => {
       stalemate: 'STALEMATE!',
       blocked: 'BLOCKED!',
       draw: 'DRAW!',
-      matchPoint: 'MATCH POINT!',
+      matchPoint: 'MATCH POINT!',                                  // the big title that slams down (on a level 0 board that decides a bigger one)
+      // ... and the line under it (ps: the player or players on match point)
+      matchPointSub: (ps, level) => (ps.length > 1 ? `Whoever wins this Turf Battle wins Round ${level}` : `Win this Turf Battle and ${mark(ps[0])} wins Round ${level}`),
       replayWins: (p) => `${p} WINS!`,
     },
 
@@ -290,14 +292,14 @@ const STRINGS = (() => {
       titleSmall: 'Mystery',
       titleBig: 'JACKPOT!',                         // drawn one bouncing letter at a time
       howHead: '🎲 How it plays',
-      howText: 'Line up <b>3, 4 or 5</b> of the same prize symbol on any payline, starting from the <b>leftmost reel</b>, to win that prize. X, O and 💎 are blanks.',
+      howText: 'Line up <b>5</b> of the same prize symbol on any payline, one on <b>every reel</b>, to win that prize. X, O and 💎 are blanks.',
       linesHead: '〰️ 9 Paylines',
-      linesText: 'A win counts on any of these lines, reading from the left.',
+      linesText: 'A win needs the same prize symbol on all 5 reels along any of these lines.',
       close: 'Close',                               // screen-reader label on the pop-ups' × button
       symbolsTab: '🎲 Symbols',
       paylinesTab: '〰️ Paylines',
       spin: 'SPIN THE REELS!',
-      who: (p) => `${mark(p)} found the mystery jackpot! Line up 3+ prize symbols from the left on any payline.`,
+      who: (p) => `${mark(p)} found the mystery jackpot! Line up 5 prize symbols on any payline to win.`,
       computerSpins: 'The computer spins...',
       // the label under each prize symbol on the reels
       symbols: { extra: 'EXTRA TURN', bomb: 'BOMB', steal: 'STEAL', shield: '+1 MARK', rule: 'RULE PICK', jackpot: 'INSTANT WIN' },
@@ -317,15 +319,15 @@ const STRINGS = (() => {
       payJackpotTurf: 'Win this game',
       payJackpotBig: 'Claim any space',
       payRule: "Pick the next game's rule",
-      // "THREE of a kind on the Middle line (+1 more line). Go again right now!"
-      ofAKind: { 3: 'THREE', 4: 'FOUR', 5: 'FIVE' },
+      // "FIVE of a kind on the Middle line (+1 more line). Go again right now!"
+      ofAKind: { 5: 'FIVE' },
       winLine: (kind, line, more, desc) => `${kind} of a kind on the <b>${line}</b> line${more ? ` (+${more} more ${plural(more, 'line', 'lines')})` : ''}. ${desc}`,
       paylines: ['Middle', 'Top', 'Bottom', 'V', 'Peak', 'Zig-zag', 'Zag-zig', 'Step down', 'Step up'],   // same order as PAYLINES
       // INSTANT WIN drama
       teaseReel1: '<span class="tease-txt">🎆 INSTANT WIN on reel 1...</span>',
-      oneMore: '<span class="tease-txt">🎆🎆 ONE MORE FOR AN INSTANT WIN...</span>',
-      streak: (n) => `<span class="tease-txt">🎆 ${'🎆'.repeat(n - 1)} ${n} IN A ROW${n >= 3 ? '... INSTANT WIN!' : '...'}</span>`,
-      streakPop: { 2: 'x2!', 3: 'INSTANT WIN!', 4: 'MEGA WIN!!', 5: 'ULTRA WIN!!!' },
+      oneMore: '<span class="tease-txt">🎆🎆🎆🎆 ONE MORE FOR AN INSTANT WIN...</span>',
+      streak: (n) => `<span class="tease-txt">🎆 ${'🎆'.repeat(n - 1)} ${n} IN A ROW${n >= 5 ? '... INSTANT WIN!' : '...'}</span>`,
+      streakPop: { 2: 'x2!', 3: 'x3!!', 4: 'x4!!!', 5: 'INSTANT WIN!' },
       banner: 'INSTANT WIN!',                        // the huge title above the machine
     },
 
@@ -404,6 +406,62 @@ const STRINGS = (() => {
       noLiveGame: 'No live game to spin on right now.',
       previewSub: '(Developer Mode preview)',        // under the wheel's title when spun from the panel
       wheelPreview: (icon, name) => `🛠 The wheel landed on ${icon} <b>${name}</b> (preview only: no Turf Battle is running).`,
+
+      // -- the Sample game section: loads a game with Rounds already won (Game.loadSample in js/game.js)
+      sample: {
+        head: '🏆 Sample game',                                  // [page] section heading
+        rounds: 'Rounds already won',                            // [page]
+        roundsOption: (n) => `${n} Round${plural(n, '', 's')}`,
+        winners: 'Who wins the Rounds',                          // [page]
+        winnerOptions: [['', '🎲 Random'], ['X', 'X wins every Round'], ['O', 'O wins every Round'], ['turns', 'X and O take turns']],
+        types: 'Game types of the Turf Battles',                 // [page]
+        typeRandom: '🎲 Random',
+        typeCycle: '🔁 Each type in turn',
+        load: '📥 Load sample game',                              // [page]
+        back: '↩ Back to my game',                                // [page]
+        hint: 'Replaces the game on screen with one that has these Rounds already won, every Turf Battle played out. Your own game is kept aside until you press Back to my game.',   // [page]
+        loaded: (rounds, turfs) => `🏆 Sample game loaded: ${rounds} Round${plural(rounds, '', 's')} won over ${turfs} Turf Battle${plural(turfs, '', 's')}. Zoom out, or open Review, to look around.`,
+        nothingToRestore: 'There is no game of yours set aside.',
+        busy: 'Wait for the current animation to finish first.',
+      },
+
+      // -- the Transitions section: each button plays one automatic sequence on a throwaway board, then
+      //    puts the real game back exactly as it was (Game.labRun in js/game.js)
+      lab: {
+        head: '🎬 Transitions',                                   // [page] section heading
+        hint: 'Each one plays on a throwaway board, then puts your game back. The "Wheel result" and "Slot result" settings above apply.',   // [page]
+        reload: '🔄 Reload timing.js + sound-config.js',          // [page] picks up edits without reloading the page
+        reloaded: '🔄 Reloaded the timings and sound settings.',
+        reloadFailed: 'Could not reload the settings (open the game from a web server, not as a file).',
+        busy: 'Wait for the current animation to finish first.',
+        playing: (name) => `🎬 Playing: ${name}`,
+        done: '🎬 Done. Your game is back.',
+        groups: { wheel: 'Wheel and cards', slots: 'Slot machine', board: 'Winning and camera', rules: 'Game types' },
+        items: {
+          wheel: '🎡 Fortune Wheel: full spin',
+          ruleCard: '🪧 Rule title card',
+          rulePick: '🃏 RULE PICK cards',
+          slots: '🎰 Jackpot found + slot machine',
+          instantWin: '🎆 INSTANT WIN',
+          boom: '💥 Explosion',
+          matchPoint: '🔥 MATCH POINT',
+          turfWin: '🏆 Turf Battle won (zoom out)',
+          roundWin: '👑 Round won (new Round)',
+          stalemate: '🪨 Stalemate (dead square)',
+          zoomIn: '🔍 Zoom into a Turf Battle',
+          roundBanner: '🔠 ROUND banner',
+          vanish: '👻 Vanishing mark POOF',
+          shift: '🔀 Shifting Squares slide',
+          ring: '🔄 Ring Spin',
+          cross: '❌ Crossfire hop',
+          fogCover: '🌫️ Fog rolls over a mark',
+          fogLift: '🌫️ Fog lifts',
+          wildIntro: '🎲 Wild Square roulette',
+          wildJump: '✳️ Wild Square jumps',
+          gravityRaise: '⬇️ Gravity board stands up',
+          gravityDrop: '⬇️ Gravity: bombed mark, marks fall',
+        },
+      },
     },
   };
 })();

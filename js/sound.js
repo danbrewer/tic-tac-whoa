@@ -160,9 +160,52 @@ const Sound = {
     this.tone(200, 0.2, { type: 'triangle', vol: 0.12, slideTo: 90 });
   },
   reelTick() { this.tone(1800 + Math.random() * 400, 0.025, { type: 'square', vol: 0.025 }); },
+  // A reel stopping sounds like a door closing: the latch clicks, the door thuds into its frame,
+  // and the frame rattles a little. Each reel is pitched slightly lower than the one before.
   reelStop(i) {
-    this.tone(120 - i * 15, 0.15, { type: 'sine', vol: 0.35, slideTo: 60 });
-    this.noise(0.06, { vol: 0.15, from: 2000, to: 600, q: 0.8 });
+    if (!this.on || !this.ctx) return;
+    this.door(this.sfx(), 1 - i * 0.05);
+  },
+  // The deciding last reel of an INSTANT WIN: a heavy door slamming in a huge hall, with a long echo.
+  reelStopBig() {
+    if (!this.on || !this.ctx) return;
+    const c = this.ctx, out = c.createGain();
+    out.connect(this.sfx());
+    const pre = c.createDelay(0.2); pre.delayTime.value = 0.03;
+    const conv = c.createConvolver(); conv.buffer = this.hallIR(true);
+    const wet = c.createGain(); wet.gain.value = 1.1;
+    out.connect(pre).connect(conv).connect(wet).connect(this.sfx());
+    out.connect(this.echoBus());
+    this.door(out, 0.8, 1.6);
+  },
+  // the door itself, played into out; pitch < 1 is a bigger, deeper door, size makes it louder and longer
+  door(out, pitch = 1, size = 1) {
+    const c = this.ctx, t0 = c.currentTime;
+    if (!this.noiseBuf) this.noise(0.01, { vol: 0.0001 });          // builds the shared noise buffer
+    const burst = (at, dur, vol, freq, q, toFreq = freq) => {
+      const src = c.createBufferSource(); src.buffer = this.noiseBuf;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(freq, t0 + at); bp.frequency.exponentialRampToValueAtTime(toFreq, t0 + at + dur);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+      src.connect(bp).connect(g).connect(out);
+      src.start(t0 + at, Math.random() * 2); src.stop(t0 + at + dur + 0.05);
+    };
+    const thud = (at, f, fTo, dur, vol, type = 'sine') => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t0 + at); o.frequency.exponentialRampToValueAtTime(fTo, t0 + at + dur);
+      g.gain.setValueAtTime(0.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+      o.connect(g).connect(out); o.start(t0 + at); o.stop(t0 + at + dur + 0.05);
+    };
+    burst(0, 0.025, 0.22, 4200 * pitch, 3);                          // the latch clicking
+    thud(0.012, 105 * pitch, 42 * pitch, 0.22 * size, 0.55);         // the door's body hitting the frame
+    thud(0.012, 210 * pitch, 90 * pitch, 0.09 * size, 0.16, 'triangle');
+    burst(0.012, 0.14 * size, 0.45, 420 * pitch, 1, 140 * pitch);    // the knock of wood on wood
+    burst(0.05, 0.03, 0.08, 1900 * pitch, 4);                        // the frame rattling
+    burst(0.085, 0.025, 0.05, 2300 * pitch, 4);
+    if (size > 1) thud(0.012, 52, 24, 1.4, 0.45);                    // a sub-bass boom under the big slam
   },
   tension() { this.tone(300, 1.6, { type: 'sawtooth', vol: 0.04, slideTo: 900 }); },
   slotWin(big) {
@@ -184,6 +227,20 @@ const Sound = {
   heartbeat() {
     for (const t of [0, 0.22, 0.9, 1.12]) this.tone(70, 0.18, { type: 'sine', vol: 0.4, when: t, slideTo: 45 });
     this.tone(880, 0.5, { type: 'triangle', vol: 0.06, when: 0.05, slideTo: 1760 });
+  },
+  // Match Point: a riser building up to the title slamming down (dur = seconds until the slam)
+  matchPointRise(dur = 0.45) {
+    this.noise(dur + 0.04, { vol: 0.24, from: 300, to: 7000, q: 1.4 });
+    this.tone(110, dur, { type: 'sawtooth', vol: 0.045, slideTo: 440 });
+    this.tone(55, dur, { type: 'sine', vol: 0.2, slideTo: 110 });
+  },
+  // Match Point: the title slamming down: a sub drop, a crack and a low, tense brass stab (A minor)
+  matchPointSlam() {
+    this.tone(58, 1.6, { type: 'sine', vol: 0.6, slideTo: 22 });
+    this.noise(0.55, { vol: 0.36, from: 2400, to: 110, q: 0.5 });
+    this.noise(0.12, { vol: 0.3, from: 5200, to: 1500, q: 0.8 });
+    for (const f of [110, 130.8, 164.8, 220]) this.tone(f, 1.3, { type: 'sawtooth', vol: 0.04, slideTo: f * 0.97 });
+    this.tone(880, 1.1, { type: 'triangle', vol: 0.045, when: 0.02, slideTo: 830 });
   },
   ruleCard(fresh) {
     if (fresh) {

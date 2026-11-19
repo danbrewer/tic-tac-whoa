@@ -376,8 +376,8 @@ const Wheel = {
   // ---- the flapper's physics ----
   // The flapper is a springy paddle on a pivot at the front of the rim. Each peg that sweeps past bends it
   // aside until the peg slips off its tip; then it snaps back, overshoots and, when the next peg is close,
-  // slaps into it. It is a damped spring (TIMING.wheel.flapperFreq, TIMING.wheel.flapperDamping) that cannot pass
-  // through a peg: a peg it runs into stops it and bounces it back (TIMING.wheel.flapperBounce).
+  // slaps into it. It is a damped spring (TIMING.wheel.flapper.flapperFreq, TIMING.wheel.flapper.flapperDamping) that cannot pass
+  // through a peg: a peg it runs into stops it and bounces it back (TIMING.wheel.flapper.flapperBounce).
   // All lengths are in units of R. th is the flapper's angle (radians; positive swings the tip to the
   // right on screen), om its angular speed.
 
@@ -414,7 +414,7 @@ const Wheel = {
     if (!dt && !dA) return s.th;
     // small sub-steps, so no peg can jump past the flapper in one go even at full speed
     const n = Math.min(1000, Math.max(1, Math.ceil(dt / 0.002), Math.ceil(Math.abs(dA) / (seg * 0.04))));
-    const h = Math.max(dt / n, 1e-5), w0 = 2 * Math.PI * T.flapperFreq, z = T.flapperDamping, e = T.flapperBounce;
+    const h = Math.max(dt / n, 1e-5), w0 = 2 * Math.PI * T.flapper.flapperFreq, z = T.flapper.flapperDamping, e = T.flapper.flapperBounce;
     let struck = false;
     for (let k = 1; k <= n; k++) {
       const A = s.a + (dA * k) / n;
@@ -575,7 +575,7 @@ const Wheel = {
   // the wheel plummets from above the screen, slams onto the board with a BOOM and a cloud of dust
   dropIn(el) {
     const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
-    const T = TIMING.wheel, FALL = T.dropFall;
+    const T = TIMING.wheel, FALL = T.drop.dropFall;
     Sound.whoosh && Sound.whoosh();
     // fall, then (exactly when the fall animation ends) squash + BOOM + dust
     const fall = stage.animate([
@@ -583,25 +583,25 @@ const Wheel = {
       { transform: 'translateY(0) rotate(0) scale(0.92, 1.08)' },
     ], { duration: FALL, easing: 'cubic-bezier(.5,0,1,1)', fill: 'backwards' });
     ui.forEach((u, i) => u.animate([{ opacity: 0, transform: 'translateY(-30px) scale(0.8)' }, { opacity: 1, transform: 'none' }],
-      { duration: T.dropTitleIn, delay: FALL + T.dropTitleGap + i * T.dropTitleStagger, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
+      { duration: T.drop.dropTitleIn, delay: FALL + T.drop.dropTitleGap + i * T.drop.dropTitleStagger, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
     fall.onfinish = () => {
       const f = this.footprint(stage);
       stage.animate([
         { transform: 'scale(1.12, 0.8)' }, { transform: 'translateY(-3%) scale(0.97, 1.04)', offset: 0.5 }, { transform: 'none' },
-      ], { duration: T.dropSquash, easing: 'ease-out' });
+      ], { duration: T.drop.dropSquash, easing: 'ease-out' });
       Sound.bigBoom(1, 0);
       Fx.dust(f);
       Renderer.flash && Renderer.flash(0.35, '255,240,220');
       const sh = []; for (let k = 0; k < 12; k++) { const m = 18 * (1 - k / 12); sh.push({ transform: `translate(${(Math.random() - 0.5) * m}px, ${(Math.random() - 0.3) * m * 1.6}px)` }); }
       sh.push({ transform: 'none' });
-      document.body.animate(sh, { duration: T.dropShake });
+      document.body.animate(sh, { duration: T.drop.dropShake });
     };
   },
   // when the game type is picked the wheel rumbles, ignites, and blasts off like a rocket
   blastOff(el, done) {
     const stage = el.querySelector('.wh-stage'), ui = el.querySelectorAll('.wh-title, .wh-who, .wh-result');
-    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: TIMING.wheel.blastUiFade, fill: 'forwards' }));
-    const RUMBLE = TIMING.wheel.blastRumble, FLY = TIMING.wheel.blastFly;
+    ui.forEach((u) => u.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: TIMING.wheel.blastOff.blastUiFade, fill: 'forwards' }));
+    const RUMBLE = TIMING.wheel.blastOff.blastRumble, FLY = TIMING.wheel.blastOff.blastFly;
     Sound.rocketRumble && Sound.rocketRumble(RUMBLE / 1000);
     const sh = []; for (let k = 0; k < 10; k++) sh.push({ transform: `translate(${(Math.random() - 0.5) * 8}px, ${(Math.random() - 0.5) * 5}px)` });
     sh.push({ transform: 'none' });
@@ -631,7 +631,7 @@ const Wheel = {
     }, RUMBLE);
     setTimeout(() => {
       done();
-      setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, TIMING.wheel.blastCleanup);
+      setTimeout(() => { stage.getAnimations().forEach((a) => a.cancel()); ui.forEach((u) => u.getAnimations().forEach((a) => a.cancel())); }, TIMING.wheel.blastOff.blastCleanup);
     }, RUMBLE + FLY);
   },
 
@@ -687,15 +687,15 @@ const Wheel = {
           : (1 - (r < this.NEAR_MISS + 0.4 ? rel + 0.03 + Math.random() * 0.06 : rel + 0.09 + Math.random() * (0.85 - rel - 0.09))) * seg;
         const base = -(target * seg + within);
         // 1) wind-back: drag the wheel backwards a little before letting go
-        const pullT = TIMING.wheel.windBack, pull = seg * 1.4, a0 = this.angle;
+        const pullT = TIMING.wheel.spin.windBack, pull = seg * 1.4, a0 = this.angle;
         Sound.wheelPull(pullT / 1000);
         let end = base;
         while (end < a0 - pull + Math.PI * 2 * 6) end += Math.PI * 2;
         const start = a0 - pull;
         // two-phase motion: (A) a long cubic slow-down from the launch, then (B) a constant-deceleration crawl
         // over the last ~4 spokes, so every final spoke is visibly slower than the one before, right up to the stop
-        const TOT = end - start, dB = seg * 3.3 + within, TB = TIMING.wheel.spinCrawl, vB = (2 * dB) / TB;
-        const TA = TIMING.wheel.spinFast + Math.random() * TIMING.wheel.spinFastRandom, DA = TOT - dB;
+        const TOT = end - start, dB = seg * 3.3 + within, TB = TIMING.wheel.spin.spinCrawl, vB = (2 * dB) / TB;
+        const TA = TIMING.wheel.spin.spinFast + Math.random() * TIMING.wheel.spin.spinFastRandom, DA = TOT - dB;
         const v0 = vB + ((DA - vB * TA) * 4) / TA, aB = (vB * vB) / (2 * dB), T = TA + TB;
         const posAt = (t) => {
           if (t <= TA) { const u = t / TA; return vB * t + ((v0 - vB) * TA / 4) * (1 - Math.pow(1 - u, 4)); }
@@ -704,7 +704,7 @@ const Wheel = {
         const velAt = (t) => (t <= TA ? vB + (v0 - vB) * Math.pow(1 - t / TA, 3) : Math.max(0, vB - aB * (t - TA)));
         const t0 = performance.now();
         let launched = 0, lastSeg = segAt(a0), rolled = false, nextBeat = 0, beatN = 0;
-        const BEATS = TIMING.wheel.heartbeats;
+        const BEATS = TIMING.wheel.heartbeat.heartbeats;
         const live = (i) => {
           const sg = WHEEL_SEGS[i];
           res.innerHTML = `<span class="wh-live" style="color:${sg.col};font-size:${Math.round(18 + this.sus * 22)}px">${RULES[sg.k].icon} ${sg.label}</span>`;
@@ -731,20 +731,20 @@ const Wheel = {
           el.style.setProperty('--hubrate', `${(0.5 - this.sus * 0.38).toFixed(2)}s`);
           if (this.sus > 0 && !rolled) { rolled = true; Sound.drumroll(((1 - q) * T) / 1000); }
           // heartbeat: a slow resting pulse while the wheel slows, racing hardest as the last few spokes pass the
-          // pointer (the gaps are TIMING.wheel.heartbeats, then heartbeatFast); it stops the moment the wheel stops
+          // pointer (the gaps are TIMING.wheel.heartbeat.heartbeats, then heartbeatFast); it stops the moment the wheel stops
           if (q < 1) {
             if (!nextBeat) nextBeat = launched;
             if (now >= nextBeat) {
-              // stepped pairs (TIMING.wheel.heartbeats), then TIMING.wheel.heartbeatFast until the wheel stops
-              const gap = BEATS[beatN] || TIMING.wheel.heartbeatFast; beatN++;
+              // stepped pairs (TIMING.wheel.heartbeat.heartbeats), then TIMING.wheel.heartbeat.heartbeatFast until the wheel stops
+              const gap = BEATS[beatN] || TIMING.wheel.heartbeat.heartbeatFast; beatN++;
               nextBeat += gap;
-              if (nextBeat > launched + T - TIMING.wheel.heartbeatStopGuard) nextBeat = Infinity; // no beat right on (or after) the stop
+              if (nextBeat > launched + T - TIMING.wheel.heartbeat.heartbeatStopGuard) nextBeat = Infinity; // no beat right on (or after) the stop
               // hk: 0 at the slowest gap in the list .. 1 at heartbeatFast; louder and a tighter lub-dub as it races
-              const slow = Math.max(...BEATS), hk = Math.max(0, Math.min(1, (slow - gap) / Math.max(1, slow - TIMING.wheel.heartbeatFast)));
-              const lubSlow = TIMING.wheel.heartbeatLubDubSlow, lubFast = TIMING.wheel.heartbeatLubDubFast;
+              const slow = Math.max(...BEATS), hk = Math.max(0, Math.min(1, (slow - gap) / Math.max(1, slow - TIMING.wheel.heartbeat.heartbeatFast)));
+              const lubSlow = TIMING.wheel.heartbeat.heartbeatLubDubSlow, lubFast = TIMING.wheel.heartbeat.heartbeatLubDubFast;
               Sound.heartPulse(hk, (lubSlow + (lubFast - lubSlow) * hk) / 1000);
               const stage = el.querySelector('.wh-stage');
-              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: TIMING.wheel.heartbeatPulse, easing: 'ease-out', composite: 'add' });
+              if (stage) stage.animate([{ transform: 'scale(1)' }, { transform: `scale(${1 + 0.008 + hk * 0.016})`, offset: 0.25 }, { transform: 'scale(1)', offset: 0.5 }, { transform: `scale(${1 + 0.004 + hk * 0.009})`, offset: 0.7 }, { transform: 'scale(1)' }], { duration: TIMING.wheel.heartbeat.heartbeatPulse, easing: 'ease-out', composite: 'add' });
             }
           }
           const cur = segAt(this.angle);
@@ -775,16 +775,16 @@ const Wheel = {
           el.removeEventListener('click', finish);
           this.blastOff(el, () => {
             el.classList.remove('show');
-            setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, TIMING.wheel.hide);
+            setTimeout(() => { el.hidden = true; this.lift = null; resolve(k); }, TIMING.wheel.blastOff.hide);
           });
         };
         // the winning wedge pops out of the wheel, flips up to face the player and hovers, glowing
         setTimeout(() => {
-          this.lift = { t0: performance.now(), dur: TIMING.wheel.wedgeLift };
+          this.lift = { t0: performance.now(), dur: TIMING.wheel.landing.wedgeLift };
           el.classList.add('lifting');
           Sound.wheelLaunch();
           this.spark(30, true, [this.geo(this.canvas().width).cx, this.geo(this.canvas().width).cy + this.geo(this.canvas().width).r * WHEEL_K * 0.5]);
-        }, TIMING.wheel.wedgeLiftDelay);
+        }, TIMING.wheel.landing.wedgeLiftDelay);
         setTimeout(() => {
           const cv = this.canvas(), g = this.geo(cv.width);
           const px = g.cx, py = g.cy + g.R * 0.2 - g.r * 0.6;
@@ -798,9 +798,9 @@ const Wheel = {
           // rules with a voice-over (Gravity, Vanishing Marks) announce now; the wheel waits for it before blasting off
           const voiced = Sound.hasRuleVoice(k);
           if (voiced) Sound.ruleVoice(k, 0.15);
-          setTimeout(() => el.addEventListener('click', finish), voiced ? TIMING.wheel.clickSkipVoiced : TIMING.wheel.clickSkip);
-        }, TIMING.wheel.announceDelay);
-        setTimeout(finish, Sound.hasRuleVoice(k) ? TIMING.wheel.autoFinishVoiced : TIMING.wheel.autoFinish);
+          setTimeout(() => el.addEventListener('click', finish), voiced ? TIMING.wheel.landing.clickSkipVoiced : TIMING.wheel.landing.clickSkip);
+        }, TIMING.wheel.landing.announceDelay);
+        setTimeout(finish, Sound.hasRuleVoice(k) ? TIMING.wheel.landing.autoFinishVoiced : TIMING.wheel.landing.autoFinish);
       };
       btn.onclick = go;
       el.querySelector('.wh-stage').onclick = (e) => { if (!auto && e.target !== btn) go(); };

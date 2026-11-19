@@ -6,7 +6,7 @@
   <title>Infinite Tic-Tac-Toe</title>  <!-- replaced on load by STRINGS.page.title -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Luckiest+Guy&family=Pacifico&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Luckiest+Guy&family=Nunito:ital,wght@1,800;1,900&family=Pacifico&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -33,6 +33,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <button id="soundLock" type="button" class="sound-lock" hidden data-str="page.soundLocked"></button>
   <div id="banner" class="banner" aria-hidden="true"></div>
+  <div id="mpBanner" class="mp-banner" aria-hidden="true"><div class="mp-burst"></div><div class="mp-title"></div><div class="mp-sub"></div></div>
 
   <div id="zoombar" class="zoombar" data-str-label="page.zoomBarLabel">
     <div class="zb-label" data-str="page.zoom"></div>
@@ -120,6 +121,23 @@
     <label class="dv-row"><span data-str="dev.wheelResult"></span><select id="dvWheel"></select></label>
     <label class="dv-check"><input type="checkbox" id="dvNearMiss"> <span data-str="dev.nearMiss"></span></label>
     <button id="dvWheelSpin" type="button" class="dv-spin" data-str="dev.spinWheel"></button>
+    <details id="dvSampleBox" class="dv-lab">
+      <summary data-str="dev.sample.head"></summary>
+      <div class="dv-lab-list">
+        <label class="dv-row"><span data-str="dev.sample.rounds"></span><select id="dvSampleRounds"></select></label>
+        <label class="dv-row"><span data-str="dev.sample.winners"></span><select id="dvSampleWinner"></select></label>
+        <label class="dv-row"><span data-str="dev.sample.types"></span><select id="dvSampleType"></select></label>
+        <button id="dvSampleLoad" type="button" class="dv-reload" data-str="dev.sample.load"></button>
+        <button id="dvSampleBack" type="button" class="dv-reload" data-str="dev.sample.back"></button>
+      </div>
+      <div class="dv-hint" data-str="dev.sample.hint"></div>
+    </details>
+    <details id="dvLabBox" class="dv-lab">
+      <summary data-str="dev.lab.head"></summary>
+      <div id="dvLab" class="dv-lab-list"></div>
+      <button id="dvReload" type="button" class="dv-reload" data-str="dev.lab.reload"></button>
+      <div class="dv-hint" data-str="dev.lab.hint"></div>
+    </details>
     <div class="dv-hint" data-str="dev.hint"></div>
   </div>
 

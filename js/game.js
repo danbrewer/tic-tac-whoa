@@ -11,6 +11,7 @@ const SAVE_KEY = 'infinite-ttt-save-v1';
 const PREFS_KEY = 'infinite-ttt-prefs-v1';
 const LOG_KEY = 'infinite-ttt-log-v1';   // Game review: snapshots of the whole game for Instant Replay
 const LOG_CAP = 600;
+const SAMPLE_STASH_KEY = 'infinite-ttt-before-sample-v1';   // Developer Mode: the player's own game while a sample game is loaded
 const KEEP_MARKS = 3;   // Level 0: each player keeps only their 3 newest marks
 const MOVE_CAP = 18;    // Level 0: no winner after this many marks counts as a draw
 const DEAD = '#';       // neutral square that blocks both players
@@ -143,6 +144,8 @@ function judge(owners, rule, mover) {
   return owners.every((o) => o) ? 'draw' : null;
 }
 function lineResult(owners) { return judge(owners, 'normal', null); }
+// Wild Square: would moving the wild mark from w to i complete a line? (the wild square never jumps onto a win)
+function judgeWith(o, w, i) { const o2 = o.slice(); if (w >= 0) o2[w] = null; o2[i] = WILD; const r = judge(o2, 'normal', null); return !!r && r !== 'draw'; }
 // Squares that would complete a line for each player, counting the wild square.
 function threatsW(o) {
   const t = { X: 0, O: 0 };
@@ -338,7 +341,7 @@ const Game = {
   nextRule: null,   // rule won with RULE PICK for the next Level 0 game
   nextRuleBy: null,
   lastWinner: null, // winner of the latest Level 0 game: spins the rule wheel
-  dev: { on: false, force: '', tease: false, everywhere: false, reveal: false, wheel: '', nearMiss: false },  // Developer Mode
+  dev: { on: false, force: '', tease: false, everywhere: false, reveal: false, wheel: '', nearMiss: false, sampleRounds: 2, sampleWinner: '', sampleType: '' },  // Developer Mode
   view: null,   // board being reviewed (null = following the live game)
   trail: [],    // boards to return to when zooming back in
 
@@ -416,6 +419,7 @@ const Game = {
 
   newGame() {
     clearTimeout(this.cpuTimer);
+    if (this.lab) { this.vsCPU = this.lab.vsCPU; this.best = this.lab.best; this.lab = null; document.body.classList.remove('lab'); }   // a transition test was playing
     this.gen++;
     this.busy = false;
     this.view = null;
@@ -459,7 +463,7 @@ const Game = {
         Renderer.floatText(x, y - 20, STRINGS.pop.claimed, p, 30 + b.level * 6);
         b.waveT = performance.now(); b.waveAmp = 0.12;
       }
-    }, TIMING.board.markImpact);
+    }, TIMING.board.marks.markImpact);
   },
 
   async play(k, byCPU = false) {
@@ -494,8 +498,8 @@ const Game = {
         Renderer.ripple(b, k, b.turn, 1.2);
         Renderer.kick(0.04);
         this.toast(STRINGS.msg.goesFor(b.turn, CELL_NAMES[k], STRINGS.msg.childGame(child.level)));
-        Tweens.add(TIMING.camera.childFadeIn, (e) => { child.alpha = e; }, Ease.outCubic);
-        await this.step(Renderer.flyTo(viewOf(child), TIMING.camera.zoomIntoChild));
+        Tweens.add(TIMING.camera.turf.childFadeIn, (e) => { child.alpha = e; }, Ease.outCubic);
+        await this.step(Renderer.flyTo(viewOf(child), TIMING.camera.turf.zoomIntoChild));
         await this.startRule(child);
       }
     } catch (e) {
@@ -585,25 +589,25 @@ const Game = {
         Renderer.sparks(x, y, res.p, 26, 9);
         Renderer.ripple(b, k, res.p, 1.3);
         Sound.pop(i);
-      }, TIMING.camera.winLineFirst + i * TIMING.camera.winLineGap));
+      }, TIMING.camera.turf.winLineFirst + i * TIMING.camera.turf.winLineGap));
       Renderer.floatText(sx, sy - 40, STRINGS.pop.won(b.level), res.p, 46);
       this.toast(STRINGS.msg.wins(res.p, lvName(b.level, true)));
       this.updateHUD();
-      await this.step(wait(TIMING.camera.winPause));
+      await this.step(wait(TIMING.camera.turf.winPause));
 
       if (!b.parent) { await this.ascend(b); return; }
 
       // Zoom back out and drop the winner's mark into the parent square.
       const P = b.parent, k = b.parentIndex;
       Sound.zoomOut();
-      Tweens.add(TIMING.camera.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.wonFadeDelay);
-      await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.zoomOutToParent));
+      Tweens.add(TIMING.camera.turf.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.turf.wonFadeDelay);
+      await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.turf.zoomOutToParent));
       P.cells[k].child = null;
       P.cells[k].record = b;
       P.pending = null;
       this.claim(P, k, b.winner);
       this.toast(STRINGS.msg.claims(b.winner, CELL_NAMES[k], P.level));
-      await this.step(wait(TIMING.camera.afterClaim));
+      await this.step(wait(TIMING.camera.turf.afterClaim));
       ck = k;
       b = P;
     }
@@ -631,17 +635,17 @@ const Game = {
     this.best = Math.max(this.best, N.level);
     this.savePrefs();
     const TC = TIMING.camera;
-    Tweens.add(TC.ascendNewFadeIn, (e) => { N.alpha = e; }, Ease.outCubic, TC.ascendNewFadeDelay);
-    Tweens.add(TC.ascendOldFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TC.ascendOldFadeDelay);
-    await this.step(Renderer.flyTo(viewOf(N), TC.ascendZoom));
+    Tweens.add(TC.ascend.ascendNewFadeIn, (e) => { N.alpha = e; }, Ease.outCubic, TC.ascend.ascendNewFadeDelay);
+    Tweens.add(TC.ascend.ascendOldFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TC.ascend.ascendOldFadeDelay);
+    await this.step(Renderer.flyTo(viewOf(N), TC.ascend.ascendZoom));
     N.cells[4].child = null;
     N.cells[4].record = b;
     N.pending = null;
     this.claim(N, 4, b.winner);
     Renderer.kick(0.12);
-    N.waveT = performance.now() + TC.ascendWaveDelay; N.waveAmp = 0.45;
+    N.waveT = performance.now() + TC.ascend.ascendWaveDelay; N.waveAmp = 0.45;
     this.toast(STRINGS.msg.levelBegins(N.level, b.winner, N.turn));
-    await this.step(wait(TC.ascendSettle));
+    await this.step(wait(TC.ascend.ascendSettle));
   },
 
   // ---------- Level 0 rules ----------
@@ -664,10 +668,10 @@ const Game = {
   // Wild Square intro: the squares light up in a quick random run that slows down and ends on the
   // wild square, then the mark drops onto it (render.js puffs dust when it hits).
   wildRoulette(b, w) {
-    const TB = TIMING.board, t0 = performance.now() + TB.wildIntroStart;   // starts once the rule card has flown up out of the way
+    const TB = TIMING.board, t0 = performance.now() + TB.wildIntro.wildIntroStart;   // starts once the rule card has flown up out of the way
     const seq = [];
     let prev = -1;
-    const N = TB.wildIntroSteps;
+    const N = TB.wildIntro.wildIntroSteps;
     for (let n = 0; n < N; n++) {
       let k; do { k = (Math.random() * 9) | 0; } while (k === prev || (n === N - 1 && k === w) || k === w && n > N - 5);
       seq.push(k); prev = k;
@@ -675,14 +679,14 @@ const Game = {
     seq.push(w);
     const steps = [];
     let t = t0;
-    seq.forEach((k, n) => { steps.push({ k, t }); const q = n / (seq.length - 1); t += TB.wildStepMin + TB.wildStepGrow * q * q * q; });
+    seq.forEach((k, n) => { steps.push({ k, t }); const q = n / (seq.length - 1); t += TB.wildIntro.wildStepMin + TB.wildIntro.wildStepGrow * q * q * q; });
     const last = steps[steps.length - 1].t;
     const gen = this.gen;
     steps.forEach(({ t: st }, n) => setTimeout(() => {
       if (gen !== this.gen) return;
       if (n === steps.length - 1) Sound.wild(); else Sound.reelTick();
     }, st - performance.now()));
-    return { steps, drop: last + TB.wildDropDelay, end: last + TB.wildDropDelay + TB.markDrop };
+    return { steps, drop: last + TB.wildIntro.wildDropDelay, end: last + TB.wildIntro.wildDropDelay + TB.marks.markDrop };
   },
   takeNextRule() {
     const r = this.nextRule || 'vanish';
@@ -759,28 +763,28 @@ const Game = {
 
   async postMove(b) {
     const gen = this.gen, T = TIMING.board;
-    if (b.rule === 'gravity' && this.settleGravity(b)) await this.step(wait(T.gravitySettle));
+    if (b.rule === 'gravity' && this.settleGravity(b)) await this.step(wait(T.gravity.gravitySettle));
     if (b.rule === 'shift' && b.shift && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
       b.shiftedAt = b.moves;
-      await this.step(wait(T.shiftBefore));
+      await this.step(wait(T.shift.shiftBefore));
       this.doShift(b);
-      await this.step(wait(T.shiftAfter));
+      await this.step(wait(T.shift.shiftAfter));
     }
     if ((b.rule === 'ring' || b.rule === 'cross') && b.moves > 0 && b.moves % SHIFT_EVERY === 0 && b.shiftedAt !== b.moves) {
       b.shiftedAt = b.moves;
-      await this.step(wait(T.turnBefore));
+      await this.step(wait(T.ringCross.turnBefore));
       this.doTurn(b);
-      await this.step(wait(b.rule === 'cross' ? T.crossAfter : T.ringAfter));
+      await this.step(wait(b.rule === 'cross' ? T.ringCross.crossAfter : T.ringCross.ringAfter));
     }
     if (b.rule === 'fog' && b.moves > 1) {
       // the previous mark disappears into the fog once this move lands
       const k = b.fogAt.findIndex((m) => m === b.moves - 1);
-      if (k >= 0 && b.cells[k].owner) { Sound.fog(); await this.step(wait(T.fogPause)); }
+      if (k >= 0 && b.cells[k].owner) { Sound.fog(); await this.step(wait(T.fog.fogPause)); }
     }
     if (b.rule === 'wild') {
-      await this.step(wait(T.wildBefore));
+      await this.step(wait(T.wild.wildBefore));
       this.moveWild(b);
-      await this.step(wait(T.wildAfter));
+      await this.step(wait(T.wild.wildAfter));
     }
     if (gen !== this.gen) throw new Error('cancelled');
   },
@@ -825,7 +829,7 @@ const Game = {
     Sound.fogLift();
     const [x, y] = Renderer.boardScreenCenter(b);
     Renderer.floatText(x, y - 70, STRINGS.pop.fogLifts, null, 40);
-    await this.step(wait(TIMING.board.fogLiftPause));
+    await this.step(wait(TIMING.board.fog.fogLiftPause));
   },
 
   // Ring Spin / Crossfire: move the marks and animate them sliding (Crossfire's corners hop over the center)
@@ -836,7 +840,7 @@ const Game = {
     b.cells.forEach((c, k) => { c.owner = o[k]; });
     for (const m of moves) {
       this.slideCell(b, m.to, m.from);
-      if (b.rule === 'cross') { b.cells[m.to].slide.hop = 1.3; b.cells[m.to].slide.dur = TIMING.board.crossHop; }
+      if (b.rule === 'cross') { b.cells[m.to].slide.hop = 1.3; b.cells[m.to].slide.dur = TIMING.board.ringCross.crossHop; }
       b.fogAt[m.to] = fog[m.from];
     }
     for (const p of ['X', 'O']) b.hist[p] = b.hist[p].map((k) => { const m = moves.find((x) => x.from === k); return m ? m.to : k; });
@@ -882,7 +886,7 @@ const Game = {
       const [x, y] = Renderer.cellScreen(b, to);
       Renderer.sparks(x, y, WILD, 26, 6);
       Renderer.ripple(b, to, WILD, 1.1);
-    }, TIMING.board.markImpact);
+    }, TIMING.board.marks.markImpact);
   },
 
   // ---------- Developer Mode ----------
@@ -954,10 +958,473 @@ const Game = {
     bind('dvTease', 'tease', 'checked'); bind('dvEvery', 'everywhere', 'checked'); bind('dvReveal', 'reveal', 'checked'); bind('dvNearMiss', 'nearMiss', 'checked');
     $('dvSpin').addEventListener('click', () => { Sound.ensure(); this.devSpin(); });
     $('dvWheelSpin').addEventListener('click', () => { Sound.ensure(); this.devWheel(); });
+    this.initLabPanel();
+    this.initSamplePanel();
     $('dvClose').addEventListener('click', () => this.setDev(false));
     $('devpanel').querySelector('.dv-head span').addEventListener('click', () => $('devpanel').classList.toggle('collapsed'));
     if (window.innerWidth <= 640) $('devpanel').classList.add('collapsed');
     this.syncDevPanel();
+  },
+
+  // ---------- Developer Mode: Transitions ----------
+  // Each button plays one automatic sequence on a throwaway board tree, then puts the real game back
+  // exactly as it was. While it runs, saving is off (save(), savePrefs()), the computer plays every
+  // side that needs a decision (vsCPU on, the sandbox player is O), and Match Point is not spotted.
+  lab: null,   // { root, ...everything labEnd() restores } while a transition plays
+
+  // the buttons: [key, group]; the labels are STRINGS.dev.lab.items[key]
+  LAB_LIST: [
+    ['wheel', 'wheel'], ['ruleCard', 'wheel'], ['rulePick', 'wheel'],
+    ['slots', 'slots'], ['instantWin', 'slots'], ['boom', 'slots'],
+    ['matchPoint', 'board'], ['turfWin', 'board'], ['roundWin', 'board'], ['stalemate', 'board'], ['zoomIn', 'board'], ['roundBanner', 'board'],
+    ['vanish', 'rules'], ['shift', 'rules'], ['ring', 'rules'], ['cross', 'rules'], ['fogCover', 'rules'], ['fogLift', 'rules'],
+    ['wildIntro', 'rules'], ['wildJump', 'rules'], ['gravityRaise', 'rules'], ['gravityDrop', 'rules'],
+  ],
+
+  initLabPanel() {
+    const L = STRINGS.dev.lab, box = $('dvLab');
+    let group = null, h = '';
+    for (const [key, g] of this.LAB_LIST) {
+      if (g !== group) { group = g; h += `<div class="dv-lab-group">${L.groups[g]}</div>`; }
+      h += `<button type="button" data-lab="${key}">${L.items[key]}</button>`;
+    }
+    box.innerHTML = h;
+    box.addEventListener('click', (e) => { const btn = e.target.closest('button[data-lab]'); if (btn) { Sound.ensure(); this.labRun(btn.dataset.lab); } });
+    $('dvReload').addEventListener('click', () => this.labReload());
+  },
+
+  initSamplePanel() {
+    const SS = STRINGS.dev.sample, opts = (items) => items.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+    $('dvSampleRounds').innerHTML = opts([1, 2, 3, 4].map((n) => [n, SS.roundsOption(n)]));
+    $('dvSampleWinner').innerHTML = opts(SS.winnerOptions);
+    $('dvSampleType').innerHTML = opts([['', SS.typeRandom], ['cycle', SS.typeCycle], ...RULE_KEYS.map((k) => [k, `${RULES[k].iconText || RULES[k].icon} ${RULES[k].name}`])]);
+    const bind = (id, key) => { const el = $(id); el.value = this.dev[key]; el.addEventListener('change', () => { this.dev[key] = el.value; this.savePrefs(); }); };
+    bind('dvSampleRounds', 'sampleRounds'); bind('dvSampleWinner', 'sampleWinner'); bind('dvSampleType', 'sampleType');
+    $('dvSampleLoad').addEventListener('click', () => this.loadSample());
+    $('dvSampleBack').addEventListener('click', () => this.restoreSample());
+  },
+
+  async labRun(key) {
+    if (this.lab || this.busy || this.replay || this.selecting) { this.toast(STRINGS.dev.lab.busy); return; }
+    clearTimeout(this.cpuTimer);
+    const snap = {
+      root: this.root, nextRule: this.nextRule, nextRuleBy: this.nextRuleBy, lastWinner: this.lastWinner,
+      vsCPU: this.vsCPU, best: this.best, view: this.view, trail: this.trail, pinState: this.pinState,
+      mp: this.mp, mpBoard: this.mpBoard, cam: { px: Renderer.cam.px, py: Renderer.cam.py, L: Renderer.cam.L },
+    };
+    this.lab = snap;
+    this.gen++;
+    this.view = null; this.trail = [];
+    this.vsCPU = true;
+    this.nextRule = null; this.nextRuleBy = null; this.lastWinner = 'O';
+    this.busy = true;
+    document.body.classList.add('lab');
+    const btn = document.querySelector(`#dvLab button[data-lab="${key}"]`);
+    if (btn) btn.classList.add('on');
+    this.toast(STRINGS.dev.lab.playing(STRINGS.dev.lab.items[key]));
+    try {
+      await this.labScene(key);
+      await this.step(wait(TIMING.lab.after));
+    } catch (e) {
+      if (e && e.message !== 'cancelled') console.error(e);
+    } finally {
+      if (btn) btn.classList.remove('on');
+      if (this.lab === snap) this.labEnd(snap);
+    }
+  },
+
+  // put the real game back
+  labEnd(snap) {
+    this.gen++;
+    this.lab = null;
+    clearTimeout(this.cpuTimer);
+    clearTimeout(this.ruleCardTimer); clearTimeout(this.ruleFlyTimer);
+    if (this.ruleFly) { this.ruleFly.cancel(); this.ruleFly = null; }
+    $('rulecard').className = 'rulecard';
+    for (const id of ['wheel', 'slots', 'rulepick']) { const el = $(id); el.hidden = true; el.classList.remove('show'); }
+    $('mpBanner').classList.remove('play'); $('banner').classList.remove('play');
+    Sound.stopMusic();
+    Tweens.list = [];
+    Renderer.particles = []; Renderer.fx.ripples = []; Renderer.fx.texts = [];
+    Renderer.select = null; this.selecting = null;
+    this.root = snap.root;
+    this.nextRule = snap.nextRule; this.nextRuleBy = snap.nextRuleBy; this.lastWinner = snap.lastWinner;
+    this.vsCPU = snap.vsCPU; this.best = snap.best;
+    this.view = snap.view; this.trail = snap.trail;
+    this.pinState = snap.pinState; this.mp = snap.mp; this.mpBoard = snap.mpBoard;
+    this.layoutAll();
+    Renderer.setCam(snap.cam);
+    this.busy = false;
+    document.body.classList.remove('lab');
+    $('rulepin').innerHTML = '';
+    this.updateHUD();
+    this.toast(STRINGS.dev.lab.done);
+    this.scheduleCPU();
+  },
+
+  // a throwaway Round board (level 1) with a Turf Battle of the given type being played on space k
+  labTurf(rule = 'classic', k = 5) {
+    const P = new Board(1, 'O'); P.jackpot = -1;
+    const b = new Board(0, 'O'); b.jackpot = -1;
+    b.parent = P; b.parentIndex = k; P.pending = k; P.cells[k].child = b;
+    this.root = P;
+    if (rule) { this.initRule(b, rule); b.ruled = true; }
+    this.layoutAll();
+    Renderer.setCam(viewOf(b));
+    this.updateHUD();
+    return b;
+  },
+  // put marks on a throwaway Turf Battle without animation, in the order given ([[k, 'X'], ...])
+  labMarks(b, marks) {
+    for (const [k, p] of marks) {
+      b.cells[k].owner = p; b.cells[k].t = -1e9;
+      if (p === 'X' || p === 'O') { b.moves++; b.hist[p].push(k); b.fogAt[k] = b.moves; }
+    }
+  },
+  // a move played the way play() plays it on a Turf Battle
+  async labMove(b, k, p) {
+    b.turn = p;
+    this.claim(b, k, p);
+    this.vanish(b, p, k);
+    await this.afterClaim(b, k);
+  },
+  labRule() { return this.dev.wheel || RULE_KEYS[(Math.random() * RULE_KEYS.length) | 0]; },
+
+  async labScene(key) {
+    const before = () => this.step(wait(TIMING.lab.before));
+    const S = {
+      wheel: async () => {
+        this.labTurf(null); await before();
+        const rule = await this.step(Wheel.spin('O', true, STRINGS.dev.previewSub));
+        this.toast(STRINGS.dev.wheelPreview(RULES[rule].icon, RULES[rule].name));
+      },
+      ruleCard: async () => {
+        const b = this.labTurf(null); await before();
+        this.initRule(b, this.labRule()); b.ruled = true; b.born = performance.now();
+        this.updateHUD();
+        this.showRuleCard(b, STRINGS.ruleCard.spunBy('O'));
+        await this.step(wait(TIMING.ruleCard.hold + TIMING.ruleCard.fly + (b.wildIntro ? Math.max(0, b.wildIntro.end - performance.now() - TIMING.ruleCard.hold - TIMING.ruleCard.fly) : 0)));
+      },
+      rulePick: async () => {
+        const b = this.labTurf(); await before();
+        await this.applyPrize(b, 'O', 'rule');
+        await this.step(wait(TIMING.ruleCard.fly));
+      },
+      slots: async () => {
+        const b = this.labTurf(); this.labMarks(b, [[0, 'X'], [4, 'O'], [8, 'X']]); await before();
+        const out = await this.jackpotSpin(b, 2, 'O');
+        if (out.win) await this.labWin(b, 'O');
+      },
+      instantWin: async () => {
+        const b = this.labTurf(); this.labMarks(b, [[0, 'X'], [4, 'O']]); await before();
+        const keep = [this.dev.on, this.dev.force]; this.dev.on = true; this.dev.force = 'jackpot';
+        try { await this.jackpotSpin(b, 2, 'O'); } finally { [this.dev.on, this.dev.force] = keep; }
+      },
+      boom: async () => {
+        this.labTurf(); await before();
+        Boom.run(null);
+        await this.step(wait(TIMING.lab.boomWatch));
+      },
+      matchPoint: async () => {
+        const b = this.labTurf('classic', 5);
+        b.parent.cells[3].owner = 'O'; b.parent.cells[4].owner = 'O';
+        this.labMarks(b, [[0, 'O'], [3, 'X'], [1, 'O'], [4, 'X']]); b.turn = 'O';
+        this.mpBoard = b;
+        this.updateHUD();
+        await before();
+        this.matchPointMoment(b);
+        await this.step(wait(TIMING.matchPoint.riseLead + TIMING.matchPoint.banner + TIMING.matchPoint.glowPulse * 2));
+      },
+      turfWin: async () => {
+        const b = this.labTurf('classic', 5);
+        this.labMarks(b, [[0, 'O'], [3, 'X'], [1, 'O'], [4, 'X']]); await before();
+        await this.labMove(b, 2, 'O');
+      },
+      roundWin: async () => {
+        const b = this.labTurf('classic', 5);
+        b.parent.cells[3].owner = 'O'; b.parent.cells[4].owner = 'O';
+        this.labMarks(b, [[0, 'O'], [3, 'X'], [1, 'O'], [4, 'X']]); await before();
+        await this.labMove(b, 2, 'O');
+      },
+      stalemate: async () => {
+        const b = this.labTurf('classic', 5);
+        this.labMarks(b, [[0, 'O'], [1, 'X'], [2, 'O'], [4, 'X'], [3, 'O'], [6, 'X'], [5, 'X'], [8, 'O']]); await before();
+        await this.labMove(b, 7, 'O');
+      },
+      zoomIn: async () => {
+        const P = new Board(1, 'O'); P.jackpot = -1;
+        P.cells[0].owner = 'X'; P.cells[4].owner = 'O';
+        this.root = P; this.layoutAll(); Renderer.setCam(viewOf(P)); this.updateHUD();
+        this.nextRule = this.labRule(); this.nextRuleBy = null;
+        await before();
+        this.busy = false;
+        await this.play(2, true);
+        await this.step(wait(TIMING.ruleCard.hold + TIMING.ruleCard.fly - TIMING.ruleCard.afterCard));   // let the rule card land
+      },
+      roundBanner: async () => {
+        this.labTurf(); await before();
+        this.banner(STRINGS.pop.levelBanner(2)); Sound.ascend();
+        await this.step(wait(TIMING.lab.bannerWatch));
+      },
+      vanish: async () => {
+        const b = this.labTurf('vanish');
+        this.labMarks(b, [[0, 'O'], [1, 'X'], [5, 'O'], [3, 'X'], [7, 'O'], [6, 'X']]); await before();
+        await this.labMove(b, 2, 'O');
+      },
+      shift: async () => {
+        const b = this.labTurf('shift');
+        this.labMarks(b, [[0, 'O'], [4, 'X']]); await before();
+        await this.labMove(b, 8, 'O');
+      },
+      ring: async () => {
+        const b = this.labTurf('ring');
+        this.labMarks(b, [[0, 'O'], [4, 'X']]); await before();
+        await this.labMove(b, 5, 'O');
+      },
+      cross: async () => {
+        const b = this.labTurf('cross');
+        this.labMarks(b, [[0, 'O'], [4, 'X']]); await before();
+        await this.labMove(b, 8, 'O');
+      },
+      fogCover: async () => {
+        const b = this.labTurf('fog');
+        this.labMarks(b, [[0, 'O'], [4, 'X']]); await before();
+        await this.labMove(b, 8, 'O');
+        await this.step(wait(TIMING.board.fog.fogCover));
+      },
+      fogLift: async () => {
+        const b = this.labTurf('fog');
+        this.labMarks(b, [[0, 'O'], [4, 'X'], [8, 'O'], [1, 'X'], [6, 'O']]); b.moves++;
+        await before();
+        await this.step(wait(TIMING.board.fog.fogCover));
+        await this.liftFog(b);
+        await this.step(wait(TIMING.board.fog.fogLift));
+      },
+      wildIntro: async () => {
+        const b = this.labTurf(null); await before();
+        this.initRule(b, 'wild'); b.ruled = true; b.born = performance.now();
+        this.updateHUD();
+        this.showRuleCard(b, STRINGS.ruleCard.spunBy('O'));
+        await this.step(wait(b.wildIntro.end - performance.now() + TIMING.board.wildIntro.wildLightFade));
+      },
+      wildJump: async () => {
+        const b = this.labTurf('classic');
+        b.rule = 'wild'; b.cells[4].owner = WILD;
+        this.labMarks(b, [[0, 'O'], [8, 'X']]); await before();
+        await this.labMove(b, 1, 'O');
+      },
+      gravityRaise: async () => {
+        const b = this.labTurf(null); await before();
+        this.initRule(b, 'gravity'); b.ruled = true; b.born = performance.now();
+        this.updateHUD();
+        await this.step(wait(TIMING.board.gravity.gravityRaiseDelay + TIMING.board.gravity.gravityRaise + TIMING.board.gravity.gravitySettle));
+      },
+      gravityDrop: async () => {
+        const b = this.labTurf('gravity');
+        Object.assign(b, { tilt: 1, tiltFrom: 1, tiltStarted: true, tiltLanded: true, tiltT: 0 });
+        this.labMarks(b, [[6, 'X'], [3, 'O'], [0, 'O']]);
+        this.layoutAll(); Renderer.setCam(viewOf(b));
+        await before();
+        const keep = [this.dev.on, this.dev.force]; this.dev.on = true; this.dev.force = 'bomb';
+        try { await this.jackpotSpin(b, 7, 'O'); } finally { [this.dev.on, this.dev.force] = keep; }
+      },
+    };
+    await S[key]();
+  },
+  // the slot machine's INSTANT WIN in the lab: the Turf Battle is won as in afterClaim()
+  async labWin(b, p) { await this.afterClaim(b, null, { p, out: { win: true } }); },
+
+  // Developer Mode: read js/timing.js and js/sound-config.js again, so edits to them take effect without
+  // reloading the page (and losing the game). Only works when the page is served over http(s).
+  async labReload() {
+    const load = async (file, name) => {
+      const src = await (await fetch(`${file}?t=${Date.now()}`, { cache: 'no-store' })).text();
+      // run the file with its global renamed, so the new values come back as a fresh object
+      const fresh = new Function(`${src.replace(new RegExp(`\\b${name}\\b`, 'g'), '__NEW')}\nreturn __NEW;`)();
+      const into = name === 'TIMING' ? TIMING : SOUND;
+      for (const g of Object.keys(fresh)) {
+        if (into[g] && typeof into[g] === 'object' && !Array.isArray(into[g])) Object.defineProperties(into[g], Object.getOwnPropertyDescriptors(fresh[g]));
+        else into[g] = fresh[g];
+      }
+    };
+    try {
+      await load('js/timing.js', 'TIMING');
+      await load('js/sound-config.js', 'SOUND');
+      this.toast(STRINGS.dev.lab.reloaded);
+    } catch (e) {
+      console.error(e);
+      this.toast(STRINGS.dev.lab.reloadFailed);
+    }
+  },
+
+  // ---------- Developer Mode: sample game ----------
+  // Builds a whole game in one go, as if it had been played: Rounds already won, every square of every
+  // Round decided by a Turf Battle with its own game type and winner. Every move is saved as a snapshot,
+  // so Review, Instant Replay, the zoom and the mini-map all work on it. The player's own game is put
+  // aside (SAMPLE_STASH_KEY) and comes back with "Back to my game".
+  sampleTypes(n) {
+    const t = this.dev.sampleType;
+    if (t === 'cycle') return RULE_KEYS[n % RULE_KEYS.length];
+    return t || RULE_KEYS[(Math.random() * RULE_KEYS.length) | 0];
+  },
+
+  // play out one Turf Battle b (already in the tree) to the end with a quick, silent simulation.
+  // want: the player who should win it ('X' / 'O'), or null for whoever does. Returns the winner, or DEAD.
+  // Every move is applied to b and saved as a snapshot (snap).
+  sampleTurf(b, rule, want, snap) {
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const st = { o: Array(9).fill(null), rule, moves: 0, shift: rule === 'shift' ? randomShift() : null };
+      const hist = { X: [], O: [] }, fogAt = Array(9).fill(null), steps = [];
+      if (rule === 'wild') st.o[(Math.random() * 9) | 0] = WILD;
+      let turn = b.starter, res = null;
+      const view = { rule, cells: null, hist, moves: 0, shift: null, fogAt, winner: null, fogLift: 0, level: 0 };
+      for (;;) {
+        const mv = AI.ruleMoves(st);
+        if (!mv.length) { res = 'draw'; break; }
+        let k;
+        if (Math.random() < 0.5) {
+          view.cells = st.o.map((owner) => ({ owner })); view.moves = st.moves; view.shift = st.shift;
+          k = AI.chooseL0(view, turn);
+          if (!mv.includes(k)) k = mv[(Math.random() * mv.length) | 0];
+        } else k = mv[(Math.random() * mv.length) | 0];
+        const s2 = AI.ruleApply(st, turn, k);
+        hist[turn].push(k); fogAt[k] = s2.moves;
+        if (rule === 'vanish' && hist[turn].length > KEEP_MARKS) s2.o[hist[turn].shift()] = null;
+        if (rule === 'shift' && !s2.shift) s2.shift = randomShift();
+        if (rule === 'wild') {
+          const w = s2.o.indexOf(WILD);
+          const free = s2.o.map((v, i) => (!v ? i : -1)).filter((i) => i >= 0 && !judgeWith(s2.o, w, i));
+          if (w >= 0 && free.length) { s2.o[w] = null; s2.o[free[(Math.random() * free.length) | 0]] = WILD; }
+        }
+        Object.assign(st, s2);
+        if (rule === 'shift' || rule === 'ring' || rule === 'cross') ['X', 'O'].forEach((p) => { hist[p] = st.o.map((v, i) => (v === p ? i : -1)).filter((i) => i >= 0); });
+        res = judge(st.o, rule, turn);
+        steps.push({ o: st.o.slice(), moves: st.moves, shift: st.shift, hist: { X: hist.X.slice(), O: hist.O.slice() }, fogAt: fogAt.slice(), turn });
+        if (res || st.moves >= MOVE_CAP) break;
+        turn = other(turn);
+      }
+      const won = res && res !== 'draw' ? res : null;
+      if (want && (!won || won.p !== want) && attempt < 79) continue;
+      // keep this one: replay its moves onto the real board, one snapshot per move
+      this.initRuleQuiet(b, rule);
+      b.ruled = true;
+      snap();
+      for (const sp of steps) {
+        b.cells.forEach((c, i) => { c.owner = sp.o[i]; });
+        b.moves = sp.moves; b.shift = sp.shift; b.hist = sp.hist; b.fogAt = sp.fogAt; b.turn = other(sp.turn);
+        snap();
+      }
+      if (won) { b.winner = won.p; b.winLine = won.line; b.winTime = -1e9; return won.p; }
+      return DEAD;
+    }
+    return DEAD;
+  },
+  // initRule() without the Wild Square's light show and its sounds
+  initRuleQuiet(b, rule) {
+    b.rule = rule;
+    const k = rule === 'vanish' ? KEEP_MARKS : 99;
+    b.keep = { X: k, O: k };
+    b.shift = rule === 'shift' ? randomShift() : null;
+    b.shiftedAt = 0;
+    b.fogAt = Array(9).fill(null); b.fogLift = 0;
+  },
+
+  loadSample() {
+    if (this.lab) { this.toast(STRINGS.dev.sample.busy); return; }
+    if (this.replay) this.stopReplay();
+    // like New game, it may interrupt whatever is running (gen++ below cancels those sequences)
+    // put the player's own game aside (only the first time, so loading two samples keeps the real one)
+    try {
+      if (!localStorage.getItem(SAMPLE_STASH_KEY) && localStorage.getItem(SAVE_KEY)) {
+        localStorage.setItem(SAMPLE_STASH_KEY, JSON.stringify({ save: localStorage.getItem(SAVE_KEY), log: localStorage.getItem(LOG_KEY) }));
+      }
+    } catch (e) { /* storage full: the sample still loads */ }
+    clearTimeout(this.cpuTimer);
+    this.gen++;
+    this.busy = false; this.view = null; this.trail = []; this.selecting = null; Renderer.select = null;
+    ReviewSet.clear(); Tweens.list = [];
+    for (const id of ['wheel', 'slots', 'rulepick']) { const el = $(id); el.hidden = true; el.classList.remove('show'); }
+    $('rulecard').className = 'rulecard';
+    Sound.stopMusic();
+    this.log = []; this.games = [];
+    this.nextRule = null; this.nextRuleBy = null;
+    const rounds = Math.max(1, +this.dev.sampleRounds || 2);
+    const mode = this.dev.sampleWinner;
+    let n = 0;
+    const snap = () => {
+      const d = serialize(this.root);
+      d.nr = null; d.nb = null; d.lw = this.lastWinner;
+      this.snapshot(JSON.stringify(d));
+    };
+    // Round 1: the opening Turf Battle is the whole Round
+    const roundWinner = (r) => (mode === 'X' || mode === 'O' ? mode : mode === 'turns' ? (r % 2 ? 'O' : 'X') : (Math.random() < 0.5 ? 'X' : 'O'));
+    let top = new Board(0, 'X'); top.jackpot = -1;
+    this.root = top;
+    let w = this.sampleTurf(top, this.sampleTypes(n++), roundWinner(0), snap);
+    if (w === DEAD) { w = 'X'; }
+    top.winner = top.winner || w; this.lastWinner = top.winner;
+    for (let r = 1; r < rounds; r++) {
+      // a bigger board grows around the finished one, its center already claimed (as in ascend())
+      const prev = this.root;
+      const N = new Board(prev.level + 1, other(prev.winner));
+      N.seeded = true; N.jackpot = -1;
+      N.cells[4].record = prev; N.cells[4].owner = prev.winner;
+      prev.parent = N; prev.parentIndex = 4;
+      this.root = N;
+      snap();
+      const goal = roundWinner(r), foe = other(goal);
+      for (let guard = 0; guard < 60 && !N.winner; guard++) {
+        const o = N.cells.map((c) => c.owner);
+        // whoever's turn it is picks a square, then a Turf Battle decides it. The Round's chosen winner
+        // takes every square that would win or lose the Round, and a little more than half of the others.
+        const k = AI.choose(o, N.turn);
+        const t = threatsOf(o);
+        const want = t[foe].has(k) || t[goal].has(k) ? goal : (Math.random() < 0.55 ? goal : (Math.random() < 0.8 ? foe : null));
+        const child = new Board(0, N.turn); child.jackpot = -1;
+        child.parent = N; child.parentIndex = k;
+        N.pending = k; N.cells[k].child = child;
+        const tw = this.sampleTurf(child, this.sampleTypes(n++), want, snap);
+        N.cells[k].child = null; N.cells[k].record = child; N.pending = null;
+        N.cells[k].owner = tw;
+        if (tw !== DEAD) this.lastWinner = tw;
+        const res = lineResult(N.cells.map((c) => c.owner));
+        if (res && res !== 'draw') { N.winner = res.p; N.winLine = res.line; N.winTime = -1e9; }
+        else if (res === 'draw') N.cells.forEach((c, i) => { if (i !== 4) { c.owner = null; c.record = null; } });   // a drawn Round is played again
+        else N.turn = other(N.turn);
+        snap();
+      }
+      if (!N.winner) { N.winner = goal; }
+    }
+    // the next Round starts, as after any Round win, waiting for the first square to be picked
+    const last = this.root;
+    const N = new Board(last.level + 1, other(last.winner));
+    N.seeded = true;
+    while (N.jackpot === 4) N.jackpot = (Math.random() * 9) | 0;
+    N.cells[4].record = last; N.cells[4].owner = last.winner;
+    last.parent = N; last.parentIndex = 4;
+    this.root = N;
+    this.layoutAll();
+    const all = (b) => { b.alpha = 1; b.born = -1e9; for (const c of b.cells) { if (c.record) all(c.record); if (c.child) all(c.child); } };
+    all(this.root);
+    this.save();
+    Renderer.setCam(viewOf(this.current()));
+    Renderer.particles = [];
+    this.updateHUD();
+    this.toast(STRINGS.dev.sample.loaded(rounds, n));
+    this.scheduleCPU();
+  },
+
+  // put the player's own game back after a sample (it was set aside when the first sample loaded)
+  restoreSample() {
+    let st = null;
+    try { st = JSON.parse(localStorage.getItem(SAMPLE_STASH_KEY) || 'null'); } catch (e) { st = null; }
+    if (!st || !st.save) { this.toast(STRINGS.dev.sample.nothingToRestore); return; }
+    try {
+      localStorage.setItem(SAVE_KEY, st.save);
+      if (st.log) localStorage.setItem(LOG_KEY, st.log); else localStorage.removeItem(LOG_KEY);
+      localStorage.removeItem(SAMPLE_STASH_KEY);
+    } catch (e) { return; }
+    location.reload();
   },
 
   // Level 0: keep only each player's newest marks; the oldest one vanishes.
@@ -974,7 +1441,7 @@ const Game = {
     const old = h.shift();
     const c = b.cells[old];
     c.owner = null; c.t = -1e9;
-    const t = performance.now() + TIMING.board.vanishPoof;
+    const t = performance.now() + TIMING.board.marks.vanishPoof;
     b.ghosts.push({ k: old, owner: p, t });
     const gen = this.gen;
     setTimeout(() => {
@@ -983,13 +1450,13 @@ const Game = {
       Renderer.sparks(x, y - 10, p, 30, 5);
       Renderer.floatText(x, y - 30, STRINGS.pop.poof, p, 24);
       Sound.poof();
-    }, TIMING.board.vanishPoof);
+    }, TIMING.board.marks.vanishPoof);
   },
 
   // ---------- mystery jackpot ----------
   async jackpotSpin(b, k, p) {
     const [x, y] = Renderer.cellScreen(b, k);
-    await this.step(wait(TIMING.slots.jackpotFoundDelay));
+    await this.step(wait(TIMING.slots.opening.jackpotFoundDelay));
     Sound.jackpotFound();
     Renderer.flash(0.45, '255,210,63');
     Renderer.shake(12);
@@ -997,7 +1464,7 @@ const Game = {
     Renderer.coins(x, y, 70);
     Renderer.ripple(b, k, p, 1.6);
     Renderer.floatText(x, y - 30, STRINGS.pop.jackpot, null, 54);
-    await this.step(wait(TIMING.slots.jackpotToMachine));
+    await this.step(wait(TIMING.slots.opening.jackpotToMachine));
     const spin = Slots.spin(p, b.level, this.vsCPU && p === 'O', { shield: b.level === 0 && b.rule === 'vanish' });
     await this.step(spin);
     const prize = await spin;
@@ -1023,7 +1490,7 @@ const Game = {
       this.updateHUD();
       // the same title card as the wheel, then it flies up to sit beside the current rule as "next game"
       this.showRuleCard(b, STRINGS.ruleCard.pickedBy(p), rule);
-      await this.step(wait(TIMING.slots.rulePickSettle));
+      await this.step(wait(TIMING.slots.prizes.rulePickSettle));
       return {};
     }
     let cands, verb;
@@ -1065,10 +1532,10 @@ const Game = {
     // Gravity: a bombed mark leaves a gap, and a claimed square may be hanging in mid-air, so once the
     // blast has cleared every mark above an empty square falls down into it
     if (b.level === 0 && b.rule === 'gravity' && (prize === 'bomb' || prize === 'jackpot')) {
-      await this.step(wait(TIMING.slots.gravityDropDelay));
-      if (this.settleGravity(b)) await this.step(wait(TIMING.board.gravitySettle));
+      await this.step(wait(TIMING.slots.prizes.gravityDropDelay));
+      if (this.settleGravity(b)) await this.step(wait(TIMING.board.gravity.gravitySettle));
     }
-    await this.step(wait(TIMING.slots.prizeSettle));
+    await this.step(wait(TIMING.slots.prizes.prizeSettle));
     return {};
   },
 
@@ -1078,7 +1545,7 @@ const Game = {
       Renderer.select = this.selecting;
       this.toast(STRINGS.msg.pick(verb));
       this.updateHUD();
-      if (this.vsCPU && p === 'O') setTimeout(() => this.select(AI.pickTarget(b, p, cands, kind)), TIMING.slots.cpuTargetDelay);
+      if (this.vsCPU && p === 'O') setTimeout(() => this.select(AI.pickTarget(b, p, cands, kind)), TIMING.slots.prizes.cpuTargetDelay);
     });
   },
 
@@ -1098,10 +1565,10 @@ const Game = {
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, STRINGS.pop.stalemate, null, 46); }
     const P = b.parent, k = b.parentIndex;
     this.toast(STRINGS.msg.stalemate(b.rule === 'vanish', MOVE_CAP, CELL_NAMES[k], P.level));
-    await this.step(wait(TIMING.camera.stalematePause));
+    await this.step(wait(TIMING.camera.stalemate.stalematePause));
     Sound.zoomOut();
-    Tweens.add(TIMING.camera.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.wonFadeDelay);
-    await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.zoomOutToParent));
+    Tweens.add(TIMING.camera.turf.wonFade, (e) => { b.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.turf.wonFadeDelay);
+    await this.step(Renderer.flyTo(viewOf(P), TIMING.camera.turf.zoomOutToParent));
     P.cells[k].child = null;
     P.cells[k].record = b;
     P.pending = null;
@@ -1117,8 +1584,8 @@ const Game = {
       Renderer.shake(14);
       Renderer.kick(0.05);
       Renderer.floatText(x, y - 20, STRINGS.pop.blocked, null, 34);
-    }, TIMING.board.markImpact);
-    await this.step(wait(TIMING.camera.stalemateSettle));
+    }, TIMING.board.marks.markImpact);
+    await this.step(wait(TIMING.camera.stalemate.stalemateSettle));
     return P;
   },
 
@@ -1128,7 +1595,7 @@ const Game = {
     { const [x, y] = Renderer.boardScreenCenter(b); Renderer.floatText(x, y - 30, STRINGS.pop.draw, null, 50); }
     const big = b.level >= 1;
     this.toast(big ? STRINGS.msg.bigDraw(lvName(b.level), other(b.starter)) : STRINGS.msg.turfDraw(lvName(b.level, true), other(b.starter)));
-    await this.step(wait(TIMING.camera.drawPause));
+    await this.step(wait(TIMING.camera.draw.drawPause));
     const keep = (k, c) => big ? ([0, 2, 4, 6, 8].includes(k) && c.owner !== DEAD) : (b.seeded && k === 4);
     b.cells.forEach((c, k) => {
       if (keep(k, c)) return;
@@ -1144,7 +1611,7 @@ const Game = {
     b.starter = other(b.starter);
     b.turn = b.starter;
     b.born = performance.now();
-    await this.step(wait(TIMING.camera.drawSettle));
+    await this.step(wait(TIMING.camera.draw.drawSettle));
     if (!big) await this.startRule(b);
   },
 
@@ -1195,9 +1662,9 @@ const Game = {
       if (ReviewSet.has(r)) continue;
       r.alpha = 0;
       ReviewSet.add(r);
-      Tweens.add(TIMING.camera.browseFade, (e) => { r.alpha = e; }, Ease.outCubic);
+      Tweens.add(TIMING.camera.browse.browseFade, (e) => { r.alpha = e; }, Ease.outCubic);
     }
-    for (const r of leaving) Tweens.add(TIMING.camera.browseFade, (e) => { r.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.browseFadeDelay);
+    for (const r of leaving) Tweens.add(TIMING.camera.browse.browseFade, (e) => { r.alpha = 1 - e; }, Ease.inOutCubic, TIMING.camera.browse.browseFadeDelay);
     const goingIn = target.level < from.level;
     this.view = target === this.current() ? null : target;
     this.layoutAll();
@@ -1205,7 +1672,7 @@ const Game = {
     this.updateHUD();
     goingIn ? Sound.zoomIn() : Sound.zoomOut();
     try {
-      await this.step(Renderer.flyTo(viewOf(target), TIMING.camera.browseZoom));
+      await this.step(Renderer.flyTo(viewOf(target), TIMING.camera.browse.browseZoom));
       leaving.forEach((r) => ReviewSet.delete(r));
     } catch (e) {
       if (gen === this.gen) console.error(e);
@@ -1227,7 +1694,7 @@ const Game = {
 
   scheduleCPU() {
     clearTimeout(this.cpuTimer);
-    if (!this.vsCPU || this.busy || this.view) return;
+    if (!this.vsCPU || this.busy || this.view || this.lab) return;
     const b = this.current();
     if (b.turn !== 'O' || b.winner || (b.level === 0 && !b.ruled)) return;
     this.cpuTimer = setTimeout(() => {
@@ -1240,7 +1707,7 @@ const Game = {
 
   // ---------- storage ----------
   save() {
-    if (this.replay) return;   // never save the replay's copy of the game
+    if (this.replay || this.lab) return;   // never save the replay's copy of the game, or a Developer Mode test board
     try {
       const d = serialize(this.root);
       d.nr = this.nextRule; d.nb = this.nextRuleBy; d.lw = this.lastWinner;
@@ -1335,7 +1802,7 @@ const Game = {
       if (old) for (const key of ['tilt', 'tiltLast', 'tiltStarted', 'tiltLanded', 'tiltFrom', 'tiltT']) cur[key] = old[key];
       if (old) cur.cells.forEach((c, k) => {
         const o = old.cells[k].owner;
-        if (c.owner && c.owner !== o) { c.t = now; if (c.owner === 'X' || c.owner === 'O') { Sound.place(c.owner); setTimeout(() => Sound.land(cur.level), TIMING.board.markImpact); } }
+        if (c.owner && c.owner !== o) { c.t = now; if (c.owner === 'X' || c.owner === 'O') { Sound.place(c.owner); setTimeout(() => Sound.land(cur.level), TIMING.board.marks.markImpact); } }
         if (o && o !== c.owner && !c.owner) cur.ghosts.push({ k, owner: o, t: now });
       });
       if (old && !old.winner && cur.winner) { cur.winTime = now; const [x, y] = Renderer.boardScreenCenter(cur); Renderer.floatText(x, y - 40, STRINGS.pop.replayWins(cur.winner), cur.winner, 44); Sound.win(); }
@@ -1353,7 +1820,7 @@ const Game = {
     const cur = this.current();
     if (!wantsUpright(cur) || cur.tilt >= 1) return 0;
     const T = TIMING.board;
-    return T.gravityRaiseDelay + T.gravityRaise * (1 - (cur.tilt || 0)) + TIMING.replay.afterGravityRaise;
+    return T.gravity.gravityRaiseDelay + T.gravity.gravityRaise * (1 - (cur.tilt || 0)) + TIMING.replay.afterGravityRaise;
   },
   // queue the next replay move after base ms (scaled by the replay speed), but never before a Gravity
   // board has finished standing up (that animation always runs at normal speed)
@@ -1440,6 +1907,7 @@ const Game = {
     if (/[?&]dev\b/.test(location.search)) this.dev.on = true;
   },
   savePrefs() {
+    if (this.lab) return;   // a Developer Mode transition test must not change the saved settings or best Round
     try { localStorage.setItem(PREFS_KEY, JSON.stringify({ vsCPU: this.vsCPU, sound: Sound.on, sfxVol: Sound.sfxVol, voiceVol: Sound.voiceVol, best: this.best, dev: this.dev })); } catch (e) { /* ignore */ }
   },
 
@@ -1551,7 +2019,7 @@ const Game = {
 
   updateStakes(cur) {
     const el = $('stakes');
-    let html = '', match = false;
+    let html = '', match = false, mp = null;
     if (!this.view && !cur.winner) {
       if (cur.level === 0 && !cur.parent) {
         html = STRINGS.hud.stakesFirst(cur.level + 1);
@@ -1559,6 +2027,7 @@ const Game = {
         const P = cur.parent, k = cur.parentIndex;
         const s = this.stakesFor(P, k);
         match = s.win.length > 0;
+        if (match) mp = { board: cur, who: s.win, level: P.level };
         html = (match ? STRINGS.hud.matchPoint : STRINGS.hud.stakes) +
           (s.parts.length ? s.parts.join(' · ') : STRINGS.hud.stakesDefault(CELL_NAMES[k], P.level));
       } else {
@@ -1578,16 +2047,72 @@ const Game = {
       el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
     }
     document.body.classList.toggle('matchpoint', match);
-    if (match && this.mpBoard !== cur) {
+    // Renderer.drawBoard() reads this to light up the deciding spaces
+    if (!mp) this.mp = null;
+    else if (!this.mp || this.mp.board !== cur) this.mp = { ...mp, lit: 0 };
+    // the big moment waits until the board is playable (after the wheel and the rule title card)
+    if (match && this.mpBoard !== cur && cur.ruled && !this.busy && !this.lab) {
       this.mpBoard = cur;
-      setTimeout(() => {
-        if (this.current() !== cur || this.view) return;
-        Sound.heartbeat();
-        Sound.matchPointVoice();
-        Renderer.floatText(Renderer.W / 2, Renderer.centerY() - 60, STRINGS.pop.matchPoint, null, 52);
-        Renderer.shake(8);
-      }, 1100);
+      this.matchPointSoon(cur);
     }
+  },
+
+  // Starts the Match Point moment once the rule title card has landed in its plate at the top
+  matchPointSoon(cur) {
+    if (this.current() !== cur || this.view) return;
+    if (this.pinState && this.pinState.waiting) { setTimeout(() => this.matchPointSoon(cur), 100); return; }
+    setTimeout(() => this.matchPointMoment(cur), TIMING.matchPoint.delay);
+  },
+
+  // The spaces on a Match Point board that would win it right now for a player who would then win the Round
+  matchPointCells(b, who) {
+    if (!b || b.winner || b.rule === 'fog') return [];   // Fog of War: lighting a space would give away hidden marks
+    const t = threatsOf(b.cells.map((c) => c.owner)), out = [];
+    for (const p of who) for (const k of t[p]) if (!b.cells[k].owner) out.push({ k, p });
+    return out;
+  },
+
+  // MATCH POINT: riser, then the title slams down with a flash, a shake, a burst of light on the
+  // deciding spaces and the announcer; the heartbeat follows (all timings in TIMING.matchPoint)
+  matchPointMoment(cur) {
+    const MPT = TIMING.matchPoint;
+    const alive = () => this.current() === cur && !this.view && !cur.winner && this.mp && this.mp.board === cur;
+    if (!alive()) return;
+    Sound.matchPointRise(MPT.riseLead / 1000);
+    setTimeout(() => {
+      if (!alive()) return;
+      const mp = this.mp;
+      this.matchPointBanner(mp.who, mp.level);
+      Sound.matchPointSlam();
+      Sound.matchPointVoice(MPT.voiceAfter / 1000);
+      setTimeout(() => { if (alive()) Sound.heartbeat(); }, MPT.heartbeatAfter);
+      Renderer.flash(0.6, '255,40,70');
+      Renderer.shake(18);
+      Renderer.kick(0.05);
+      mp.lit = performance.now();
+      // sparks fly from both sides of the title, in the colours of the player(s) on match point
+      const cx = Renderer.W / 2, cy = Renderer.H / 2, half = Math.min(Renderer.W * 0.42, 520);
+      mp.who.forEach((p, i) => {
+        Renderer.sparks(cx - half, cy, p, 40, 13);
+        Renderer.sparks(cx + half, cy, mp.who[(i + 1) % mp.who.length], 40, 13);
+      });
+      // every deciding space erupts, one after another
+      this.matchPointCells(cur, mp.who).forEach(({ k, p }, i) => setTimeout(() => {
+        if (!alive()) return;
+        Renderer.ripple(cur, k, p, 1.8);
+        const [x, y] = Renderer.cellScreen(cur, k);
+        Renderer.sparks(x, y, p, 30, 9);
+      }, i * MPT.sparkGap));
+    }, MPT.riseLead);
+  },
+
+  matchPointBanner(who, level) {
+    const el = $('mpBanner');
+    el.querySelector('.mp-title').textContent = STRINGS.pop.matchPoint;
+    el.querySelector('.mp-sub').innerHTML = STRINGS.pop.matchPointSub(who, level);
+    el.classList.remove('play');
+    void el.offsetWidth; // restart animation
+    el.classList.add('play');
   },
 
   toast(html) {

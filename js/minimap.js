@@ -117,7 +117,7 @@ const MiniMap = {
       ctx.fillStyle = fill;
       ctx.beginPath(); ctx.roundRect(cx + 1, cy + 1, cs - 2, cs - 2, 2); ctx.fill();
       if (fogged(b, k)) { const ctx = this.ctx; ctx.fillStyle = 'rgba(214,218,236,0.85)'; [[-0.35, 0.1, 0.32], [0.3, 0.1, 0.3], [0, -0.15, 0.4]].forEach(([u, v, r]) => { ctx.beginPath(); ctx.arc(cx + cs / 2 + u * cs * 0.4, cy + cs / 2 + v * cs * 0.4, r * cs * 0.4, 0, Math.PI * 2); ctx.fill(); }); }
-      else if (c.owner && !(c.owner === 'W' && b.wildIntro && performance.now() < c.t + TIMING.board.markImpact)) this.glyph(c.owner, cx + cs / 2, cy + cs / 2, cs * 0.3);
+      else if (c.owner && !(c.owner === 'W' && b.wildIntro && performance.now() < c.t + TIMING.board.marks.markImpact)) this.glyph(c.owner, cx + cs / 2, cy + cs / 2, cs * 0.3);
     }
     if (b.winLine) {
       const ctr = (k) => [x0 + pad + ((k % 3) + 0.5) * cs, y0 + pad + (((k / 3) | 0) + 0.5) * cs];

@@ -141,6 +141,9 @@ const KEEP_MARKS_R = 3; // must match KEEP_MARKS in game.js
 const hash01 = (n) => fract(Math.sin(n * 12.9898) * 43758.5453);
 // Empty squares that would complete a line for each player.
 const WIN_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+// A board's winning line fades out while the camera is zoomed in past it: fully shown while the board
+// is up to 0.9x the screen's shorter side, gone by 1.5x (zoomed into one of its squares it is about 1.9x)
+const WINLINE_FADE = [0.9, 1.5];
 function threatsOf(owners) {
   const t = { X: new Set(), O: new Set() };
   for (const line of WIN_LINES) {
@@ -657,13 +660,13 @@ const Renderer = {
     if (!fogged) { c.fogT = null; return 0; }
     if (c.fogT == null) c.fogT = now;
     const T = TIMING.board;
-    const inK = Ease.inOutCubic(clamp01((now - c.fogT) / T.fogCover));
-    if (b.fogLift) return inK * (1 - Ease.inOutCubic(clamp01((now - b.fogLift) / T.fogLift)));
-    if (b.winner) return inK * clamp01(1 - (now - b.winTime) / T.fogWinFade);
+    const inK = Ease.inOutCubic(clamp01((now - c.fogT) / T.fog.fogCover));
+    if (b.fogLift) return inK * (1 - Ease.inOutCubic(clamp01((now - b.fogLift) / T.fog.fogLift)));
+    if (b.winner) return inK * clamp01(1 - (now - b.winTime) / T.fog.fogWinFade);
     return inK;
   },
   // 0..1 progress of the fog evaporating at the end of a Fog of War game
-  fogRise(b, now) { return b.fogLift ? clamp01((now - b.fogLift) / TIMING.board.fogLift) : 0; },
+  fogRise(b, now) { return b.fogLift ? clamp01((now - b.fogLift) / TIMING.board.fog.fogLift) : 0; },
 
   // the end of a Fog of War game: wisps of fog curl up off every fogged square and thin away
   fogEvaporate(b, cells) {
@@ -731,12 +734,12 @@ const Renderer = {
     if (i === n - 1) {
       // the last square holds its light, pulsing, until the mark lands, then fades
       if (st[i].k !== k) return 0;
-      const land = b.wildIntro.drop + TIMING.board.markImpact;
-      return now < land ? 0.75 + 0.25 * Math.sin((now - st[i].t) / 60) : clamp01(1 - (now - land) / TIMING.board.wildLightFade);
+      const land = b.wildIntro.drop + TIMING.board.marks.markImpact;
+      return now < land ? 0.75 + 0.25 * Math.sin((now - st[i].t) / 60) : clamp01(1 - (now - land) / TIMING.board.wildIntro.wildLightFade);
     }
     // the current square is full on; the previous one leaves a short trail
     if (st[i].k === k) return 1;
-    if (i > 0 && st[i - 1].k === k) return 0.45 * clamp01(1 - (now - st[i].t) / TIMING.board.wildStepTrail);
+    if (i > 0 && st[i - 1].k === k) return 0.45 * clamp01(1 - (now - st[i].t) / TIMING.board.wildIntro.wildStepTrail);
     return 0;
   },
 
@@ -920,9 +923,9 @@ const Renderer = {
       const want = wantsUpright(b) ? 1 : 0;
       if (b.tilt === undefined) b.tilt = 0;
       const dtt = Math.min(100, now - (b.tiltLast || now)); b.tiltLast = now;
-      const RAISE = TIMING.board.gravityRaise;
+      const RAISE = TIMING.board.gravity.gravityRaise;
       if (want && !b.tiltStarted) {
-        b.tiltStarted = true; b.tiltFrom = b.tilt; b.tiltT = now + TIMING.board.gravityRaiseDelay;
+        b.tiltStarted = true; b.tiltFrom = b.tilt; b.tiltT = now + TIMING.board.gravity.gravityRaiseDelay;
         if (b === cur) this.flyTo(viewOf(b), TIMING.camera.gravityTilt);
         if (typeof Sound !== 'undefined' && Sound.hydraulic && b.tilt < 0.9) setTimeout(() => Sound.hydraulic(RAISE / 1000), 300);
       }
@@ -936,7 +939,7 @@ const Renderer = {
         }
       } else if (!want) {
         b.tiltStarted = false; b.tiltLanded = false;
-        b.tilt = Math.max(0, b.tilt - dtt / TIMING.board.gravityLower);
+        b.tilt = Math.max(0, b.tilt - dtt / TIMING.board.gravity.gravityLower);
       }
     }
     const prevXf = this.xf;
@@ -966,6 +969,9 @@ const Renderer = {
     const wins = b.winLine ? new Set(b.winLine) : null;
     if (b.ghosts && b.ghosts.length) b.ghosts = b.ghosts.filter((gh) => now - gh.t < 460);
     const threats = b.level >= 1 && !b.winner ? threatsOf(b.cells.map((c) => c.owner)) : null;
+    // MATCH POINT: the deciding spaces (lit once the title has slammed down), space -> player
+    const mpG = b === cur && typeof Game !== 'undefined' && Game.mp && Game.mp.board === b && Game.mp.lit ? Game.mp : null;
+    const mpSet = mpG ? new Map(Game.matchPointCells(b, mpG.who).map((o) => [o.k, o.p])) : null;
     const tkk = this.tk();
     const order = this.xf ? ORDER.slice().sort((p, q) => ((p % 3) + ((p / 3) | 0) * tkk) - ((q % 3) + ((q / 3) | 0) * tkk)) : ORDER;
     for (const k of order) {
@@ -1055,13 +1061,13 @@ const Renderer = {
         ctx.globalAlpha = 1;
       }
       const wildWait = c.owner === 'W' && b.wildIntro && now < c.t;
-      if (c.owner === 'W' && b.wildIntro && !b.wildIntro.puffed && now >= c.t + TIMING.board.markImpact) {
+      if (c.owner === 'W' && b.wildIntro && !b.wildIntro.puffed && now >= c.t + TIMING.board.marks.markImpact) {
         b.wildIntro.puffed = true;
         if (b === cur) this.wildImpact(cx, cy, pz, s);
       }
       if (b.wildIntro && now > b.wildIntro.end + 400) b.wildIntro = null;
       if (c.owner && !wildWait) {
-        const dp = clamp01((now - c.t) / TIMING.board.markDrop);
+        const dp = clamp01((now - c.t) / TIMING.board.marks.markDrop);
         const drop = (1 - Ease.outBounce(dp)) * 1.8 * s;
         // squash & stretch: tall and thin while falling, squashed flat on impact, then wobble
         const HIT = 1 / 2.75;
@@ -1088,7 +1094,7 @@ const Renderer = {
         }
         let pcx = cx, pcy = cy, hop = 0;
         if (c.slide) {
-          const q = clamp01((now - c.slide.t) / (c.slide.dur || TIMING.board.slide));
+          const q = clamp01((now - c.slide.t) / (c.slide.dur || TIMING.board.shift.slide));
           if (q >= 1) c.slide = null;
           else { const e = 1 - Ease.outCubic(q); pcx += c.slide.dx * e * s; pcy += c.slide.dy * e * s; hop = Math.sin(q * Math.PI) * 0.25 * (c.slide.hop || 1) * s; }
         }
@@ -1123,7 +1129,7 @@ const Renderer = {
       if (b.ghosts && b.ghosts.length) {
         for (const gh of b.ghosts) {
           if (gh.k !== k) continue;
-          const q = clamp01((now - gh.t) / TIMING.board.ghostFade);
+          const q = clamp01((now - gh.t) / TIMING.board.marks.ghostFade);
           const gx = cx + (gh.dx || 0) * Ease.outCubic(q) * s, gy = cy + (gh.dy || 0) * Ease.outCubic(q) * s;
           this.piece(gh.owner, gx, gy, pz, s, a * (1 - q) * (q === 0 ? 0.6 : 1), q * 0.9 * s, q, 1 + q * 0.5, 1 - q * 0.7);
         }
@@ -1141,6 +1147,33 @@ const Renderer = {
         ctx.setLineDash([Math.max(3, px * 0.08), Math.max(2, px * 0.05)]);
         this.fillPoly(pts, `rgba(${colr},${0.12 + 0.18 * pul})`, `rgba(${colr},${0.7 + 0.3 * pul})`, Math.max(2, px * (k === this.hover ? 0.05 : 0.03)));
         ctx.setLineDash([]); ctx.shadowBlur = 0;
+      }
+      // MATCH POINT: the deciding spaces flare at the slam, then glow and throb with the heartbeat
+      const mpP = mpSet && mpSet.get(k);
+      if (mpP && ta > 0.3) {
+        const MP = TIMING.matchPoint, pc = PIECE_COL[mpP];
+        const flare = 1 - clamp01((now - mpG.lit) / MP.lightUp);
+        const ph = ((now - mpG.lit) % MP.glowPulse) / MP.glowPulse;
+        const beat = Math.exp(-((ph - 0.1) ** 2) / 0.004) + 0.7 * Math.exp(-((ph - 0.34) ** 2) / 0.004);   // lub-dub
+        const gl = Math.min(1, 0.35 + 0.45 * beat + flare);
+        const ins = 0.08 * s * (1 - 0.6 * beat);
+        const face = rect(g.ox + i * s + ins, g.oy + j * s + ins, g.ox + (i + 1) * s - ins, g.oy + (j + 1) * s - ins).map(([x, y]) => this.project(x, y, pz + 0.01 * s));
+        ctx.globalAlpha = a;
+        ctx.shadowColor = `rgba(255,${60 + 150 * flare},70,1)`; ctx.shadowBlur = 16 + 34 * gl;
+        this.fillPoly(face, `hsla(${pc.h},100%,${55 + 30 * flare}%,${0.2 + 0.35 * gl})`, `rgba(255,${180 + 50 * beat},63,${0.55 + 0.45 * gl})`, Math.max(2, px * (0.03 + 0.03 * gl)));
+        ctx.shadowBlur = 0;
+        // a pillar of light rising out of the space (not on the upright Gravity board)
+        if (!upright) {
+          const [bx, by] = this.project(cx, cy, pz), [tx, ty] = this.project(cx, cy, pz + (0.9 + 1.6 * flare + 0.3 * beat) * s);
+          const w = px * (0.3 + 0.12 * flare), al = 0.18 + 0.22 * beat + 0.6 * flare;
+          const grd = ctx.createLinearGradient(bx, by, tx, ty);
+          grd.addColorStop(0, `rgba(255,${200 + 40 * flare},${120 + 100 * flare},${al})`);
+          grd.addColorStop(0.35, `hsla(${pc.h},100%,65%,${al * 0.55})`);
+          grd.addColorStop(1, `hsla(${pc.h},100%,65%,0)`);
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = grd;
+          ctx.beginPath(); ctx.moveTo(bx - w, by); ctx.lineTo(tx - w * 0.6, ty); ctx.lineTo(tx + w * 0.6, ty); ctx.lineTo(bx + w, by);
+          ctx.ellipse(bx, by, w, w * 0.45, 0, 0, Math.PI); ctx.fill(); ctx.restore();
+        }
       }
       // mystery-jackpot shimmer: every empty square twinkles now and then; the jackpot square a bit more often
       if (!c.owner && !sub && !b.winner && b.jackpot !== undefined && b.jackpot >= 0 && a > 0.3) {
@@ -1173,7 +1206,10 @@ const Renderer = {
 
     for (const f of late) f();
     ctx.globalAlpha = 1;
-    if (b.winLine && a > 0.003) {
+    // the winning line fades out as the camera zooms in past this board (to look at a board inside one of
+    // its squares), so it never lies across the smaller board; it is back when the camera pulls out again
+    const lineFade = 1 - clamp01((3 * px / Math.min(this.W, this.H) - WINLINE_FADE[0]) / (WINLINE_FADE[1] - WINLINE_FADE[0]));
+    if (b.winLine && a * lineFade > 0.003) {
       const p = clamp01((now - b.winTime) / 450);
       const ci = (k) => [g.ox + ((k % 3) + 0.5) * s, g.oy + (((k / 3) | 0) + 0.5) * s];
       const A = ci(b.winLine[0]), B = ci(b.winLine[2]);
@@ -1183,7 +1219,7 @@ const Renderer = {
       const z = zt + GEO.pieceH * s * 1.15;
       const s0 = this.project(S[0], S[1], z);
       const s1 = this.project(lerp(S[0], T[0], Ease.outCubic(p)), lerp(S[1], T[1], Ease.outCubic(p)), z);
-      ctx.globalAlpha = a;
+      ctx.globalAlpha = a * lineFade;
       ctx.lineCap = 'round';
       ctx.shadowColor = col(PIECE_COL[b.winner], 10);
       ctx.shadowBlur = 30;

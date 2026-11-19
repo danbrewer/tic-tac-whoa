@@ -56,7 +56,7 @@ const SOUND = {
   },
 
   // -- the heartbeat under the wheel's spin (Sound.heartPulse). It gets louder as it races: quiet at the
-  //    slowest beat in TIMING.wheel.heartbeats, loud at the fastest. (How fast it races, and the gap
+  //    slowest beat in TIMING.wheel.heartbeat.heartbeats, loud at the fastest. (How fast it races, and the gap
   //    between "lub" and "dub", are timings: see TIMING.wheel in js/timing.js.)
   heartbeat: {
     quiet: 0.37,     // loudness of the slowest beats
@@ -78,6 +78,8 @@ const SOUND = {
     zoomOut: 1,      // the camera pulling back out
     ascend: 1,       // a whole level won: the big rise to the next level
     heartbeat: 1,    // the double heartbeat on MATCH POINT
+    matchPointRise: 1, // the rising whoosh that builds up to the MATCH POINT title
+    matchPointSlam: 1, // the deep hit and low brass stab as the MATCH POINT title slams down
     // game types moving marks by themselves
     shift: 1,        // Shifting Squares / Ring Spin / Crossfire sliding the marks
     fog: 1,          // Fog of War rolling over a mark
@@ -96,7 +98,8 @@ const SOUND = {
     music: 1,        // the driving drum loop while the reels spin
     stopMusic: 1,    // the final hit when that loop stops
     reelTick: 1,     // the reels ticking past
-    reelStop: 1,     // each reel thudding to a stop
+    reelStop: 1,     // each reel stopping: a door closing
+    reelStopBig: 1,  // the last reel of an INSTANT WIN stopping: a heavy door slamming in a big hall
     tension: 1,      // the rising whine before the last reel
     windup: 1,       // the INSTANT WIN tease wind-up on reel 1
     drumroll: 1,     // the snare roll for the deciding reel (also under the wheel's last spokes)
