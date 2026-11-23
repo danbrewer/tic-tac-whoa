@@ -146,6 +146,18 @@ const Sound = {
     this.noise(0.35, { vol: 0.18, from: 6000, to: 500, q: 0.7 });
     this.tone(900, 0.3, { type: 'sine', vol: 0.06, slideTo: 2400 });
   },
+  // A stalemate block slamming into its square: the heavy door hit, deeper, through the big hall reverb
+  blockSlam() {
+    if (!this.on || !this.ctx) return;
+    const c = this.ctx, out = c.createGain();
+    out.connect(this.sfx());
+    const pre = c.createDelay(0.2); pre.delayTime.value = 0.03;
+    const conv = c.createConvolver(); conv.buffer = this.hallIR(true);
+    const wet = c.createGain(); wet.gain.value = 1.2;
+    out.connect(pre).connect(conv).connect(wet).connect(this.sfx());
+    out.connect(this.echoBus());
+    this.door(out, 0.6, 1.4);
+  },
   stone() {
     this.tone(60, 0.5, { type: 'sine', vol: 0.45, slideTo: 30 });
     this.noise(0.4, { vol: 0.3, from: 900, to: 120, q: 0.6 });

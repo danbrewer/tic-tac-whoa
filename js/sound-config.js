@@ -99,6 +99,7 @@ const SOUND = {
     stopMusic: 1,    // the final hit when that loop stops
     reelTick: 1,     // the reels ticking past
     reelStop: 1,     // each reel stopping: a door closing
+    blockSlam: 1,    // the stalemate block hitting its square (with hall reverb)
     reelStopBig: 1,  // the last reel of an INSTANT WIN stopping: a heavy door slamming in a big hall
     tension: 1,      // the rising whine before the last reel
     windup: 1,       // the INSTANT WIN tease wind-up on reel 1

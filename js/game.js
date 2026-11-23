@@ -593,6 +593,7 @@ const Game = {
         Sound.pop(i);
       }, TT.winLineFirst + i * TT.winLineGap));
       Renderer.floatText(sx, sy - 40, STRINGS.pop.won(b.level), res.p, 46);
+      if (b.level > 0) this.roundWinJuice(b, res.p, sx, sy);
       this.toast(STRINGS.msg.wins(res.p, lvName(b.level, true)));
       this.updateHUD();
       await this.step(waitUntil(won, TT.zoomOutAt));
@@ -613,6 +614,31 @@ const Game = {
       ck = k;
       b = P;
     }
+  },
+
+  // Extra celebration for winning a Round (a level 1+ board): fanfare, double flash, coin fountain,
+  // staggered bursts, fireworks and rolling shakes on top of the normal win effects.
+  roundWinJuice(b, p, sx, sy) {
+    const foe = other(p), lv = b.level;
+    Sound.fanfare();
+    Sound.bigBoom(0.8, 0);
+    Sound.boom();
+    Renderer.flash(0.7, '255,230,120');
+    Renderer.shake(22 + lv * 4);
+    Renderer.kick(0.16);
+    Renderer.coins(sx, sy, 70 + lv * 20);
+    Renderer.fireworks(p, 4 + lv);
+    [250, 600, 950].forEach((d, i) => setTimeout(() => {
+      Renderer.burst(sx + (i - 1) * Renderer.W * 0.18, sy - 30 * i, i % 2 ? foe : p, 70);
+      Renderer.coins(sx, sy, 30);
+      Renderer.shake(9);
+      Renderer.flash(0.25, p === 'X' ? '255,60,200' : '0,230,255');
+      Sound.pop(i + 3);
+      Sound.boomSmall();
+      if (i !== 1) Sound.boom(); else Sound.bigBoom(0.5, i + 1);
+    }, d));
+    // crackling fireworks pops after the main bursts
+    for (let j = 0; j < 4 + lv; j++) setTimeout(() => Sound.boomSmall(), 300 + j * 260);
   },
 
   async ascend(b) {
@@ -1601,6 +1627,7 @@ const Game = {
       Renderer.sparks(x, y, DEAD, 40, 8);
       Renderer.shake(14);
       Renderer.kick(0.05);
+      Sound.blockSlam();
       Renderer.floatText(x, y - 20, STRINGS.pop.blocked, null, 34);
     }, TIMING.board.marks.markImpact);
     await this.step(waitUntil(t0, TS.continueAt));
